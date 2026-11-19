@@ -3,7 +3,7 @@ import { BUCKET, supabase } from './supabase'
 import type { Angle, Experiment, ProductMode, StageType } from './domain'
 
 const HISTORY_SELECT =
-  'id, product_mode, product_name, created_at, stages(id, experiment_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
+  'id, product_mode, product_name, brand, created_at, stages(id, experiment_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
 
 export async function fetchHistory(): Promise<Experiment[]> {
   const { data, error } = await supabase.from('experiments').select(HISTORY_SELECT).order('created_at', { ascending: false })
@@ -29,7 +29,7 @@ export interface FinalizeArgs {
   experimentId: string
   stageId: string
   photos: FinalizePhoto[]
-  newExperiment?: { product_mode: ProductMode; product_name: string | null } | null
+  newExperiment?: { product_mode: ProductMode; product_name: string | null; brand: string | null } | null
   newStage?: { stage_type: StageType; captured_at: string; notes: string | null } | null
 }
 

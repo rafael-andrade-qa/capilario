@@ -100,7 +100,7 @@ test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ p
   await expect(page.locator('.inherited')).toHaveText('Ondulando a Gema')
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   await stageRadio(page, 'Seco').click()
-  await page.getByLabel('Observação (opcional)').fill('Macio e solto.')
+  await page.getByLabel('Observação').fill('Macio e solto.')
   ids.dry = await saveAndGetStage(page)
 
   await expect(page.locator('.experiment')).toHaveCount(1)
@@ -199,8 +199,17 @@ test('A5: ângulo ausente aparece como ausência, sem trocar de ângulo', async 
   await slot(page, 'front').locator('.slot-target').click()
   await slot(page, 'back').locator('.slot-target').click()
   await stageRadio(page, 'Dia seguinte').click()
+  // Produto é obrigatório: nome ou "Sem finalizador".
+  await saveButton(page).click()
+  await expect(page.getByText('Informe o produto ou marque Sem finalizador.')).toBeVisible()
+  await page.getByLabel('Produto').fill('Gelatina A5')
+  await page.getByLabel('Marca').fill('Marca Teste')
   ids.backOnly = await saveAndGetStage(page)
-  await expect(page.locator('.experiment', { hasText: 'Produto não informado' })).toHaveCount(1)
+  const card = page.locator('.experiment', { hasText: 'Gelatina A5' })
+  await expect(card.locator('h2')).toHaveText('Gelatina A5')
+  await expect(card.locator('.brand-name')).toHaveText('Marca Teste')
+  // A etapa com 1 de 4 fotos mostra o contador ao lado do nome.
+  await expect(card.locator('.count-pill')).toHaveText('1/4')
 
   // Dia seguinte × Seco é permitido (como o Seco amanheceu).
   await page.goto(`./#/comparar?a=${ids.backOnly}&b=${ids.dry}`)
@@ -226,7 +235,7 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   await stageRadio(page, 'Molhado').click()
   await page.getByLabel('Produto').fill('Creme teste A6')
-  await page.getByLabel('Observação (opcional)').fill('nota preservada')
+  await page.getByLabel('Observação').fill('nota preservada')
   // Dois toques seguidos em Salvar.
   await saveButton(page).evaluate((b: HTMLButtonElement) => {
     b.click()
@@ -234,7 +243,7 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
   })
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
   await expect(page.getByLabel('Produto')).toHaveValue('Creme teste A6')
-  await expect(page.getByLabel('Observação (opcional)')).toHaveValue('nota preservada')
+  await expect(page.getByLabel('Observação')).toHaveValue('nota preservada')
   await expect(page.locator('.slot .badge.ok')).toHaveCount(3)
   await expect(page.locator('.slot .badge.err')).toHaveCount(1)
 
@@ -262,6 +271,7 @@ test('A6: resposta perdida na finalização é confirmada no banco, sem duplicar
   await page.getByRole('link', { name: '+ Novo registro' }).click()
   await pick(page, [FRONT, LEFT])
   await stageRadio(page, 'Seco').click()
+  await page.getByLabel('Sem finalizador').check()
   await saveAndGetStage(page)
   const after = await counts(me.id)
   expect(after).toEqual({ experiments: before.experiments! + 1, stages: before.stages! + 1, photos: before.photos! + 2 })
@@ -279,6 +289,7 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
   await page.getByRole('link', { name: '+ Novo registro' }).click()
   await pick(page, [FRONT, LEFT, RIGHT])
   await stageRadio(page, 'Seco').click()
+  await page.getByLabel('Sem finalizador').check()
   await saveButton(page).click()
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
   await page.getByRole('button', { name: 'Salvar só as 2 fotos concluídas' }).click()
@@ -302,6 +313,7 @@ test('A9: arquivo grande, formato não aceito e upload retomável', async ({ pag
   await expect(slot(page, 'back')).toContainText('HEIC')
   await noHorizontalScroll(page)
   await stageRadio(page, 'Seco').click()
+  await page.getByLabel('Sem finalizador').check()
   await saveButton(page).click()
   await expect(page.getByText('Troque ou remova os arquivos marcados com problema.')).toBeVisible()
 

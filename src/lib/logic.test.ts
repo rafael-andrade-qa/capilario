@@ -4,7 +4,9 @@ import { compatibleTypes, defaultPair, initialAngle, initialType, isCompatible, 
 import {
   formatDateRange,
   formatShortDate,
+  brandLabel,
   productFromForm,
+  productFullLabel,
   productLabel,
   publishedStages,
   sortHistory,
@@ -57,9 +59,12 @@ describe('ângulo inicial do comparador', () => {
 
 describe('produto', () => {
   it('diferencia Sem finalizador de Produto não informado', () => {
-    expect(productFromForm(true, 'Creme X')).toEqual({ product_mode: 'none', product_name: null })
-    expect(productFromForm(false, '   ')).toEqual({ product_mode: 'unspecified', product_name: null })
-    expect(productFromForm(false, ' Ondulando a Gema ')).toEqual({ product_mode: 'named', product_name: 'Ondulando a Gema' })
+    expect(productFromForm(true, 'Creme X', 'Marca')).toEqual({ product_mode: 'none', product_name: null, brand: null })
+    expect(productFromForm(false, '   ', 'Marca')).toEqual({ product_mode: 'unspecified', product_name: null, brand: null })
+    expect(productFromForm(false, ' Ondulando a Gema ')).toEqual({ product_mode: 'named', product_name: 'Ondulando a Gema', brand: null })
+    expect(productFromForm(false, 'Creme de Pentear', ' Widi Care ')).toEqual({ product_mode: 'named', product_name: 'Creme de Pentear', brand: 'Widi Care' })
+    expect(productFullLabel({ product_mode: 'named', product_name: 'Creme', brand: 'Widi' })).toBe('Creme (Widi)')
+    expect(brandLabel({ product_mode: 'none', brand: 'x' })).toBeNull()
     expect(productLabel({ product_mode: 'none', product_name: null })).toBe('Sem finalizador')
     expect(productLabel({ product_mode: 'unspecified', product_name: null })).toBe('Produto não informado')
   })
@@ -90,6 +95,7 @@ describe('histórico', () => {
     id: 'e1',
     product_mode: 'named',
     product_name: 'Gema',
+    brand: null,
     created_at: '2026-11-01T10:00:00+00:00',
     stages: [stage('s2', '2026-11-01T15:00:00+00:00'), stage('s1', '2026-11-01T10:00:00.5+00:00'), stage('vazia', '2026-11-20T10:00:00+00:00', 0)],
   }
@@ -97,10 +103,11 @@ describe('histórico', () => {
     id: 'e2',
     product_mode: 'none',
     product_name: null,
+    brand: null,
     created_at: '2026-11-05T10:00:00+00:00',
     stages: [stage('s3', '2026-11-03T10:00:00+00:00')],
   }
-  const e3: Experiment = { id: 'e3', product_mode: 'unspecified', product_name: null, created_at: '2026-11-10T10:00:00+00:00', stages: [] }
+  const e3: Experiment = { id: 'e3', product_mode: 'unspecified', product_name: null, brand: null, created_at: '2026-11-10T10:00:00+00:00', stages: [] }
 
   it('mostra só etapas com foto, em ordem cronológica', () => {
     expect(publishedStages(e1).map((s) => s.id)).toEqual(['s1', 's2'])

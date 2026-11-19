@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { PhotoView } from '../components/PhotoView'
 import { updateStage } from '../lib/api'
-import { ANGLES, ANGLE_LABEL, STAGE_LABEL, formatDateTime, missingAngles, photoByAngle, productLabel, type Angle } from '../lib/domain'
+import { ANGLES, ANGLE_LABEL, STAGE_LABEL, brandLabel, formatDateTime, missingAngles, photoByAngle, productLabel, type Angle } from '../lib/domain'
 import { href, navigate } from '../lib/router'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
 
@@ -87,7 +87,8 @@ export function StageDetail({ stageId }: { stageId: string }) {
         <div className="detail-title">
           <h1>{STAGE_LABEL[stage.stage_type]}</h1>
           <p className="muted small">
-            {productLabel(experiment)} · {formatDateTime(stage.captured_at)}
+            {productLabel(experiment)}
+            {brandLabel(experiment) && ` · ${brandLabel(experiment)}`} · {formatDateTime(stage.captured_at)}
           </p>
         </div>
         <div className="detail-actions">

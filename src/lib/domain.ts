@@ -45,6 +45,8 @@ export interface Experiment {
   id: string
   product_mode: ProductMode
   product_name: string | null
+  /** Marca (opcional, só com produto nomeado). Aparece discreta, abaixo do nome. */
+  brand: string | null
   created_at: string
   stages: Stage[]
 }
@@ -55,12 +57,32 @@ export function productLabel(e: Pick<Experiment, 'product_mode' | 'product_name'
   return 'Produto não informado'
 }
 
-/** Deriva o modo do produto a partir do formulário: "Sem finalizador" marcado vence; texto em branco = não informado. */
-export function productFromForm(noFinisher: boolean, name: string): { product_mode: ProductMode; product_name: string | null } {
-  if (noFinisher) return { product_mode: 'none', product_name: null }
+/** Marca para exibir abaixo do nome (null quando não há). */
+export function brandLabel(e: Pick<Experiment, 'product_mode' | 'brand'>): string | null {
+  return e.product_mode === 'named' && e.brand ? e.brand : null
+}
+
+/** Nome completo para textos de acessibilidade e confirmações: "Produto (Marca)". */
+export function productFullLabel(e: Pick<Experiment, 'product_mode' | 'product_name' | 'brand'>): string {
+  const brand = brandLabel(e)
+  return brand ? `${productLabel(e)} (${brand})` : productLabel(e)
+}
+
+export interface ProductForm {
+  product_mode: ProductMode
+  product_name: string | null
+  brand: string | null
+}
+
+/**
+ * Deriva o produto a partir do formulário: "Sem finalizador" marcado vence (e ignora nome e marca);
+ * texto em branco = não informado. O formulário exige nome ou "Sem finalizador" antes de salvar.
+ */
+export function productFromForm(noFinisher: boolean, name: string, brand = ''): ProductForm {
+  if (noFinisher) return { product_mode: 'none', product_name: null, brand: null }
   const trimmed = name.trim()
-  if (trimmed) return { product_mode: 'named', product_name: trimmed }
-  return { product_mode: 'unspecified', product_name: null }
+  if (trimmed) return { product_mode: 'named', product_name: trimmed, brand: brand.trim() || null }
+  return { product_mode: 'unspecified', product_name: null, brand: null }
 }
 
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })

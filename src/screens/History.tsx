@@ -6,10 +6,12 @@ import {
   ANGLES,
   ANGLE_LABEL,
   STAGE_LABEL,
+  brandLabel,
   formatDateRange,
   formatDateTime,
   formatShortDateTime,
   photoByAngle,
+  productFullLabel,
   productLabel,
   publishedStages,
   sortHistory,
@@ -80,15 +82,15 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
         {list.map((exp) => {
           const stages = publishedStages(exp)
           return (
-            <section key={exp.id} className="card experiment" aria-label={`Experimento ${productLabel(exp)}`}>
+            <section key={exp.id} className="card experiment" aria-label={`Experimento ${productFullLabel(exp)}`}>
               <header className="experiment-head">
                 <div className="experiment-title">
-                  <h2 className={exp.product_mode === 'named' ? '' : 'muted-title'} title={productLabel(exp)}>
+                  <h2 className={exp.product_mode === 'named' ? '' : 'muted-title'} title={productFullLabel(exp)}>
                     {productLabel(exp)}
                   </h2>
-                  <p className="muted small">
-                    {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {stages.length}{' '}
-                    {stages.length === 1 ? 'etapa' : 'etapas'}
+                  <p className="muted small experiment-sub">
+                    {brandLabel(exp) && <span className="brand-name">{brandLabel(exp)}</span>}
+                    <span className="dates">{formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)}</span>
                   </p>
                 </div>
                 <a
@@ -117,16 +119,19 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
                           <div className="stage-row-text">
                             <div className="stage-row-top">
                               <strong>
-                                {STAGE_LABEL[s.stage_type]} {s.is_favorite && <span className="star" aria-label="favorita">★</span>}
+                                {STAGE_LABEL[s.stage_type]}
+                                {s.is_favorite && <span className="star" aria-label="favorita"> ★</span>}
+                                {s.photos.length < 4 && (
+                                  <span className="count-pill" title="Fotos desta etapa (de 4 ângulos)">
+                                    {s.photos.length}/4
+                                  </span>
+                                )}
                               </strong>
                               <time className="muted small" dateTime={s.captured_at} title={formatDateTime(s.captured_at)}>
                                 {formatShortDateTime(s.captured_at)}
                               </time>
                             </div>
-                            <span className="muted small">
-                              {s.photos.length}/4 fotos
-                              {s.notes ? ` · ${s.notes}` : ''}
-                            </span>
+                            {s.notes && <span className="muted small">{s.notes}</span>}
                           </div>
                         </a>
                       </SwipeRow>

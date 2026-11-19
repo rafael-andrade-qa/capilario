@@ -1,7 +1,7 @@
 // Confirmação de exclusão de uma etapa. Usada no detalhe da etapa e no gesto de deslizar do histórico.
 import { useEffect, useRef, useState } from 'react'
 import { deleteStage } from '../lib/api'
-import { STAGE_LABEL, formatDateTime, productLabel, type Experiment, type Stage } from '../lib/domain'
+import { STAGE_LABEL, formatDateTime, productFullLabel, type Experiment, type Stage } from '../lib/domain'
 import { useHistory } from '../lib/state'
 
 interface Props {
@@ -64,7 +64,7 @@ export function DeleteStageDialog({ stage, experiment, onCancel, onDeleted }: Pr
           <p>
             <strong>{STAGE_LABEL[stage.stage_type]}</strong> · {formatDateTime(stage.captured_at)}
             <br />
-            <span className="muted small">{productLabel(experiment)}</span>
+            <span className="muted small">{productFullLabel(experiment)}</span>
           </p>
           <p>
             {n === 1 ? 'A foto' : `As ${n} fotos`}

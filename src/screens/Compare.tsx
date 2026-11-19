@@ -8,6 +8,7 @@ import {
   ANGLE_LABEL,
   STAGE_LABEL,
   STAGE_TYPES,
+  brandLabel,
   formatShortDateTime,
   photoByAngle,
   productLabel,
@@ -241,7 +242,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
                       {label} · {crossType ? `${STAGE_LABEL[e.stage.stage_type]} · ` : ''}
                       {formatShortDateTime(e.stage.captured_at)} {e.stage.is_favorite && <span className="star">★</span>}
                     </strong>
-                    <span className="clamp-2 muted">{productLabel(e.experiment)}</span>
+                    <span className="clamp-2">{productLabel(e.experiment)}</span>
+                    {brandLabel(e.experiment) && <span className="muted one-line">{brandLabel(e.experiment)}</span>}
                     {e.stage.notes && <span className="notes clamp-2">{e.stage.notes}</span>}
                   </figcaption>
                 </figure>

@@ -20,6 +20,7 @@ import {
   missingAngles,
   photoByAngle,
   productFromForm,
+  brandLabel,
   productLabel,
   toLocalInputValue,
   type Angle,
@@ -113,6 +114,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
   const [stageType, setStageType] = useState<StageType | null>(null)
   const [capturedAt, setCapturedAt] = useState(() => toLocalInputValue(new Date()))
   const [productName, setProductName] = useState(experiment?.product_mode === 'named' ? experiment.product_name ?? '' : '')
+  const [brand, setBrand] = useState(experiment?.product_mode === 'named' ? experiment.brand ?? '' : '')
   const [noFinisher, setNoFinisher] = useState(experiment?.product_mode === 'none')
   const [notes, setNotes] = useState('')
 
@@ -289,13 +291,22 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
   const doneCount = filledItems.filter((i) => i.status === 'done').length
   const failedItems = filledItems.filter((i) => i.status === 'error')
 
-  const productNames = useMemo(
-    () => [...new Set((experiments ?? []).filter((e) => e.product_mode === 'named').map((e) => e.product_name!))].sort(),
-    [experiments],
-  )
+  const named = useMemo(() => (experiments ?? []).filter((e) => e.product_mode === 'named'), [experiments])
+  const productNames = useMemo(() => [...new Set(named.map((e) => e.product_name!))].sort(), [named])
+  const brandNames = useMemo(() => [...new Set(named.map((e) => e.brand).filter((b): b is string => !!b))].sort(), [named])
+
+  // Escolher um produto já usado preenche a marca dele (se o campo estiver vazio).
+  function onProductChange(value: string) {
+    setProductName(value)
+    if (!brand.trim()) {
+      const known = named.find((e) => e.product_name === value.trim() && e.brand)
+      if (known) setBrand(known.brand!)
+    }
+  }
 
   function validate(): string | null {
     if (kind !== 'complete' && !stageType) return 'Escolha a etapa: Molhado, Seco ou Dia seguinte.'
+    if (kind !== 'complete' && startNewExperiment && !noFinisher && !productName.trim()) return 'Informe o produto ou marque Sem finalizador.'
     if (!filled.length) return 'Escolha ao menos uma foto.'
     if (invalidCount) return 'Troque ou remova os arquivos marcados com problema.'
     if (checkingCount) return 'Aguarde a verificação das fotos.'
@@ -354,7 +365,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           experimentId,
           stageId,
           photos,
-          newExperiment: kind !== 'complete' && startNewExperiment ? productFromForm(noFinisher, productName) : null,
+          newExperiment: kind !== 'complete' && startNewExperiment ? productFromForm(noFinisher, productName, brand) : null,
           newStage:
             kind === 'complete'
               ? null
@@ -388,7 +399,6 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
   }
 
   const title = kind === 'new' ? 'Novo registro' : kind === 'add' ? 'Adicionar etapa' : 'Completar fotos'
-  const product = productFromForm(noFinisher, productName)
   const capturedIso = localInputToIso(capturedAt)
   const lockedUrls = useSignedUrls(lockedAngles.map((a) => photoByAngle(stage!, a)!.storage_path)).urls
 
@@ -409,8 +419,10 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
       {kind !== 'complete' && (
         <section className="card stack">
           <fieldset className="field">
-            <legend>Etapa</legend>
-            <div className="segmented" role="radiogroup">
+            <legend>
+              Etapa<Req />
+            </legend>
+            <div className="segmented" role="radiogroup" aria-required="true">
               {STAGE_TYPES.map((t) => (
                 <label key={t} className={`seg ${stageType === t ? 'on' : ''}`}>
                   <input type="radio" name="stage" value={t} checked={stageType === t} onChange={() => setStageType(t)} disabled={busy} />
@@ -421,15 +433,20 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           </fieldset>
 
           <label className="field">
-            <span>Data e horário</span>
-            <input type="datetime-local" value={capturedAt} onChange={(e) => setCapturedAt(e.target.value)} disabled={busy} />
+            <span>
+              Data e horário<Req />
+            </span>
+            <input type="datetime-local" required value={capturedAt} onChange={(e) => setCapturedAt(e.target.value)} disabled={busy} />
             {!capturedIso && <small className="slot-error">Data inválida</small>}
           </label>
 
           {kind === 'add' && !startNewExperiment ? (
             <div className="field">
               <span>Produto</span>
-              <p className="inherited">{productLabel(experiment!)}</p>
+              <p className="inherited">
+                {productLabel(experiment!)}
+                {brandLabel(experiment!) && <span className="muted small"> · {brandLabel(experiment!)}</span>}
+              </p>
               <button type="button" className="link" onClick={() => setStartNewExperiment(true)} disabled={busy || finalizeAttemptedRef.current}>
                 Usou outro produto ou finalização? Criar novo experimento
               </button>
@@ -437,14 +454,19 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           ) : (
             <div className="field">
               <label className="field">
-                <span>Produto</span>
+                <span>
+                  Produto
+                  {!noFinisher && <Req />}
+                </span>
                 <input
                   type="text"
                   list="product-names"
                   value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="Ex.: Ondulando a Gema"
+                  onChange={(e) => onProductChange(e.target.value)}
+                  placeholder="Ex.: Creme de Pentear"
                   disabled={busy || noFinisher}
+                  required={!noFinisher}
+                  aria-required={!noFinisher}
                   maxLength={200}
                 />
               </label>
@@ -457,7 +479,25 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
                 <input type="checkbox" checked={noFinisher} onChange={(e) => setNoFinisher(e.target.checked)} disabled={busy} />
                 Sem finalizador
               </label>
-              {product.product_mode === 'unspecified' && <small className="muted">Sem nome, fica como “{productLabel(product)}”.</small>}
+              {!noFinisher && (
+                <label className="field">
+                  <span>Marca</span>
+                  <input
+                    type="text"
+                    list="brand-names"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    placeholder="Ex.: Widi Care"
+                    disabled={busy}
+                    maxLength={100}
+                  />
+                  <datalist id="brand-names">
+                    {brandNames.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
+                </label>
+              )}
               {kind === 'add' && (
                 <button type="button" className="link" onClick={() => setStartNewExperiment(false)} disabled={busy || finalizeAttemptedRef.current}>
                   Voltar a usar o experimento “{productLabel(experiment!)}”
@@ -467,7 +507,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           )}
 
           <label className="field">
-            <span>Observação (opcional)</span>
+            <span>Observação</span>
             <textarea rows={3} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} disabled={busy} placeholder="Como ficou? Volume, definição, frizz…" />
           </label>
         </section>
@@ -476,7 +516,10 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
       {/* Fotos ------------------------------------------------------------ */}
       <section className="card stack">
         <div className="section-head">
-          <h2>Fotos</h2>
+          <h2>
+            Fotos
+            {kind !== 'complete' && <Req />}
+          </h2>
           <span className="muted small">{filled.length + lockedAngles.length}/4</span>
         </div>
         <button
@@ -592,6 +635,15 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
         <p className="muted small center">Até {MAX_PHOTOS} fotos JPEG, PNG ou WebP, com até 15 MB cada.</p>
       </section>
     </main>
+  )
+}
+
+/** Marca de campo obrigatório (o leitor de tela usa aria-required no campo). */
+function Req() {
+  return (
+    <span className="req" aria-hidden="true">
+      {' *'}
+    </span>
   )
 }
 
