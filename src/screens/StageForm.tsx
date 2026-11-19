@@ -27,7 +27,7 @@ import {
   type Stage,
   type StageType,
 } from '../lib/domain'
-import { EXT_BY_MIME, INPUT_ACCEPT, MAX_PHOTOS, canDisplay, detectMime, formatBytes, validateFile, type AcceptedMime } from '../lib/files'
+import { EXT_BY_MIME, INPUT_ACCEPT, MAX_PHOTOS, canDisplay, detectMime, validateFile, type AcceptedMime } from '../lib/files'
 import { href, navigate } from '../lib/router'
 import { assignInOrder, clearSlot, emptySlots, filledAngles, setSlot, swapSlots, type Slots } from '../lib/slots'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
@@ -405,82 +405,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
         </p>
       )}
 
-      {/* Fotos ------------------------------------------------------------ */}
-      <section className="card stack">
-        <div className="section-head">
-          <h2>Fotos</h2>
-          <span className="muted small">{filled.length + lockedAngles.length}/4</span>
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          onClick={() => galleryInput.current?.click()}
-          disabled={busy || allowedAngles.every((a) => slots[a] !== null)}
-        >
-          {filled.length ? 'Escolher mais fotos da galeria' : `Escolher ${kind === 'complete' ? 'fotos' : 'de 1 a 4 fotos'} da galeria`}
-        </button>
-        <input ref={galleryInput} type="file" accept={INPUT_ACCEPT} multiple hidden onChange={onGalleryPicked} data-testid="gallery-input" />
-        <input ref={slotInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onSlotPicked} data-testid="slot-input" />
-        {notice && <p className="alert alert-info">{notice}</p>}
-        <p className="muted small">
-          {selected
-            ? `Toque em outro espaço para trocar com ${ANGLE_LABEL[selected]}.`
-            : 'Toque numa foto e depois em outro espaço para corrigir o ângulo. Esquerdo/direito é o lado da pessoa fotografada.'}
-        </p>
-
-        <div className="slot-grid">
-          {ANGLES.map((angle) => {
-            const locked = lockedAngles.includes(angle)
-            const key = slots[angle]
-            const it = key ? items[key] : undefined
-            const lockedPhoto = locked && stage ? photoByAngle(stage, angle) : undefined
-            return (
-              <div key={angle} className="slot" data-angle={angle}>
-                <button
-                  type="button"
-                  className={`slot-target ${selected === angle ? 'selected' : ''} ${selected && selected !== angle && !locked ? 'drop' : ''} ${locked ? 'locked' : ''}`}
-                  onClick={() => onSlotTap(angle)}
-                  disabled={busy || locked}
-                  aria-label={`${ANGLE_LABEL[angle]}${it ? `: ${it.file.name}` : locked ? ': já publicada' : ': vazio'}`}
-                  aria-pressed={selected === angle}
-                >
-                  {lockedPhoto ? (
-                    <PhotoView url={lockedUrls[lockedPhoto.storage_path]} alt={ANGLE_LABEL[angle]} />
-                  ) : it ? (
-                    it.preview && !it.invalid ? (
-                      <div className="photo-frame">
-                        <img src={it.preview} alt={`Pré-visualização ${ANGLE_LABEL[angle]}`} />
-                      </div>
-                    ) : (
-                      <div className="photo-frame empty invalid">{it.file.name}</div>
-                    )
-                  ) : (
-                    <div className="photo-frame empty">+ Foto</div>
-                  )}
-                  {it && <StatusBadge item={it} />}
-                  {locked && <span className="badge">Publicada</span>}
-                </button>
-                <div className="slot-label">{ANGLE_LABEL[angle]}</div>
-                {it?.invalid && <p className="slot-error">{it.invalid}</p>}
-                {it?.uploadError && it.status === 'error' && <p className="slot-error">Falhou: {it.uploadError}</p>}
-                {it && (
-                  <div className="slot-actions">
-                    <button type="button" className="link" onClick={() => pickForSlot(angle)} disabled={busy}>
-                      Trocar
-                    </button>
-                    <button type="button" className="link danger" onClick={() => removeSlot(angle)} disabled={busy}>
-                      Remover
-                    </button>
-                  </div>
-                )}
-                {it && !it.invalid && <div className="slot-meta muted small">{formatBytes(it.file.size)}</div>}
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Etapa, data, produto, observação -------------------------------- */}
+      {/* Etapa primeiro: tipo, data, produto, observação ------------------ */}
       {kind !== 'complete' && (
         <section className="card stack">
           <fieldset className="field">
@@ -498,7 +423,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           <label className="field">
             <span>Data e horário</span>
             <input type="datetime-local" value={capturedAt} onChange={(e) => setCapturedAt(e.target.value)} disabled={busy} />
-            <small className="muted">{capturedIso ? `${formatDateTime(capturedIso)} (horário deste aparelho)` : 'Data inválida'}</small>
+            {!capturedIso && <small className="slot-error">Data inválida</small>}
           </label>
 
           {kind === 'add' && !startNewExperiment ? (
@@ -532,7 +457,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
                 <input type="checkbox" checked={noFinisher} onChange={(e) => setNoFinisher(e.target.checked)} disabled={busy} />
                 Sem finalizador
               </label>
-              <small className="muted">Será salvo como: {productLabel(product)}</small>
+              {product.product_mode === 'unspecified' && <small className="muted">Sem nome, fica como “{productLabel(product)}”.</small>}
               {kind === 'add' && (
                 <button type="button" className="link" onClick={() => setStartNewExperiment(false)} disabled={busy || finalizeAttemptedRef.current}>
                   Voltar a usar o experimento “{productLabel(experiment!)}”
@@ -547,6 +472,80 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           </label>
         </section>
       )}
+
+      {/* Fotos ------------------------------------------------------------ */}
+      <section className="card stack">
+        <div className="section-head">
+          <h2>Fotos</h2>
+          <span className="muted small">{filled.length + lockedAngles.length}/4</span>
+        </div>
+        <button
+          type="button"
+          className={`btn btn-block ${filled.length ? '' : 'btn-outline-brand'}`}
+          onClick={() => galleryInput.current?.click()}
+          disabled={busy || allowedAngles.every((a) => slots[a] !== null)}
+        >
+          {filled.length ? '+ Mais fotos da galeria' : '+ Escolher da galeria'}
+        </button>
+        <input ref={galleryInput} type="file" accept={INPUT_ACCEPT} multiple hidden onChange={onGalleryPicked} data-testid="gallery-input" />
+        <input ref={slotInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onSlotPicked} data-testid="slot-input" />
+        {notice && <p className="alert alert-info">{notice}</p>}
+        <p className="muted small hint">
+          {selected
+            ? `Toque em outro espaço para trocar com ${ANGLE_LABEL[selected]}.`
+            : 'Toque em duas fotos para trocá-las de lugar. Esquerdo e direito: lado da pessoa na foto.'}
+        </p>
+
+        <div className="slot-grid">
+          {ANGLES.map((angle) => {
+            const locked = lockedAngles.includes(angle)
+            const key = slots[angle]
+            const it = key ? items[key] : undefined
+            const lockedPhoto = locked && stage ? photoByAngle(stage, angle) : undefined
+            return (
+              <div key={angle} className="slot" data-angle={angle}>
+                <button
+                  type="button"
+                  className={`slot-target ${selected === angle ? 'selected' : ''} ${selected && selected !== angle && !locked ? 'drop' : ''} ${locked ? 'locked' : ''}`}
+                  onClick={() => onSlotTap(angle)}
+                  disabled={busy || locked}
+                  aria-label={`${ANGLE_LABEL[angle]}${it ? `: ${it.file.name}` : locked ? ': já publicada' : ': vazio'}`}
+                  aria-pressed={selected === angle}
+                >
+                  {lockedPhoto ? (
+                    <PhotoView url={lockedUrls[lockedPhoto.storage_path]} alt={ANGLE_LABEL[angle]} />
+                  ) : it ? (
+                    it.preview && !it.invalid ? (
+                      <div className="photo-frame">
+                        <img src={it.preview} alt={`Pré-visualização ${ANGLE_LABEL[angle]}`} />
+                      </div>
+                    ) : (
+                      <div className="photo-frame empty invalid">{it.file.name}</div>
+                    )
+                  ) : (
+                    <div className="photo-frame empty plus" aria-hidden="true">+</div>
+                  )}
+                  {it && <StatusBadge item={it} />}
+                  {locked && <span className="badge">Publicada</span>}
+                </button>
+                <div className="slot-label">{ANGLE_LABEL[angle]}</div>
+                {it?.invalid && <p className="slot-error">{it.invalid}</p>}
+                {it?.uploadError && it.status === 'error' && <p className="slot-error">Falhou: {it.uploadError}</p>}
+                {it && (
+                  <div className="slot-actions">
+                    <button type="button" className="mini-btn" onClick={() => pickForSlot(angle)} disabled={busy} aria-label="Trocar" title="Trocar arquivo">
+                      ↻
+                    </button>
+                    <button type="button" className="mini-btn danger" onClick={() => removeSlot(angle)} disabled={busy} aria-label="Remover" title="Remover">
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </section>
 
       {/* Progresso e ações ----------------------------------------------- */}
       <section className="save-bar">

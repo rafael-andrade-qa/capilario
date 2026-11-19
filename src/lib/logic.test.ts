@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { assignInOrder, clearSlot, emptySlots, filledAngles, swapSlots } from './slots'
-import { initialAngle, missingSide } from './compare'
-import { productFromForm, productLabel, publishedStages, sortHistory, stageOptionLabel, type Experiment, type Stage } from './domain'
+import { compatibleTypes, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from './compare'
+import {
+  formatDateRange,
+  formatShortDate,
+  productFromForm,
+  productLabel,
+  publishedStages,
+  sortHistory,
+  stageOptionLabel,
+  type Experiment,
+  type Stage,
+} from './domain'
 import { MAX_BYTES, detectMime, validateFile } from './files'
 
 describe('distribuição nos ângulos', () => {
@@ -98,9 +108,17 @@ describe('histórico', () => {
   it('ordena experimentos pela etapa publicada mais recente e esconde experimentos vazios', () => {
     expect(sortHistory([e1, e2, e3]).map((e) => e.id)).toEqual(['e2', 'e1'])
   })
-  it('rótulo de seleção traz data, horário, etapa e produto', () => {
-    const label = stageOptionLabel(e1.stages[0], e1)
-    expect(label).toMatch(/^\d{2}\/\d{2}\/2026 \d{2}:\d{2} · Seco · Gema$/)
+  it('rótulo de seleção traz data curta, horário e produto', () => {
+    const label = stageOptionLabel(e1.stages[0], e1, new Date('2026-12-01T12:00:00Z'))
+    expect(label).toMatch(/^\d{2}\/\d{2} \d{2}:\d{2} · Gema$/)
+  })
+  it('datas curtas omitem o ano corrente e juntam intervalos do mesmo mês', () => {
+    const now = new Date('2026-11-19T12:00:00')
+    expect(formatShortDate('2026-11-19T12:00:00', now)).toBe('19/11')
+    expect(formatShortDate('2025-11-19T12:00:00', now)).toBe('19/11/2025')
+    expect(formatDateRange('2026-11-18T12:00:00', '2026-11-19T12:00:00', now)).toBe('18–19/11')
+    expect(formatDateRange('2026-11-19T08:00:00', '2026-11-19T20:00:00', now)).toBe('19/11')
+    expect(formatDateRange('2026-10-30T12:00:00', '2026-11-02T12:00:00', now)).toBe('30/10 – 02/11')
   })
 })
 
@@ -114,5 +132,36 @@ describe('validação de arquivos', () => {
     expect(validateFile({ name: 'IMG_1.HEIC', type: 'image/heic', size: 1000 })).toMatch(/HEIC/)
     expect(validateFile({ name: 'a.gif', type: 'image/gif', size: 1000 })).toMatch(/não aceito/)
     expect(validateFile({ name: 'a.jpg', type: 'image/jpeg', size: MAX_BYTES + 1 })).toMatch(/grande demais/)
+  })
+})
+
+describe('etapas comparáveis', () => {
+  const item = (id: string, type: CompareItem['type'], day: number): CompareItem => ({
+    id,
+    type,
+    capturedAt: `2026-11-${String(day).padStart(2, '0')}T10:00:00Z`,
+  })
+  const items = [item('w1', 'wet', 10), item('d1', 'dry', 11), item('w2', 'wet', 12), item('n1', 'next_day', 13), item('d2', 'dry', 14)]
+
+  it('Molhado só com Molhado; Seco e Dia seguinte entre si', () => {
+    expect(compatibleTypes('wet')).toEqual(['wet'])
+    expect(compatibleTypes('dry')).toEqual(['dry', 'next_day'])
+    expect(compatibleTypes('next_day')).toEqual(['next_day', 'dry'])
+    expect(isCompatible(items[0], items[1])).toBe(false)
+    expect(isCompatible(items[1], items[3])).toBe(true)
+    expect(isCompatible(items[1], items[1])).toBe(false)
+  })
+
+  it('sugere as duas mais recentes do mesmo tipo, senão o tipo vizinho', () => {
+    expect(defaultPair(items, 'wet')).toEqual({ a: 'w2', b: 'w1' })
+    expect(defaultPair(items, 'dry')).toEqual({ a: 'd2', b: 'd1' })
+    expect(defaultPair(items, 'next_day')).toEqual({ a: 'n1', b: 'd2' })
+    expect(defaultPair([items[0]], 'wet')).toBeNull()
+  })
+
+  it('começa pelo tipo da etapa mais recente que tem par', () => {
+    expect(initialType(items)).toBe('dry')
+    expect(initialType([item('w', 'wet', 1), item('d', 'dry', 2)])).toBeNull()
+    expect(initialType([item('w', 'wet', 1), item('w2', 'wet', 2), item('d', 'dry', 3)])).toBe('wet')
   })
 })

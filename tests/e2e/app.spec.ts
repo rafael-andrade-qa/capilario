@@ -96,7 +96,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
 
 test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Adicionar etapa' }).click()
+  await page.getByRole('link', { name: 'Adicionar etapa em Ondulando a Gema' }).click()
   await expect(page.locator('.inherited')).toHaveText('Ondulando a Gema')
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   await stageRadio(page, 'Seco').click()
@@ -107,14 +107,16 @@ test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ p
   await expect(page.locator('.experiment .stage-row')).toHaveCount(2)
 
   await page.locator(`a[href="#/etapa/${ids.dry}"]`).click()
-  await page.getByRole('button', { name: '☆ Favoritar' }).click()
-  await expect(page.getByRole('button', { name: '★ Favorita' })).toBeVisible()
+  const fav = page.getByRole('button', { name: 'Favorita' })
+  await expect(fav).toHaveAttribute('aria-pressed', 'false')
+  await fav.click()
+  await expect(fav).toHaveAttribute('aria-pressed', 'true')
   await page.getByLabel('Observação').fill('Macio e solto. Gostei do volume.')
   await page.getByRole('button', { name: 'Salvar observação' }).click()
   await expect(page.getByText('Observação salva.')).toBeVisible()
 
   await page.reload()
-  await expect(page.getByRole('button', { name: '★ Favorita' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Favorita' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Observação')).toHaveValue('Macio e solto. Gostei do volume.')
   await expect(page.getByText('Ondulando a Gema', { exact: false })).toBeVisible()
 })
@@ -129,7 +131,8 @@ test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ pag
   expect(Object.keys(await photosOf(ids.dryNone)).sort()).toEqual(['front', 'left'])
 
   await page.locator(`a[href="#/etapa/${ids.dryNone}"]`).click()
-  await page.getByRole('link', { name: 'Completar fotos (2)' }).click()
+  await expect(page.locator('.angle-cell img')).toHaveCount(2)
+  await page.getByRole('link', { name: 'Adicionar foto: Direito' }).click()
   await expect(slot(page, 'front').getByText('Publicada')).toBeVisible()
   await pick(page, [RIGHT, BACK])
   await saveButton(page).click()
@@ -143,39 +146,49 @@ test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ pag
   expect(c).toEqual({ experiments: 2, stages: 3, photos: 12 })
 })
 
-test('A4: comparar Molhado × Seco e Seco × Seco entre experimentos', async ({ page }) => {
+test('A4: compara só etapas compatíveis; Seco × Seco entre experimentos', async ({ page }) => {
   await login(page, me)
   await page.getByRole('button', { name: 'Comparar' }).click()
-  await page.getByTestId('select-a').selectOption(ids.wet)
-  await page.getByTestId('select-b').selectOption(ids.dry)
-  await expect(page.getByRole('tab', { name: /Frente/ })).toHaveAttribute('aria-selected', 'true')
   await noHorizontalScroll(page)
 
-  const wet = await photosOf(ids.wet)
-  const dry = await photosOf(ids.dry)
-  for (const angle of ['front', 'left', 'right', 'back'] as const) {
-    const label = { front: 'Frente', left: 'Lado esquerdo', right: 'Lado direito', back: 'Costas' }[angle]
-    await page.getByRole('tab', { name: new RegExp(label) }).click()
-    await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp(wet[angle].storage_path))
-    await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(dry[angle].storage_path))
-  }
-  await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('Molhado')
-  await expect(page.getByTestId('side-B').locator('figcaption')).toContainText('Seco')
-  await expect(page.getByTestId('side-B').locator('figcaption')).toContainText('Gostei do volume.')
+  // Há um só Molhado: Molhado não se compara com Seco, então não há par.
+  await page.getByRole('radio', { name: 'Molhado' }).click()
+  await expect(page.getByText(/Só há 1 registro Molhado/)).toBeVisible()
+  await expect(page.getByTestId('select-a')).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: 'Dia seguinte' })).toBeDisabled()
 
-  // Recarregar o comparador mantém seleção e ângulo (A8).
-  await page.reload()
-  await expect(page.getByRole('tab', { name: /Costas/ })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(dry.back.storage_path))
-
-  // Seco com creme × Seco sem finalizador
-  await page.getByTestId('select-b').selectOption(ids.dryNone)
+  await page.getByRole('radio', { name: 'Seco' }).click()
+  await expect(page.getByRole('radio', { name: 'Seco' })).toHaveAttribute('aria-checked', 'true')
+  // Os seletores oferecem só Seco: A tem os dois, B o que não está em A.
+  await expect(page.getByTestId('select-a').locator('option')).toHaveCount(2)
+  await expect(page.getByTestId('select-b').locator('option')).toHaveCount(1)
+  // Escolher em A o que está em B troca os lados.
   await page.getByTestId('select-a').selectOption(ids.dry)
+  await expect(page.getByTestId('select-b')).toHaveValue(ids.dryNone)
+  await expect(page.getByRole('tab', { name: 'Frente' })).toHaveAttribute('aria-selected', 'true')
+
+  const dry = await photosOf(ids.dry)
   const none = await photosOf(ids.dryNone)
-  await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp(dry.front.storage_path))
-  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none.front.storage_path))
+  for (const angle of ['front', 'left', 'right', 'back'] as const) {
+    const label = { front: 'Frente', left: 'Esquerdo', right: 'Direito', back: 'Costas' }[angle]
+    await page.getByRole('tab', { name: label }).click()
+    await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp(dry[angle].storage_path))
+    await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none[angle].storage_path))
+  }
   await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('Ondulando a Gema')
+  await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('Gostei do volume.')
   await expect(page.getByTestId('side-B').locator('figcaption')).toContainText('Sem finalizador')
+  await noHorizontalScroll(page)
+
+  // Recarregar o comparador mantém etapa, seleção e ângulo (A8).
+  await page.reload()
+  await expect(page.getByRole('tab', { name: 'Costas' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none.back.storage_path))
+
+  // Pedir Molhado × Seco pela URL não vale: B é trocado por um registro compatível.
+  await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)
+  await expect(page.getByRole('radio', { name: 'Molhado' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('side-B')).toHaveCount(0)
 })
 
 test('A5: ângulo ausente aparece como ausência, sem trocar de ângulo', async ({ page }) => {
@@ -189,11 +202,14 @@ test('A5: ângulo ausente aparece como ausência, sem trocar de ângulo', async 
   ids.backOnly = await saveAndGetStage(page)
   await expect(page.locator('.experiment', { hasText: 'Produto não informado' })).toHaveCount(1)
 
-  await page.goto(`./#/comparar?a=${ids.backOnly}&b=${ids.wet}`)
-  await expect(page.getByRole('tab', { name: /Costas/ })).toHaveAttribute('aria-selected', 'true')
-  await page.getByRole('tab', { name: /Frente/ }).click()
+  // Dia seguinte × Seco é permitido (como o Seco amanheceu).
+  await page.goto(`./#/comparar?a=${ids.backOnly}&b=${ids.dry}`)
+  await expect(page.getByRole('radio', { name: 'Dia seguinte' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('side-B').locator('figcaption')).toContainText('Seco')
+  await expect(page.getByRole('tab', { name: 'Costas' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { name: 'Frente' }).click()
   await expect(page.getByTestId('side-A')).toContainText('Sem foto deste ângulo')
-  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp((await photosOf(ids.wet)).front.storage_path))
+  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp((await photosOf(ids.dry)).front.storage_path))
   await expect(page.getByText('O registro A não tem foto de Frente.')).toBeVisible()
 })
 

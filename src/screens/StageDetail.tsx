@@ -6,6 +6,15 @@ import { ANGLES, ANGLE_LABEL, STAGE_LABEL, formatDateTime, missingAngles, photoB
 import { href, navigate } from '../lib/router'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
 
+function CompareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+      <rect x="3.5" y="5" width="7" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <rect x="13.5" y="5" width="7" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
+    </svg>
+  )
+}
+
 export function StageDetail({ stageId }: { stageId: string }) {
   const { experiments, patchStage, loading } = useHistory()
   const found = findStage(experiments, stageId)
@@ -69,78 +78,78 @@ export function StageDetail({ stageId }: { stageId: string }) {
 
   const viewerPhoto = viewer ? photoByAngle(stage, viewer) : undefined
 
+  const present = ANGLES.filter((a) => photoByAngle(stage, a))
+
   return (
     <main className="page">
       <a className="back" href={href('/')}>← Histórico</a>
       <header className="detail-head">
-        <div>
+        <div className="detail-title">
           <h1>{STAGE_LABEL[stage.stage_type]}</h1>
-          <p className="muted">
+          <p className="muted small">
             {productLabel(experiment)} · {formatDateTime(stage.captured_at)}
           </p>
         </div>
-        <button
-          className={`btn fav ${stage.is_favorite ? 'on' : ''}`}
-          onClick={() => void toggleFavorite()}
-          disabled={savingFav}
-          aria-pressed={stage.is_favorite}
-        >
-          {stage.is_favorite ? '★ Favorita' : '☆ Favoritar'}
-        </button>
+        <div className="detail-actions">
+          <a className="icon-btn" href={href(`/comparar?a=${stage.id}`)} aria-label="Comparar esta etapa" title="Comparar">
+            <CompareIcon />
+          </a>
+          <button
+            className={`icon-btn ${stage.is_favorite ? 'on' : ''}`}
+            onClick={() => void toggleFavorite()}
+            disabled={savingFav}
+            aria-pressed={stage.is_favorite}
+            aria-label="Favorita"
+            title={stage.is_favorite ? 'Remover dos favoritos' : 'Favoritar'}
+          >
+            <span aria-hidden="true">{stage.is_favorite ? '★' : '☆'}</span>
+          </button>
+        </div>
       </header>
 
       {urlError && <p className="alert alert-error">{urlError}</p>}
 
       <div className="angle-grid">
-        {ANGLES.map((a) => {
-          const p = photoByAngle(stage, a)
+        {present.map((a) => {
+          const p = photoByAngle(stage, a)!
           return (
             <figure key={a} className="angle-cell">
-              {p ? (
-                <button className="photo-button" onClick={() => setViewer(a)} aria-label={`Ampliar ${ANGLE_LABEL[a]}`}>
-                  <PhotoView url={urls[p.storage_path]} alt={ANGLE_LABEL[a]} />
-                </button>
-              ) : (
-                <a className="photo-frame empty" href={href(`/etapa/${stage.id}/completar`)}>
-                  + Adicionar
-                </a>
-              )}
+              <button className="photo-button" onClick={() => setViewer(a)} aria-label={`Ampliar ${ANGLE_LABEL[a]}`}>
+                <PhotoView url={urls[p.storage_path]} alt={ANGLE_LABEL[a]} />
+              </button>
               <figcaption>{ANGLE_LABEL[a]}</figcaption>
             </figure>
           )
         })}
       </div>
 
-      <div className="row-actions">
-        {missing.length > 0 && (
-          <a className="btn" href={href(`/etapa/${stage.id}/completar`)}>
-            Completar fotos ({missing.length})
-          </a>
-        )}
-        <a className="btn" href={href(`/comparar?a=${stage.id}`)}>
-          Comparar esta etapa
-        </a>
-        <a className="btn" href={href(`/experimento/${experiment.id}/nova-etapa`)}>
-          + Adicionar etapa
-        </a>
-      </div>
+      {missing.length > 0 && (
+        <div className="missing-row">
+          <span className="muted small">Faltam</span>
+          {missing.map((a) => (
+            <a key={a} className="chip" href={href(`/etapa/${stage.id}/completar`)} aria-label={`Adicionar foto: ${ANGLE_LABEL[a]}`}>
+              + {ANGLE_LABEL[a]}
+            </a>
+          ))}
+        </div>
+      )}
 
-      <section className="card stack">
+      <section className="notes-box">
         <label className="field">
           <span>Observação</span>
-          <textarea rows={3} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} placeholder="Como ficou? Volume, definição, frizz…" />
+          <textarea rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} placeholder="Como ficou? Volume, definição, frizz…" />
         </label>
         {message && <p className={`alert ${message.kind === 'ok' ? 'alert-success' : 'alert-error'}`}>{message.text}</p>}
-        <button className="btn btn-primary" onClick={() => void saveNotes()} disabled={!notesChanged || savingNotes}>
-          {savingNotes ? 'Salvando…' : 'Salvar observação'}
-        </button>
+        {notesChanged && (
+          <button className="btn btn-primary btn-block" onClick={() => void saveNotes()} disabled={savingNotes}>
+            {savingNotes ? 'Salvando…' : 'Salvar observação'}
+          </button>
+        )}
       </section>
 
-      <section className="danger-zone">
-        <button className="btn btn-danger-outline btn-block" onClick={() => setConfirmDelete(true)}>
-          Excluir etapa
-        </button>
-      </section>
+      <button className="btn btn-ghost btn-block danger-text" onClick={() => setConfirmDelete(true)}>
+        Excluir etapa
+      </button>
 
       {confirmDelete && (
         <DeleteStageDialog

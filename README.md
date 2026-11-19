@@ -1,8 +1,11 @@
 # Projeto Capilar
 
 Diário fotográfico capilar pessoal, em português, pensado para o celular. Registre o cabelo em
-**Molhado**, **Seco** e **Dia seguinte**, com até quatro ângulos (**Frente**, **Lado esquerdo**,
-**Lado direito**, **Costas**), e compare duas etapas lado a lado no mesmo ângulo.
+**Molhado**, **Seco** e **Dia seguinte**, com até quatro ângulos (**Frente**, **Esquerdo**,
+**Direito**, **Costas**), e compare duas etapas lado a lado no mesmo ângulo.
+
+No comparador você escolhe a etapa primeiro. Molhado só se compara com Molhado. Seco e Dia seguinte
+se comparam com o mesmo tipo e também entre si, para ver como o Seco amanheceu.
 
 - **Frontend:** React + TypeScript + Vite, roteamento por hash, PWA instalável.
 - **Backend gerenciado:** Supabase (Auth com e-mail e senha, Postgres com RLS, Storage privado).

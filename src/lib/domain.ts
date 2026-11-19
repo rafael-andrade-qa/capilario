@@ -5,8 +5,8 @@ export type Angle = (typeof ANGLES)[number]
 
 export const ANGLE_LABEL: Record<Angle, string> = {
   front: 'Frente',
-  left: 'Lado esquerdo',
-  right: 'Lado direito',
+  left: 'Esquerdo',
+  right: 'Direito',
   back: 'Costas',
 }
 
@@ -76,6 +76,33 @@ export function formatDateTime(iso: string): string {
   return `${formatDate(iso)} às ${formatTime(iso)}`
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/** Data curta: 19/11 no ano corrente, 19/11/2025 nos outros. */
+export function formatShortDate(iso: string, now = new Date()): string {
+  const d = new Date(iso)
+  const base = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}`
+  return d.getFullYear() === now.getFullYear() ? base : `${base}/${d.getFullYear()}`
+}
+
+/** Data e hora curtas: 19/11 08:57. */
+export function formatShortDateTime(iso: string, now = new Date()): string {
+  return `${formatShortDate(iso, now)} ${formatTime(iso)}`
+}
+
+/** Intervalo compacto: 19/11, 18–19/11 (mesmo mês) ou 30/10 – 02/11. */
+export function formatDateRange(fromIso: string, toIso: string, now = new Date()): string {
+  const a = formatShortDate(fromIso, now)
+  const b = formatShortDate(toIso, now)
+  if (a === b) return a
+  const da = new Date(fromIso)
+  const db = new Date(toIso)
+  if (da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth()) {
+    return `${pad2(da.getDate())}–${b}`
+  }
+  return `${a} – ${b}`
+}
+
 /** Valor para <input type="datetime-local"> no fuso local do aparelho. */
 export function toLocalInputValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -109,9 +136,9 @@ export function sortHistory(experiments: Experiment[]): Experiment[] {
     .sort((a, b) => latest(b) - latest(a) || ts(b.created_at) - ts(a.created_at))
 }
 
-/** Rótulo de seleção de etapa: sempre com data, horário, etapa e produto para distinguir registros parecidos. */
-export function stageOptionLabel(stage: Stage, experiment: Experiment): string {
-  return `${formatDate(stage.captured_at)} ${formatTime(stage.captured_at)} · ${STAGE_LABEL[stage.stage_type]} · ${productLabel(experiment)}`
+/** Rótulo de seleção de etapa (o tipo já aparece no grupo): data, horário e produto. */
+export function stageOptionLabel(stage: Stage, experiment: Experiment, now = new Date()): string {
+  return `${formatShortDateTime(stage.captured_at, now)} · ${productLabel(experiment)}`
 }
 
 export function photoByAngle(stage: Pick<Stage, 'photos'>, angle: Angle): Photo | undefined {

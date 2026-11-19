@@ -6,8 +6,9 @@ import {
   ANGLES,
   ANGLE_LABEL,
   STAGE_LABEL,
-  formatDate,
+  formatDateRange,
   formatDateTime,
+  formatShortDateTime,
   photoByAngle,
   productLabel,
   publishedStages,
@@ -47,7 +48,7 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
       </header>
 
       <div className="actions-bar">
-        <a className="btn btn-primary btn-large" href={href('/novo')}>
+        <a className="btn btn-primary" href={href('/novo')}>
           + Novo registro
         </a>
         <CompareButton total={totalStages} />
@@ -81,19 +82,22 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
           return (
             <section key={exp.id} className="card experiment" aria-label={`Experimento ${productLabel(exp)}`}>
               <header className="experiment-head">
-                <div>
-                  <h2 className={exp.product_mode === 'named' ? '' : 'muted-title'}>{productLabel(exp)}</h2>
+                <div className="experiment-title">
+                  <h2 className={exp.product_mode === 'named' ? '' : 'muted-title'} title={productLabel(exp)}>
+                    {productLabel(exp)}
+                  </h2>
                   <p className="muted small">
-                    {formatDate(stages[0].captured_at)}
-                    {stages.length > 1 && formatDate(stages[stages.length - 1].captured_at) !== formatDate(stages[0].captured_at)
-                      ? ` – ${formatDate(stages[stages.length - 1].captured_at)}`
-                      : ''}
-                    {' · '}
-                    {stages.length} {stages.length === 1 ? 'etapa' : 'etapas'}
+                    {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {stages.length}{' '}
+                    {stages.length === 1 ? 'etapa' : 'etapas'}
                   </p>
                 </div>
-                <a className="btn btn-small" href={href(`/experimento/${exp.id}/nova-etapa`)}>
-                  + Adicionar etapa
+                <a
+                  className="icon-btn"
+                  href={href(`/experimento/${exp.id}/nova-etapa`)}
+                  aria-label={`Adicionar etapa em ${productLabel(exp)}`}
+                  title="Adicionar etapa"
+                >
+                  <PlusIcon />
                 </a>
               </header>
               <ol className="stage-list">
@@ -111,12 +115,16 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
                         <a className={`stage-row ${saved === s.id ? 'highlight' : ''}`} href={href(`/etapa/${s.id}`)}>
                           <PhotoView className="thumb" url={cover ? urls[cover.storage_path] : undefined} alt={cover ? ANGLE_LABEL[cover.angle] : ''} />
                           <div className="stage-row-text">
-                            <strong>
-                              {STAGE_LABEL[s.stage_type]} {s.is_favorite && <span className="star" aria-label="favorita">★</span>}
-                            </strong>
-                            <span className="muted small">{formatDateTime(s.captured_at)}</span>
+                            <div className="stage-row-top">
+                              <strong>
+                                {STAGE_LABEL[s.stage_type]} {s.is_favorite && <span className="star" aria-label="favorita">★</span>}
+                              </strong>
+                              <time className="muted small" dateTime={s.captured_at} title={formatDateTime(s.captured_at)}>
+                                {formatShortDateTime(s.captured_at)}
+                              </time>
+                            </div>
                             <span className="muted small">
-                              {s.photos.length}/4 ângulos
+                              {s.photos.length}/4 fotos
                               {s.notes ? ` · ${s.notes}` : ''}
                             </span>
                           </div>
@@ -150,10 +158,18 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
   )
 }
 
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    </svg>
+  )
+}
+
 function CompareButton({ total }: { total: number }) {
   if (total >= 2) {
     return (
-      <button className="btn btn-large" onClick={() => navigate('/comparar')}>
+      <button className="btn" onClick={() => navigate('/comparar')}>
         Comparar
       </button>
     )
@@ -161,7 +177,7 @@ function CompareButton({ total }: { total: number }) {
   const missing = 2 - total
   return (
     <div className="compare-disabled">
-      <button className="btn btn-large" disabled aria-describedby="compare-hint">
+      <button className="btn" disabled aria-describedby="compare-hint">
         Comparar
       </button>
       <span id="compare-hint" className="muted small">
