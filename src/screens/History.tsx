@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react'
+// Histórico: um produto por linha, recolhido. Tocar abre as etapas daquele produto.
+// O produto mais recente começa aberto; o que você abre/fecha é lembrado durante a sessão.
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
+import { NaturalHairIcon } from '../components/NaturalHairIcon'
 import { PhotoView } from '../components/PhotoView'
 import { SwipeRow, type SwipeOpen } from '../components/SwipeRow'
+import { setProductPhoto } from '../lib/api'
 import {
   ANGLES,
   ANGLE_LABEL,
@@ -18,8 +22,16 @@ import {
   type Experiment,
   type Stage,
 } from '../lib/domain'
+import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
 import { href, navigate } from '../lib/router'
-import { signOut, useHistory, useSignedUrls } from '../lib/state'
+import { signOut, useHistory, useSession, useSignedUrls } from '../lib/state'
+
+/** A partir de quantos produtos a busca aparece. */
+const SEARCH_FROM = 6
+
+// Produtos abertos, lembrados enquanto o app estiver aberto (voltar do detalhe não fecha tudo).
+const openMemory = new Set<string>()
+let openRemembered = false
 
 /** Foto representativa de uma etapa: a primeira na ordem Frente, Esquerdo, Direito, Costas. */
 function coverPhoto(stage: Stage) {
@@ -30,15 +42,79 @@ function coverPhoto(stage: Stage) {
   return undefined
 }
 
-export function History({ saved, deleted }: { saved: string | null; deleted: boolean }) {
+/** Miniatura do produto: a foto da embalagem; sem ela, a capa da etapa mais recente (Sem finalizador usa um ícone). */
+function productThumbPath(exp: Experiment): string | undefined {
+  if (exp.photo_path) return exp.photo_path
+  if (exp.product_mode === 'none') return undefined
+  const stages = publishedStages(exp)
+  return stages.length ? coverPhoto(stages[stages.length - 1])?.storage_path : undefined
+}
+
+const normalize = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+
+export function History({ saved, deleted, productPhotoFailed = false }: { saved: string | null; deleted: boolean; productPhotoFailed?: boolean }) {
   const { experiments, error, loading, reload } = useHistory()
   const [swiped, setSwiped] = useState<{ id: string; dir: SwipeOpen } | null>(null)
   const [toDelete, setToDelete] = useState<{ stage: Stage; experiment: Experiment } | null>(null)
   const [deletedHere, setDeletedHere] = useState(false)
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
+
   const list = useMemo(() => sortHistory(experiments ?? []), [experiments])
   const totalStages = list.reduce((n, e) => n + publishedStages(e).length, 0)
-  const covers = list.flatMap((e) => publishedStages(e).map((s) => coverPhoto(s)?.storage_path)).filter(Boolean) as string[]
-  const { urls } = useSignedUrls(covers)
+
+  // Primeira visita: abre o produto mais recente. Depois de salvar: abre o produto da etapa salva.
+  useEffect(() => {
+    if (!list.length) return
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (!openRemembered) next.add(list[0].id)
+      if (saved) {
+        const exp = list.find((e) => e.stages.some((s) => s.id === saved))
+        if (exp) next.add(exp.id)
+      }
+      openRemembered = true
+      return next.size === prev.size && [...next].every((id) => prev.has(id)) ? prev : next
+    })
+  }, [list, saved])
+
+  useEffect(() => {
+    openMemory.clear()
+    for (const id of open) openMemory.add(id)
+  }, [open])
+
+  const visible = useMemo(() => {
+    const q = normalize(query.trim())
+    if (!q) return list
+    return list.filter((e) => normalize(`${productLabel(e)} ${brandLabel(e) ?? ''}`).includes(q))
+  }, [list, query])
+
+  const paths = useMemo(() => {
+    const out = new Set<string>()
+    for (const e of list) {
+      const t = productThumbPath(e)
+      if (t) out.add(t)
+      if (open.has(e.id)) for (const s of publishedStages(e)) {
+        const c = coverPhoto(s)
+        if (c) out.add(c.storage_path)
+      }
+    }
+    return [...out]
+  }, [list, open])
+  const { urls } = useSignedUrls(paths)
+
+  function toggle(id: string) {
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
     <main className="page">
@@ -57,6 +133,11 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
       </div>
 
       {saved && <p className="alert alert-success" role="status">Registro salvo.</p>}
+      {productPhotoFailed && (
+        <p className="alert alert-error" role="alert">
+          A foto do produto não foi enviada. Abra o produto e toque em “+ Foto do produto” para tentar de novo.
+        </p>
+      )}
       {(deleted || deletedHere) && !saved && <p className="alert alert-success" role="status">Etapa excluída.</p>}
       {error && (
         <p className="alert alert-error">
@@ -78,71 +159,108 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
         </section>
       )}
 
-      <div className="stack">
-        {list.map((exp) => {
-          const stages = publishedStages(exp)
-          return (
-            <section key={exp.id} className="card experiment" aria-label={`Experimento ${productFullLabel(exp)}`}>
-              <header className="experiment-head">
-                <div className="experiment-title">
-                  <h2 className={exp.product_mode === 'named' ? '' : 'muted-title'} title={productFullLabel(exp)}>
-                    {productLabel(exp)}
-                  </h2>
-                  <p className="muted small experiment-sub">
-                    {brandLabel(exp) && <span className="brand-name">{brandLabel(exp)}</span>}
-                    <span className="dates">{formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)}</span>
-                  </p>
-                </div>
-                <a
-                  className="icon-btn"
-                  href={href(`/experimento/${exp.id}/nova-etapa`)}
-                  aria-label={`Adicionar etapa em ${productLabel(exp)}`}
-                  title="Adicionar etapa"
-                >
-                  <PlusIcon />
-                </a>
-              </header>
-              <ol className="stage-list">
-                {stages.map((s) => {
-                  const cover = coverPhoto(s)
-                  return (
-                    <li key={s.id}>
-                      <SwipeRow
-                        open={swiped?.id === s.id ? swiped.dir : 0}
-                        onOpenChange={(dir) => setSwiped(dir ? { id: s.id, dir } : null)}
-                        actionText="Excluir"
-                        actionLabel={`Excluir ${STAGE_LABEL[s.stage_type]} de ${formatDateTime(s.captured_at)}`}
-                        onAction={() => setToDelete({ stage: s, experiment: exp })}
-                      >
-                        <a className={`stage-row ${saved === s.id ? 'highlight' : ''}`} href={href(`/etapa/${s.id}`)}>
-                          <PhotoView className="thumb" url={cover ? urls[cover.storage_path] : undefined} alt={cover ? ANGLE_LABEL[cover.angle] : ''} />
-                          <div className="stage-row-text">
-                            <div className="stage-row-top">
-                              <strong>
-                                {STAGE_LABEL[s.stage_type]}
-                                {s.is_favorite && <span className="star" aria-label="favorita"> ★</span>}
-                                {s.photos.length < 4 && (
-                                  <span className="count-pill" title="Fotos desta etapa (de 4 ângulos)">
-                                    {s.photos.length}/4
+      {list.length >= SEARCH_FROM && (
+        <input
+          type="search"
+          className="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar produto ou marca"
+          aria-label="Buscar produto ou marca"
+        />
+      )}
+      {query && visible.length === 0 && <p className="muted center small">Nenhum produto com “{query.trim()}”.</p>}
+
+      {visible.length > 0 && (
+        <div className="card product-list">
+          {visible.map((exp) => {
+            const stages = publishedStages(exp)
+            const isOpen = open.has(exp.id)
+            const thumb = productThumbPath(exp)
+            const brand = brandLabel(exp)
+            return (
+              <section key={exp.id} className={`experiment ${isOpen ? 'open' : ''}`} aria-label={`Experimento ${productFullLabel(exp)}`}>
+                <h2 className="product-title">
+                  <button
+                    type="button"
+                    className="product-toggle"
+                    aria-expanded={isOpen}
+                    aria-controls={`produto-${exp.id}`}
+                    onClick={() => toggle(exp.id)}
+                  >
+                    {exp.product_mode === 'none' && !exp.photo_path ? (
+                      <NaturalHairIcon className="product-thumb" />
+                    ) : (
+                      <PhotoView className="product-thumb" url={thumb ? urls[thumb] : undefined} alt="" />
+                    )}
+                    <span className="product-text">
+                      <span className={`product-name ${exp.product_mode === 'named' ? '' : 'muted-title'}`}>{productLabel(exp)}</span>
+                      <span className="muted small experiment-sub">
+                        {brand && <span className="brand-name">{brand}</span>}
+                        <span className="dates">
+                          {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {stages.length}{' '}
+                          {stages.length === 1 ? 'etapa' : 'etapas'}
+                        </span>
+                      </span>
+                    </span>
+                    <ChevronIcon />
+                  </button>
+                </h2>
+
+                {isOpen && (
+                  <div id={`produto-${exp.id}`} className="product-body">
+                    <ol className="stage-list">
+                      {stages.map((s) => {
+                        const cover = coverPhoto(s)
+                        return (
+                          <li key={s.id}>
+                            <SwipeRow
+                              open={swiped?.id === s.id ? swiped.dir : 0}
+                              onOpenChange={(dir) => setSwiped(dir ? { id: s.id, dir } : null)}
+                              actionText="Excluir"
+                              actionLabel={`Excluir ${STAGE_LABEL[s.stage_type]} de ${formatDateTime(s.captured_at)}`}
+                              onAction={() => setToDelete({ stage: s, experiment: exp })}
+                            >
+                              <a className={`stage-row ${saved === s.id ? 'highlight' : ''}`} href={href(`/etapa/${s.id}`)}>
+                                <PhotoView className="thumb" url={cover ? urls[cover.storage_path] : undefined} alt={cover ? ANGLE_LABEL[cover.angle] : ''} />
+                                <div className="stage-row-text">
+                                  <div className="stage-row-top">
+                                    <strong>
+                                      {STAGE_LABEL[s.stage_type]}
+                                      {s.is_favorite && <span className="star" aria-label="favorita"> ★</span>}
+                                      {s.photos.length < 4 && (
+                                        <span className="count-pill" title="Fotos desta etapa (de 4 ângulos)">
+                                          {s.photos.length}/4
+                                        </span>
+                                      )}
+                                    </strong>
+                                    <time className="muted small" dateTime={s.captured_at} title={formatDateTime(s.captured_at)}>
+                                      {formatShortDateTime(s.captured_at)}
+                                    </time>
+                                  </div>
+                                  <span className={`muted small stage-note ${s.notes ? '' : 'empty'}`}>
+                                    {s.notes ?? <span aria-label="Sem observação">—</span>}
                                   </span>
-                                )}
-                              </strong>
-                              <time className="muted small" dateTime={s.captured_at} title={formatDateTime(s.captured_at)}>
-                                {formatShortDateTime(s.captured_at)}
-                              </time>
-                            </div>
-                            {s.notes && <span className="muted small">{s.notes}</span>}
-                          </div>
-                        </a>
-                      </SwipeRow>
-                    </li>
-                  )
-                })}
-              </ol>
-            </section>
-          )
-        })}
-      </div>
+                                </div>
+                              </a>
+                            </SwipeRow>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                    <div className="product-actions">
+                      <a className="text-action" href={href(`/experimento/${exp.id}/nova-etapa`)} aria-label={`Adicionar etapa em ${productLabel(exp)}`}>
+                        + Adicionar etapa
+                      </a>
+                      {exp.product_mode === 'named' && <ProductPhotoButton experiment={exp} onDone={reload} />}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )
+          })}
+        </div>
+      )}
 
       {toDelete && (
         <DeleteStageDialog
@@ -163,10 +281,49 @@ export function History({ saved, deleted }: { saved: string | null; deleted: boo
   )
 }
 
-function PlusIcon() {
+/** Envia ou troca a foto da embalagem do produto. */
+function ProductPhotoButton({ experiment, onDone }: { experiment: Experiment; onDone: () => Promise<void> }) {
+  const { session } = useSession()
+  const input = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  async function onPicked(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !session) return
+    const invalid = validateFile(file)
+    if (invalid) {
+      setMessage(invalid)
+      return
+    }
+    setBusy(true)
+    setMessage(null)
+    try {
+      await setProductPhoto(session.user.id, experiment.id, file, detectMime(file))
+      await onDone()
+    } catch (err) {
+      setMessage((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+    <>
+      <button type="button" className="text-action" onClick={() => input.current?.click()} disabled={busy}>
+        {busy ? 'Enviando foto…' : experiment.photo_path ? 'Trocar foto do produto' : '+ Foto do produto'}
+      </button>
+      <input ref={input} type="file" accept={INPUT_ACCEPT} hidden onChange={onPicked} data-testid={`product-photo-${experiment.id}`} />
+      {message && <p className="slot-error product-photo-error">{message}</p>}
+    </>
+  )
+}
+
+function ChevronIcon() {
+  return (
+    <svg className="chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   )
 }

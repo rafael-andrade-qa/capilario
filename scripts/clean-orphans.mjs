@@ -1,4 +1,4 @@
-// Recupera arquivos órfãos: objetos do bucket que nunca foram associados a uma foto salva
+// Recupera arquivos órfãos: objetos do bucket que não estão ligados a uma foto de etapa nem à foto de um produto
 // (ex.: a aba foi fechada no meio do envio). Roda na SUA máquina, nunca no app.
 //
 //   SUPABASE_URL=https://xxx.supabase.co SUPABASE_SECRET_KEY=sb_secret_... node scripts/clean-orphans.mjs
@@ -43,6 +43,9 @@ for (let i = 0; i < objects.length; i += 200) {
   const { data, error } = await sb.from('photos').select('storage_path').in('storage_path', chunk)
   if (error) throw error
   for (const r of data) linked.add(r.storage_path)
+  const { data: prods, error: e2 } = await sb.from('experiments').select('photo_path').in('photo_path', chunk)
+  if (e2) throw e2
+  for (const r of prods) linked.add(r.photo_path)
 }
 
 const orphans = objects.filter((o) => !linked.has(o.path) && o.created < cutoff)

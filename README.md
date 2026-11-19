@@ -4,6 +4,12 @@ Diário fotográfico capilar pessoal, em português, pensado para o celular. Reg
 **Molhado**, **Seco** e **Dia seguinte**, com até quatro ângulos (**Frente**, **Esquerdo**,
 **Direito**, **Costas**), e compare duas etapas lado a lado no mesmo ângulo.
 
+O histórico mostra um produto por linha (nome, marca, datas e foto da embalagem); tocar abre as etapas.
+O mais recente começa aberto, e a busca por produto ou marca aparece a partir de 6 produtos.
+
+O novo registro tem dois passos: detalhes (etapa, data, produto, marca, foto do produto e observação)
+e depois as fotos, com um único botão fixo no rodapé.
+
 No comparador você escolhe a etapa primeiro. Molhado só se compara com Molhado. Seco e Dia seguinte
 se comparam com o mesmo tipo e também entre si, para ver como o Seco amanheceu.
 
@@ -42,7 +48,7 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
 ## Configurar o Supabase na nuvem
 
 1. Crie um projeto em https://supabase.com/dashboard.
-2. **Aplicar as migrações** (tabelas, restrições, RLS, bucket, políticas do Storage e as funções `finalize_stage` e `delete_stage`):
+2. **Aplicar as migrações** (tabelas, restrições, RLS, bucket, políticas do Storage e as funções `finalize_stage`, `delete_stage` e `set_experiment_photo`):
    ```bash
    npx supabase login
    npx supabase link --project-ref <ref-do-projeto>
@@ -103,6 +109,8 @@ transação. Se era a última etapa do produto, o experimento também sai. Em se
 sem a linha em `photos`, a política de exclusão libera o objeto para o dono. Não tem como desfazer.
 
 ### Arquivos órfãos (aba fechada durante o envio)
+
+Fotos de produto ficam em `<user_id>/produto-<experiment_id>/<foto>.<ext>`; a que está em uso não pode ser apagada.
 
 Se a aba fechar entre o upload e a finalização (ou a rede cair logo depois de excluir uma etapa), o arquivo fica no bucket sem registro. Para listar e remover
 (considera só objetos com mais de 24 h):

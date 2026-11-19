@@ -34,6 +34,14 @@ async function pick(page: Page, files: TestFile[]) {
 const slot = (page: Page, angle: string) => page.locator(`.slot[data-angle=${angle}]`)
 const stageRadio = (page: Page, label: string) => page.locator('label.seg', { hasText: label })
 const saveButton = (page: Page) => page.getByRole('button', { name: 'Salvar', exact: true })
+const productInput = (page: Page) => page.getByRole('combobox', { name: 'Produto', exact: true })
+const brandInput = (page: Page) => page.getByRole('combobox', { name: 'Marca', exact: true })
+
+/** Passo 1 do formulário: confirma e vai para as fotos. */
+async function continueToPhotos(page: Page) {
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Passo 2 de 2 · Fotos')).toBeVisible()
+}
 
 async function saveAndGetStage(page: Page): Promise<string> {
   await saveButton(page).click()
@@ -73,15 +81,25 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await noHorizontalScroll(page)
 
   await page.getByRole('link', { name: '+ Novo registro' }).click()
+  // Passo 1: detalhes. Produto e marca são obrigatórios.
+  await expect(page.getByText('Passo 1 de 2 · Detalhes')).toBeVisible()
+  await stageRadio(page, 'Molhado').click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Informe o produto ou marque Sem finalizador.')).toBeVisible()
+  await productInput(page).fill('Ondulando a Gema')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByText('Informe a marca do produto.')).toBeVisible()
+  await brandInput(page).fill('Gema Labs')
+  await noHorizontalScroll(page)
+  await continueToPhotos(page)
+  await expect(page.locator('.details-summary')).toContainText('Molhado · Ondulando a Gema')
+
+  // Passo 2: fotos. Troca Frente <-> Esquerdo por toque.
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   await noHorizontalScroll(page)
-  // Troca Frente <-> Lado esquerdo por toque.
   await slot(page, 'front').locator('.slot-target').click()
   await slot(page, 'left').locator('.slot-target').click()
   await expect(slot(page, 'front').locator('.slot-target')).toHaveAttribute('aria-label', /esquerdo\.png/)
-
-  await stageRadio(page, 'Molhado').click()
-  await page.getByLabel('Produto').fill('Ondulando a Gema')
   ids.wet = await saveAndGetStage(page)
 
   await expect(page.locator('.experiment')).toHaveCount(1)
@@ -97,10 +115,12 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
 test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ page }) => {
   await login(page, me)
   await page.getByRole('link', { name: 'Adicionar etapa em Ondulando a Gema' }).click()
-  await expect(page.locator('.inherited')).toHaveText('Ondulando a Gema')
-  await pick(page, [FRONT, LEFT, RIGHT, BACK])
+  await expect(page.locator('.inherited')).toContainText('Ondulando a Gema')
+  await expect(page.locator('.inherited')).toContainText('Gema Labs')
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Observação').fill('Macio e solto.')
+  await continueToPhotos(page)
+  await pick(page, [FRONT, LEFT, RIGHT, BACK])
   ids.dry = await saveAndGetStage(page)
 
   await expect(page.locator('.experiment')).toHaveCount(1)
@@ -124,9 +144,10 @@ test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ p
 test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ page }) => {
   await login(page, me)
   await page.getByRole('link', { name: '+ Novo registro' }).click()
-  await pick(page, [FRONT, LEFT])
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
+  await continueToPhotos(page)
+  await pick(page, [FRONT, LEFT])
   ids.dryNone = await saveAndGetStage(page)
   expect(Object.keys(await photosOf(ids.dryNone)).sort()).toEqual(['front', 'left'])
 
@@ -194,19 +215,19 @@ test('A4: compara só etapas compatíveis; Seco × Seco entre experimentos', asy
 test('A5: ângulo ausente aparece como ausência, sem trocar de ângulo', async ({ page }) => {
   await login(page, me)
   await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await stageRadio(page, 'Dia seguinte').click()
+  await productInput(page).fill('Gelatina A5')
+  await brandInput(page).fill('Marca Teste')
+  await continueToPhotos(page)
   await pick(page, [BACK])
   // A foto entra em Frente; move para Costas tocando nos dois espaços.
   await slot(page, 'front').locator('.slot-target').click()
   await slot(page, 'back').locator('.slot-target').click()
-  await stageRadio(page, 'Dia seguinte').click()
-  // Produto é obrigatório: nome ou "Sem finalizador".
-  await saveButton(page).click()
-  await expect(page.getByText('Informe o produto ou marque Sem finalizador.')).toBeVisible()
-  await page.getByLabel('Produto').fill('Gelatina A5')
-  await page.getByLabel('Marca').fill('Marca Teste')
   ids.backOnly = await saveAndGetStage(page)
   const card = page.locator('.experiment', { hasText: 'Gelatina A5' })
-  await expect(card.locator('h2')).toHaveText('Gelatina A5')
+  await expect(card.locator('.product-name')).toHaveText('Gelatina A5')
+  // Sem observação: um traço no lugar, para a linha não mudar de altura.
+  await expect(card.locator('.stage-note')).toHaveText('—')
   await expect(card.locator('.brand-name')).toHaveText('Marca Teste')
   // A etapa com 1 de 4 fotos mostra o contador ao lado do nome.
   await expect(card.locator('.count-pill')).toHaveText('1/4')
@@ -232,18 +253,19 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
   })
 
   await page.getByRole('link', { name: '+ Novo registro' }).click()
-  await pick(page, [FRONT, LEFT, RIGHT, BACK])
   await stageRadio(page, 'Molhado').click()
-  await page.getByLabel('Produto').fill('Creme teste A6')
+  await productInput(page).fill('Creme teste A6')
+  await brandInput(page).fill('Marca A6')
   await page.getByLabel('Observação').fill('nota preservada')
+  await continueToPhotos(page)
+  await pick(page, [FRONT, LEFT, RIGHT, BACK])
   // Dois toques seguidos em Salvar.
   await saveButton(page).evaluate((b: HTMLButtonElement) => {
     b.click()
     b.click()
   })
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
-  await expect(page.getByLabel('Produto')).toHaveValue('Creme teste A6')
-  await expect(page.getByLabel('Observação')).toHaveValue('nota preservada')
+  await expect(page.locator('.details-summary')).toContainText('Creme teste A6')
   await expect(page.locator('.slot .badge.ok')).toHaveCount(3)
   await expect(page.locator('.slot .badge.err')).toHaveCount(1)
 
@@ -252,6 +274,9 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
   const after = await counts(me.id)
   expect(after).toEqual({ experiments: before.experiments! + 1, stages: before.stages! + 1, photos: before.photos! + 4 })
   expect(posts).toBe(5) // 4 envios + 1 reenvio só da foto que falhou
+  const savedId = new URL(page.url()).hash.split('salvo=')[1]
+  const { data: savedStage } = await admin.from('stages').select('notes').eq('id', savedId).single()
+  expect(savedStage!.notes).toBe('nota preservada')
   await page.unroute('**/storage/v1/object/capilar-photos/**')
 })
 
@@ -269,9 +294,10 @@ test('A6: resposta perdida na finalização é confirmada no banco, sem duplicar
     return route.continue()
   })
   await page.getByRole('link', { name: '+ Novo registro' }).click()
-  await pick(page, [FRONT, LEFT])
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
+  await continueToPhotos(page)
+  await pick(page, [FRONT, LEFT])
   await saveAndGetStage(page)
   const after = await counts(me.id)
   expect(after).toEqual({ experiments: before.experiments! + 1, stages: before.stages! + 1, photos: before.photos! + 2 })
@@ -287,9 +313,10 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
     return route.continue()
   })
   await page.getByRole('link', { name: '+ Novo registro' }).click()
-  await pick(page, [FRONT, LEFT, RIGHT])
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
+  await continueToPhotos(page)
+  await pick(page, [FRONT, LEFT, RIGHT])
   await saveButton(page).click()
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
   await page.getByRole('button', { name: 'Salvar só as 2 fotos concluídas' }).click()
@@ -301,6 +328,9 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
 test('A9: arquivo grande, formato não aceito e upload retomável', async ({ page }) => {
   await login(page, me)
   await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await stageRadio(page, 'Seco').click()
+  await page.getByLabel('Sem finalizador').check()
+  await continueToPhotos(page)
   const big: TestFile = { name: 'grande.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(16 * 1024 * 1024, 1) }
   const gif: TestFile = { name: 'animado.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') }
   const heic: TestFile = { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: Buffer.from('fake') }
@@ -312,8 +342,6 @@ test('A9: arquivo grande, formato não aceito e upload retomável', async ({ pag
   await expect(slot(page, 'right')).toContainText('Formato não aceito')
   await expect(slot(page, 'back')).toContainText('HEIC')
   await noHorizontalScroll(page)
-  await stageRadio(page, 'Seco').click()
-  await page.getByLabel('Sem finalizador').check()
   await saveButton(page).click()
   await expect(page.getByText('Troque ou remova os arquivos marcados com problema.')).toBeVisible()
 

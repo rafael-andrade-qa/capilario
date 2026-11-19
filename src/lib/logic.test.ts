@@ -96,6 +96,7 @@ describe('histórico', () => {
     product_mode: 'named',
     product_name: 'Gema',
     brand: null,
+    photo_path: null,
     created_at: '2026-11-01T10:00:00+00:00',
     stages: [stage('s2', '2026-11-01T15:00:00+00:00'), stage('s1', '2026-11-01T10:00:00.5+00:00'), stage('vazia', '2026-11-20T10:00:00+00:00', 0)],
   }
@@ -104,10 +105,11 @@ describe('histórico', () => {
     product_mode: 'none',
     product_name: null,
     brand: null,
+    photo_path: null,
     created_at: '2026-11-05T10:00:00+00:00',
     stages: [stage('s3', '2026-11-03T10:00:00+00:00')],
   }
-  const e3: Experiment = { id: 'e3', product_mode: 'unspecified', product_name: null, brand: null, created_at: '2026-11-10T10:00:00+00:00', stages: [] }
+  const e3: Experiment = { id: 'e3', product_mode: 'unspecified', product_name: null, brand: null, photo_path: null, created_at: '2026-11-10T10:00:00+00:00', stages: [] }
 
   it('mostra só etapas com foto, em ordem cronológica', () => {
     expect(publishedStages(e1).map((s) => s.id)).toEqual(['s1', 's2'])
@@ -115,9 +117,10 @@ describe('histórico', () => {
   it('ordena experimentos pela etapa publicada mais recente e esconde experimentos vazios', () => {
     expect(sortHistory([e1, e2, e3]).map((e) => e.id)).toEqual(['e2', 'e1'])
   })
-  it('rótulo de seleção traz data curta, horário e produto', () => {
-    const label = stageOptionLabel(e1.stages[0], e1, new Date('2026-12-01T12:00:00Z'))
-    expect(label).toMatch(/^\d{2}\/\d{2} \d{2}:\d{2} · Gema$/)
+  it('rótulo de seleção traz data curta e produto; horário só para desempatar', () => {
+    const now = new Date('2026-12-01T12:00:00Z')
+    expect(stageOptionLabel(e1.stages[0], e1, now)).toMatch(/^\d{2}\/\d{2} · Gema$/)
+    expect(stageOptionLabel(e1.stages[0], e1, now, true)).toMatch(/^\d{2}\/\d{2} \d{2}:\d{2} · Gema$/)
   })
   it('datas curtas omitem o ano corrente e juntam intervalos do mesmo mês', () => {
     const now = new Date('2026-11-19T12:00:00')

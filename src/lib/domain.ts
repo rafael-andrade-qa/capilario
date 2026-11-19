@@ -47,6 +47,8 @@ export interface Experiment {
   product_name: string | null
   /** Marca (opcional, só com produto nomeado). Aparece discreta, abaixo do nome. */
   brand: string | null
+  /** Foto da embalagem (opcional), usada como miniatura do produto no histórico. */
+  photo_path: string | null
   created_at: string
   stages: Stage[]
 }
@@ -158,9 +160,13 @@ export function sortHistory(experiments: Experiment[]): Experiment[] {
     .sort((a, b) => latest(b) - latest(a) || ts(b.created_at) - ts(a.created_at))
 }
 
-/** Rótulo de seleção de etapa (o tipo já aparece no grupo): data, horário e produto. */
-export function stageOptionLabel(stage: Stage, experiment: Experiment, now = new Date()): string {
-  return `${formatShortDateTime(stage.captured_at, now)} · ${productLabel(experiment)}`
+/**
+ * Rótulo de seleção de etapa (o tipo já aparece no grupo): data e produto.
+ * O horário só entra quando é preciso desempatar (mesmo dia, mesmo produto).
+ */
+export function stageOptionLabel(stage: Stage, experiment: Experiment, now = new Date(), withTime = false): string {
+  const when = withTime ? formatShortDateTime(stage.captured_at, now) : formatShortDate(stage.captured_at, now)
+  return `${when} · ${productLabel(experiment)}`
 }
 
 export function photoByAngle(stage: Pick<Stage, 'photos'>, angle: Angle): Photo | undefined {

@@ -1,9 +1,12 @@
 // Acesso a dados. Toda chamada usa a sessão do usuário; o RLS do banco é a proteção real.
 import { BUCKET, supabase } from './supabase'
 import type { Angle, Experiment, ProductMode, StageType } from './domain'
+import { EXT_BY_MIME, type AcceptedMime } from './files'
+import { uploadPhoto } from './upload'
+import { uuid } from './uuid'
 
 const HISTORY_SELECT =
-  'id, product_mode, product_name, brand, created_at, stages(id, experiment_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
+  'id, product_mode, product_name, brand, photo_path, created_at, stages(id, experiment_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
 
 export async function fetchHistory(): Promise<Experiment[]> {
   const { data, error } = await supabase.from('experiments').select(HISTORY_SELECT).order('created_at', { ascending: false })
@@ -73,15 +76,39 @@ export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult>
  * Se a resposta se perde, confere no banco se a etapa sumiu antes de declarar falha.
  */
 export async function deleteStage(stageId: string, paths: string[]): Promise<void> {
-  const { error } = await supabase.rpc('delete_stage', { p_stage_id: stageId })
+  const { data: result, error } = await supabase.rpc('delete_stage', { p_stage_id: stageId })
   if (error) {
     if (error.code) throw new Error(FRIENDLY[error.message] ?? `Não foi possível excluir: ${error.message}`)
     const { data, error: checkErr } = await supabase.from('stages').select('id').eq('id', stageId)
     if (checkErr || data?.length) throw new Error('Não foi possível excluir. Verifique a conexão e tente de novo.')
   }
+  // O servidor devolve também a foto do produto quando o produto inteiro saiu.
+  paths = [...new Set([...paths, ...(((result as { paths?: string[] } | null)?.paths) ?? [])])]
   for (const p of paths) signedCache.delete(p)
   // Arquivo que sobrar aqui (rede caiu) vira órfão e sai com scripts/clean-orphans.mjs.
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch(() => undefined)
+}
+
+/**
+ * Envia a foto do produto e a liga ao experimento. A foto anterior (se houver) é apagada
+ * depois que deixa de estar em uso. Devolve o novo caminho.
+ */
+export async function setProductPhoto(userId: string, experimentId: string, file: File, mime: string): Promise<string> {
+  const ext = EXT_BY_MIME[mime as AcceptedMime]
+  if (!ext) throw new Error('Formato não aceito. Use JPEG, PNG ou WebP.')
+  const path = `${userId}/produto-${experimentId}/${uuid()}.${ext}`
+  await uploadPhoto({ path, file, contentType: mime })
+  const { data, error } = await supabase.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: path })
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined)
+    throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar a foto do produto: ${error.message}`)
+  }
+  const old = (data as { old_path?: string | null } | null)?.old_path
+  if (old) {
+    signedCache.delete(old)
+    await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
+  }
+  return path
 }
 
 /** Quais destas fotos já estão registradas no banco (para respostas perdidas e limpeza). */

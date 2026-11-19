@@ -9,6 +9,7 @@ import {
   STAGE_LABEL,
   STAGE_TYPES,
   brandLabel,
+  formatShortDate,
   formatShortDateTime,
   photoByAngle,
   productLabel,
@@ -55,6 +56,13 @@ export function Compare({ params }: { params: URLSearchParams }) {
     [entries],
   )
   const items = useMemo(() => recent.map(toItem), [recent])
+  // Opções mostram só a data; o horário entra quando há dois registros iguais no mesmo dia.
+  const optionLabel = useMemo(() => {
+    const key = (e: Entry) => `${e.stage.stage_type}|${e.experiment.id}|${formatShortDate(e.stage.captured_at)}`
+    const count = new Map<string, number>()
+    for (const e of recent) count.set(key(e), (count.get(key(e)) ?? 0) + 1)
+    return (e: Entry) => stageOptionLabel(e.stage, e.experiment, new Date(), (count.get(key(e)) ?? 0) > 1)
+  }, [recent])
 
   const aId = params.get('a')
   const bId = params.get('b')
@@ -174,7 +182,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
               <select aria-label="Registro A" value={a.stage.id} onChange={(e) => choose('a', e.target.value)} data-testid="select-a">
                 {optionsOf(type).map((e) => (
                   <option key={e.stage.id} value={e.stage.id}>
-                    {stageOptionLabel(e.stage, e.experiment)}
+                    {optionLabel(e)}
                     {e.stage.id === b.stage.id ? ' (em B)' : ''}
                   </option>
                 ))}
@@ -190,7 +198,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
                     <optgroup key={t} label={STAGE_LABEL[t]}>
                       {options.map((e) => (
                         <option key={e.stage.id} value={e.stage.id}>
-                          {stageOptionLabel(e.stage, e.experiment)}
+                          {optionLabel(e)}
                         </option>
                       ))}
                     </optgroup>
