@@ -1,5 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { PhotoView } from '../components/PhotoView'
+import { SwipeRow, type SwipeOpen } from '../components/SwipeRow'
 import {
   ANGLES,
   ANGLE_LABEL,
@@ -10,6 +12,7 @@ import {
   productLabel,
   publishedStages,
   sortHistory,
+  type Experiment,
   type Stage,
 } from '../lib/domain'
 import { href, navigate } from '../lib/router'
@@ -24,8 +27,11 @@ function coverPhoto(stage: Stage) {
   return undefined
 }
 
-export function History({ saved }: { saved: string | null }) {
+export function History({ saved, deleted }: { saved: string | null; deleted: boolean }) {
   const { experiments, error, loading, reload } = useHistory()
+  const [swiped, setSwiped] = useState<{ id: string; dir: SwipeOpen } | null>(null)
+  const [toDelete, setToDelete] = useState<{ stage: Stage; experiment: Experiment } | null>(null)
+  const [deletedHere, setDeletedHere] = useState(false)
   const list = useMemo(() => sortHistory(experiments ?? []), [experiments])
   const totalStages = list.reduce((n, e) => n + publishedStages(e).length, 0)
   const covers = list.flatMap((e) => publishedStages(e).map((s) => coverPhoto(s)?.storage_path)).filter(Boolean) as string[]
@@ -48,6 +54,7 @@ export function History({ saved }: { saved: string | null }) {
       </div>
 
       {saved && <p className="alert alert-success" role="status">Registro salvo.</p>}
+      {(deleted || deletedHere) && !saved && <p className="alert alert-success" role="status">Etapa excluída.</p>}
       {error && (
         <p className="alert alert-error">
           {error}{' '}
@@ -94,19 +101,27 @@ export function History({ saved }: { saved: string | null }) {
                   const cover = coverPhoto(s)
                   return (
                     <li key={s.id}>
-                      <a className={`stage-row ${saved === s.id ? 'highlight' : ''}`} href={href(`/etapa/${s.id}`)}>
-                        <PhotoView className="thumb" url={cover ? urls[cover.storage_path] : undefined} alt={cover ? ANGLE_LABEL[cover.angle] : ''} />
-                        <div className="stage-row-text">
-                          <strong>
-                            {STAGE_LABEL[s.stage_type]} {s.is_favorite && <span className="star" aria-label="favorita">★</span>}
-                          </strong>
-                          <span className="muted small">{formatDateTime(s.captured_at)}</span>
-                          <span className="muted small">
-                            {s.photos.length}/4 ângulos
-                            {s.notes ? ` · ${s.notes}` : ''}
-                          </span>
-                        </div>
-                      </a>
+                      <SwipeRow
+                        open={swiped?.id === s.id ? swiped.dir : 0}
+                        onOpenChange={(dir) => setSwiped(dir ? { id: s.id, dir } : null)}
+                        actionText="Excluir"
+                        actionLabel={`Excluir ${STAGE_LABEL[s.stage_type]} de ${formatDateTime(s.captured_at)}`}
+                        onAction={() => setToDelete({ stage: s, experiment: exp })}
+                      >
+                        <a className={`stage-row ${saved === s.id ? 'highlight' : ''}`} href={href(`/etapa/${s.id}`)}>
+                          <PhotoView className="thumb" url={cover ? urls[cover.storage_path] : undefined} alt={cover ? ANGLE_LABEL[cover.angle] : ''} />
+                          <div className="stage-row-text">
+                            <strong>
+                              {STAGE_LABEL[s.stage_type]} {s.is_favorite && <span className="star" aria-label="favorita">★</span>}
+                            </strong>
+                            <span className="muted small">{formatDateTime(s.captured_at)}</span>
+                            <span className="muted small">
+                              {s.photos.length}/4 ângulos
+                              {s.notes ? ` · ${s.notes}` : ''}
+                            </span>
+                          </div>
+                        </a>
+                      </SwipeRow>
                     </li>
                   )
                 })}
@@ -115,6 +130,22 @@ export function History({ saved }: { saved: string | null }) {
           )
         })}
       </div>
+
+      {toDelete && (
+        <DeleteStageDialog
+          stage={toDelete.stage}
+          experiment={toDelete.experiment}
+          onCancel={() => {
+            setToDelete(null)
+            setSwiped(null)
+          }}
+          onDeleted={() => {
+            setToDelete(null)
+            setSwiped(null)
+            setDeletedHere(true)
+          }}
+        />
+      )}
     </main>
   )
 }

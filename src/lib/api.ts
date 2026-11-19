@@ -67,6 +67,23 @@ export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult>
   return data as FinalizeResult
 }
 
+/**
+ * Exclui uma etapa (e o experimento, se era a última). Depois remove os arquivos:
+ * a política do Storage só libera objetos que já não estão ligados a uma foto.
+ * Se a resposta se perde, confere no banco se a etapa sumiu antes de declarar falha.
+ */
+export async function deleteStage(stageId: string, paths: string[]): Promise<void> {
+  const { error } = await supabase.rpc('delete_stage', { p_stage_id: stageId })
+  if (error) {
+    if (error.code) throw new Error(FRIENDLY[error.message] ?? `Não foi possível excluir: ${error.message}`)
+    const { data, error: checkErr } = await supabase.from('stages').select('id').eq('id', stageId)
+    if (checkErr || data?.length) throw new Error('Não foi possível excluir. Verifique a conexão e tente de novo.')
+  }
+  for (const p of paths) signedCache.delete(p)
+  // Arquivo que sobrar aqui (rede caiu) vira órfão e sai com scripts/clean-orphans.mjs.
+  if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch(() => undefined)
+}
+
 /** Quais destas fotos já estão registradas no banco (para respostas perdidas e limpeza). */
 export async function linkedPhotoIds(photoIds: string[]): Promise<Set<string>> {
   if (!photoIds.length) return new Set()

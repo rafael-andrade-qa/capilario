@@ -48,6 +48,7 @@ interface HistoryState {
   loading: boolean
   reload: () => Promise<void>
   patchStage: (id: string, patch: Partial<Stage>) => void
+  removeStage: (id: string) => void
 }
 const HistoryContext = createContext<HistoryState | null>(null)
 
@@ -74,11 +75,26 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const removeStage = useCallback((id: string) => {
+    // Igual ao banco: se era a última etapa, o experimento sai junto.
+    setExperiments(
+      (prev) =>
+        prev?.flatMap((e) => {
+          if (!e.stages.some((s) => s.id === id)) return [e]
+          const stages = e.stages.filter((s) => s.id !== id)
+          return stages.length ? [{ ...e, stages }] : []
+        }) ?? prev,
+    )
+  }, [])
+
   useEffect(() => {
     void reload()
   }, [reload])
 
-  const value = useMemo(() => ({ experiments, error, loading, reload, patchStage }), [experiments, error, loading, reload, patchStage])
+  const value = useMemo(
+    () => ({ experiments, error, loading, reload, patchStage, removeStage }),
+    [experiments, error, loading, reload, patchStage, removeStage],
+  )
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>
 }
 

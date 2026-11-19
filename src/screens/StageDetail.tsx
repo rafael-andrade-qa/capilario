@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { PhotoView } from '../components/PhotoView'
 import { updateStage } from '../lib/api'
 import { ANGLES, ANGLE_LABEL, STAGE_LABEL, formatDateTime, missingAngles, photoByAngle, productLabel, type Angle } from '../lib/domain'
-import { href } from '../lib/router'
+import { href, navigate } from '../lib/router'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
 
 export function StageDetail({ stageId }: { stageId: string }) {
@@ -16,6 +17,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
   const [savingFav, setSavingFav] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [viewer, setViewer] = useState<Angle | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     setNotes(stage?.notes ?? '')
@@ -133,6 +135,21 @@ export function StageDetail({ stageId }: { stageId: string }) {
           {savingNotes ? 'Salvando…' : 'Salvar observação'}
         </button>
       </section>
+
+      <section className="danger-zone">
+        <button className="btn btn-danger-outline btn-block" onClick={() => setConfirmDelete(true)}>
+          Excluir etapa
+        </button>
+      </section>
+
+      {confirmDelete && (
+        <DeleteStageDialog
+          stage={stage}
+          experiment={experiment}
+          onCancel={() => setConfirmDelete(false)}
+          onDeleted={() => navigate('/?excluida=1', { replace: true })}
+        />
+      )}
 
       {viewer && viewerPhoto && (
         <div className="viewer" role="dialog" aria-label={ANGLE_LABEL[viewer]} onClick={() => setViewer(null)}>

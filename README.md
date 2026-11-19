@@ -39,7 +39,7 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
 ## Configurar o Supabase na nuvem
 
 1. Crie um projeto em https://supabase.com/dashboard.
-2. **Aplicar as migrações** (tabelas, restrições, RLS, bucket, políticas do Storage e a função `finalize_stage`):
+2. **Aplicar as migrações** (tabelas, restrições, RLS, bucket, políticas do Storage e as funções `finalize_stage` e `delete_stage`):
    ```bash
    npx supabase login
    npx supabase link --project-ref <ref-do-projeto>
@@ -89,9 +89,19 @@ os atalhos *Novo registro* e *Comparar*.
 6. Arquivos descartados são apagados só depois de confirmar no banco que não foram associados; a política do
    Storage também impede apagar uma foto publicada.
 
+## Excluir uma etapa
+
+- **No histórico:** deslize a linha da etapa para o lado (qualquer sentido) e toque em **Excluir**.
+  Tocar na linha aberta só a fecha.
+- **No detalhe da etapa:** botão **Excluir etapa**, no fim da tela.
+
+Os dois pedem confirmação. A função `delete_stage` (Postgres, `SECURITY INVOKER`) apaga a etapa e as fotos numa
+transação. Se era a última etapa do produto, o experimento também sai. Em seguida o app apaga os arquivos do Storage:
+sem a linha em `photos`, a política de exclusão libera o objeto para o dono. Não tem como desfazer.
+
 ### Arquivos órfãos (aba fechada durante o envio)
 
-Se a aba fechar entre o upload e a finalização, o arquivo fica no bucket sem registro. Para listar e remover
+Se a aba fechar entre o upload e a finalização (ou a rede cair logo depois de excluir uma etapa), o arquivo fica no bucket sem registro. Para listar e remover
 (considera só objetos com mais de 24 h):
 
 ```bash
@@ -116,7 +126,7 @@ PNG de 8 MB (upload retomável), arquivo de 16 MB, GIF e HEIC (recusados por arq
 ## Segurança e privacidade
 
 - RLS ativo em `experiments`, `stages` e `photos`: cada usuário só lê/grava os próprios registros.
-  `anon` não tem acesso. Em `stages`, só `notes` e `is_favorite` podem ser atualizados.
+  `anon` não tem acesso. Em `stages`, só `notes` e `is_favorite` podem ser atualizados. Cada um só exclui o que é seu.
 - Chaves estrangeiras compostas `(id, user_id)` garantem que a etapa e o experimento (e a foto e a etapa) tenham o mesmo dono.
 - Storage privado; leitura, envio e exclusão só no prefixo `<auth.uid()>/`. Fotos aparecem por URLs assinadas de 10 min, guardadas só em memória e limpas ao sair.
 - O service worker guarda só os arquivos estáticos do próprio app; Supabase, imagens privadas e URLs assinadas nunca passam por ele.

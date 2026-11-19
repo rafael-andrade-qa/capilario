@@ -595,3 +595,92 @@ select {
   color: var(--muted);
   font-style: italic;
 }
+
+/* Exclusão ---------------------------------------------------------------- */
+.btn-danger {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #ffffff;
+}
+.btn-danger-outline {
+  color: var(--err);
+  border-color: var(--err);
+  background: transparent;
+}
+.danger-zone {
+  margin: 8px 0 24px;
+}
+
+/* Linha deslizável do histórico */
+.swipe {
+  position: relative;
+  overflow: hidden;
+}
+.swipe-action {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border: none;
+  border-radius: 10px;
+  background: #b3261e;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.swipe-action.at-left {
+  left: 0;
+}
+.swipe-action.at-right {
+  right: 0;
+}
+.swipe-content {
+  position: relative;
+  background: var(--surface);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.swipe-content a,
+.swipe-content img {
+  -webkit-user-drag: none;
+}
+.swipe-content.settle {
+  transition: transform 0.18s ease-out;
+}
+
+/* Diálogo de confirmação */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+@media (min-width: 640px) {
+  .dialog-backdrop {
+    align-items: center;
+  }
+}
+.dialog {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 16px 16px;
+}
+.dialog p {
+  margin: 10px 0;
+}
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
