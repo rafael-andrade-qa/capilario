@@ -1,7 +1,10 @@
 // Comparador: primeiro a etapa (Molhado, Seco, Dia seguinte), depois os dois registros.
 // Molhado só compara com Molhado; Seco e Dia seguinte também entre si (ver lib/compare.ts).
 import { useEffect, useMemo } from 'react'
+import { Dropdown, type DropdownOption } from '../components/Dropdown'
+import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
+import { ProductThumb, productThumbPath } from '../components/ProductThumb'
 import { compatibleTypes, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
 import {
   ANGLES,
@@ -15,7 +18,6 @@ import {
   productLabel,
   publishedStages,
   sortHistory,
-  stageOptionLabel,
   type Angle,
   type Experiment,
   type Stage,
@@ -57,11 +59,11 @@ export function Compare({ params }: { params: URLSearchParams }) {
   )
   const items = useMemo(() => recent.map(toItem), [recent])
   // Opções mostram só a data; o horário entra quando há dois registros iguais no mesmo dia.
-  const optionLabel = useMemo(() => {
+  const optionWhen = useMemo(() => {
     const key = (e: Entry) => `${e.stage.stage_type}|${e.experiment.id}|${formatShortDate(e.stage.captured_at)}`
     const count = new Map<string, number>()
     for (const e of recent) count.set(key(e), (count.get(key(e)) ?? 0) + 1)
-    return (e: Entry) => stageOptionLabel(e.stage, e.experiment, new Date(), (count.get(key(e)) ?? 0) > 1)
+    return (e: Entry) => ((count.get(key(e)) ?? 0) > 1 ? formatShortDateTime(e.stage.captured_at) : formatShortDate(e.stage.captured_at))
   }, [recent])
 
   const aId = params.get('a')
@@ -91,7 +93,10 @@ export function Compare({ params }: { params: URLSearchParams }) {
     if (window.location.hash !== '#' + target) navigate(target, { replace: true })
   }, [experiments, target])
 
-  const paths = [a, b].flatMap((e) => (e ? e.stage.photos.map((p) => p.storage_path) : []))
+  const paths = [
+    ...[a, b].flatMap((e) => (e ? e.stage.photos.map((p) => p.storage_path) : [])),
+    ...recent.map((e) => productThumbPath(e.experiment, e.stage)).filter((p): p is string => !!p),
+  ]
   const { urls, error } = useSignedUrls(paths)
 
   if (experiments === null) return <main className="page muted center">Carregando…</main>
@@ -99,8 +104,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
   if (entries.size < 2) {
     return (
       <main className="page">
-        <a className="back" href={href('/')}>← Histórico</a>
-        <h1>Comparar</h1>
+        <PageHeader title="Comparar" back={{ label: 'Voltar ao histórico', href: href('/') }} />
         <p className="alert alert-info">
           {entries.size === 0 ? 'Você ainda não tem etapas salvas.' : 'Você tem só 1 etapa salva.'} Registre pelo menos duas etapas para comparar.
         </p>
@@ -137,13 +141,19 @@ export function Compare({ params }: { params: URLSearchParams }) {
   }
 
   const optionsOf = (t: StageType) => recent.filter((e) => e.stage.stage_type === t)
+  const toOption = (e: Entry, hint?: string): DropdownOption => ({
+    value: e.stage.id,
+    label: productLabel(e.experiment),
+    sublabel: [optionWhen(e), brandLabel(e.experiment)].filter(Boolean).join(' · '),
+    hint,
+    thumb: <ProductThumb experiment={e.experiment} stage={e.stage} urls={urls} className="dd-thumb" />,
+  })
   const missing = a && b ? missingSide(anglesOf(a), anglesOf(b), angle) : null
   const crossType = !!a && !!b && a.stage.stage_type !== b.stage.stage_type
 
   return (
     <main className="page compare-page">
-      <a className="back" href={href('/')}>← Histórico</a>
-      <h1>Comparar</h1>
+      <PageHeader title="Comparar" back={{ label: 'Voltar ao histórico', href: href('/') }} />
 
       <div className="segmented type-picker" role="radiogroup" aria-label="Etapa">
         {STAGE_TYPES.map((t) => (
@@ -177,35 +187,26 @@ export function Compare({ params }: { params: URLSearchParams }) {
       {type && a && b && (
         <>
           <div className="compare-pickers">
-            <label className="pick-row">
-              <span className="pick-tag" aria-hidden="true">A</span>
-              <select aria-label="Registro A" value={a.stage.id} onChange={(e) => choose('a', e.target.value)} data-testid="select-a">
-                {optionsOf(type).map((e) => (
-                  <option key={e.stage.id} value={e.stage.id}>
-                    {optionLabel(e)}
-                    {e.stage.id === b.stage.id ? ' (em B)' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="pick-row">
-              <span className="pick-tag" aria-hidden="true">B</span>
-              <select aria-label="Registro B" value={b.stage.id} onChange={(e) => choose('b', e.target.value)} data-testid="select-b">
-                {compatibleTypes(type).map((t) => {
-                  const options = optionsOf(t).filter((e) => e.stage.id !== a.stage.id)
-                  if (!options.length) return null
-                  return (
-                    <optgroup key={t} label={STAGE_LABEL[t]}>
-                      {options.map((e) => (
-                        <option key={e.stage.id} value={e.stage.id}>
-                          {optionLabel(e)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )
-                })}
-              </select>
-            </label>
+            <Dropdown
+              label="Registro A"
+              testId="select-a"
+              prefix={<span className="pick-tag" aria-hidden="true">A</span>}
+              value={a.stage.id}
+              onChange={(v) => choose('a', v)}
+              options={optionsOf(type).map((e) => toOption(e, e.stage.id === b.stage.id ? 'em B' : undefined))}
+            />
+            <Dropdown
+              label="Registro B"
+              testId="select-b"
+              prefix={<span className="pick-tag" aria-hidden="true">B</span>}
+              value={b.stage.id}
+              onChange={(v) => choose('b', v)}
+              options={compatibleTypes(type).flatMap((t) =>
+                optionsOf(t)
+                  .filter((e) => e.stage.id !== a.stage.id)
+                  .map((e) => ({ ...toOption(e), group: compatibleTypes(type).length > 1 ? STAGE_LABEL[t] : undefined })),
+              )}
+            />
           </div>
 
           <div className="segmented angles" role="tablist" aria-label="Ângulo">

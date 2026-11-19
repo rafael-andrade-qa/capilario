@@ -1,20 +1,20 @@
 // Histórico: um produto por linha, recolhido. Tocar abre as etapas daquele produto.
 // O produto mais recente começa aberto; o que você abre/fecha é lembrado durante a sessão.
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
-import { NaturalHairIcon } from '../components/NaturalHairIcon'
+import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
+import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import { SwipeRow, type SwipeOpen } from '../components/SwipeRow'
 import { setProductPhoto } from '../lib/api'
 import {
-  ANGLES,
   ANGLE_LABEL,
   STAGE_LABEL,
   brandLabel,
   formatDateRange,
   formatDateTime,
   formatShortDateTime,
-  photoByAngle,
   productFullLabel,
   productLabel,
   publishedStages,
@@ -33,23 +33,6 @@ const SEARCH_FROM = 6
 const openMemory = new Set<string>()
 let openRemembered = false
 
-/** Foto representativa de uma etapa: a primeira na ordem Frente, Esquerdo, Direito, Costas. */
-function coverPhoto(stage: Stage) {
-  for (const a of ANGLES) {
-    const p = photoByAngle(stage, a)
-    if (p) return p
-  }
-  return undefined
-}
-
-/** Miniatura do produto: a foto da embalagem; sem ela, a capa da etapa mais recente (Sem finalizador usa um ícone). */
-function productThumbPath(exp: Experiment): string | undefined {
-  if (exp.photo_path) return exp.photo_path
-  if (exp.product_mode === 'none') return undefined
-  const stages = publishedStages(exp)
-  return stages.length ? coverPhoto(stages[stages.length - 1])?.storage_path : undefined
-}
-
 const normalize = (s: string) =>
   s
     .normalize('NFD')
@@ -60,7 +43,8 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
   const { experiments, error, loading, reload } = useHistory()
   const [swiped, setSwiped] = useState<{ id: string; dir: SwipeOpen } | null>(null)
   const [toDelete, setToDelete] = useState<{ stage: Stage; experiment: Experiment } | null>(null)
-  const [deletedHere, setDeletedHere] = useState(false)
+  const [deletedHere, setDeletedHere] = useState<string | null>(null)
+  const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
@@ -138,7 +122,11 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
           A foto do produto não foi enviada. Abra o produto e toque em “+ Foto do produto” para tentar de novo.
         </p>
       )}
-      {(deleted || deletedHere) && !saved && <p className="alert alert-success" role="status">Etapa excluída.</p>}
+      {(deleted || deletedHere) && !saved && (
+        <p className="alert alert-success" role="status">
+          {deletedHere ?? 'Etapa excluída.'}
+        </p>
+      )}
       {error && (
         <p className="alert alert-error">
           {error}{' '}
@@ -176,7 +164,6 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
           {visible.map((exp) => {
             const stages = publishedStages(exp)
             const isOpen = open.has(exp.id)
-            const thumb = productThumbPath(exp)
             const brand = brandLabel(exp)
             return (
               <section key={exp.id} className={`experiment ${isOpen ? 'open' : ''}`} aria-label={`Experimento ${productFullLabel(exp)}`}>
@@ -188,11 +175,7 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
                     aria-controls={`produto-${exp.id}`}
                     onClick={() => toggle(exp.id)}
                   >
-                    {exp.product_mode === 'none' && !exp.photo_path ? (
-                      <NaturalHairIcon className="product-thumb" />
-                    ) : (
-                      <PhotoView className="product-thumb" url={thumb ? urls[thumb] : undefined} alt="" />
-                    )}
+                    <ProductThumb experiment={exp} urls={urls} />
                     <span className="product-text">
                       <span className={`product-name ${exp.product_mode === 'named' ? '' : 'muted-title'}`}>{productLabel(exp)}</span>
                       <span className="muted small experiment-sub">
@@ -253,6 +236,15 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
                         + Adicionar etapa
                       </a>
                       {exp.product_mode === 'named' && <ProductPhotoButton experiment={exp} onDone={reload} />}
+                      <button
+                        type="button"
+                        className="icon-btn danger-icon product-delete"
+                        onClick={() => setProductToDelete(exp)}
+                        aria-label={`Excluir produto ${productLabel(exp)}`}
+                        title="Excluir produto"
+                      >
+                        <TrashIcon />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -273,7 +265,18 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
           onDeleted={() => {
             setToDelete(null)
             setSwiped(null)
-            setDeletedHere(true)
+            setDeletedHere('Etapa excluída.')
+          }}
+        />
+      )}
+
+      {productToDelete && (
+        <DeleteProductDialog
+          experiment={productToDelete}
+          onCancel={() => setProductToDelete(null)}
+          onDeleted={() => {
+            setProductToDelete(null)
+            setDeletedHere('Produto excluído.')
           }}
         />
       )}

@@ -49,6 +49,7 @@ interface HistoryState {
   reload: () => Promise<void>
   patchStage: (id: string, patch: Partial<Stage>) => void
   removeStage: (id: string) => void
+  removeExperiment: (id: string) => void
 }
 const HistoryContext = createContext<HistoryState | null>(null)
 
@@ -87,13 +88,17 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const removeExperiment = useCallback((id: string) => {
+    setExperiments((prev) => prev?.filter((e) => e.id !== id) ?? prev)
+  }, [])
+
   useEffect(() => {
     void reload()
   }, [reload])
 
   const value = useMemo(
-    () => ({ experiments, error, loading, reload, patchStage, removeStage }),
-    [experiments, error, loading, reload, patchStage, removeStage],
+    () => ({ experiments, error, loading, reload, patchStage, removeStage, removeExperiment }),
+    [experiments, error, loading, reload, patchStage, removeStage, removeExperiment],
   )
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>
 }

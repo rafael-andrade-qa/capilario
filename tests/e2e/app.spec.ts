@@ -40,7 +40,7 @@ const brandInput = (page: Page) => page.getByRole('combobox', { name: 'Marca', e
 /** Passo 1 do formulário: confirma e vai para as fotos. */
 async function continueToPhotos(page: Page) {
   await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByText('Passo 2 de 2 · Fotos')).toBeVisible()
+  await expect(page.getByText('Passo 2 de 2')).toBeVisible()
 }
 
 async function saveAndGetStage(page: Page): Promise<string> {
@@ -82,7 +82,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
 
   await page.getByRole('link', { name: '+ Novo registro' }).click()
   // Passo 1: detalhes. Produto e marca são obrigatórios.
-  await expect(page.getByText('Passo 1 de 2 · Detalhes')).toBeVisible()
+  await expect(page.getByText('Passo 1 de 2')).toBeVisible()
   await stageRadio(page, 'Molhado').click()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByText('Informe o produto ou marque Sem finalizador.')).toBeVisible()
@@ -181,11 +181,24 @@ test('A4: compara só etapas compatíveis; Seco × Seco entre experimentos', asy
   await page.getByRole('radio', { name: 'Seco' }).click()
   await expect(page.getByRole('radio', { name: 'Seco' })).toHaveAttribute('aria-checked', 'true')
   // Os seletores oferecem só Seco: A tem os dois, B o que não está em A.
-  await expect(page.getByTestId('select-a').locator('option')).toHaveCount(2)
-  await expect(page.getByTestId('select-b').locator('option')).toHaveCount(1)
+  // Lista própria: abre logo abaixo do campo, com a mesma largura.
+  await page.getByTestId('select-a').click()
+  const listA = page.getByRole('listbox', { name: 'Registro A' })
+  await expect(listA.getByRole('option')).toHaveCount(2)
+  const tb = (await page.getByTestId('select-a').boundingBox())!
+  const lb = (await listA.boundingBox())!
+  expect(lb.y).toBeGreaterThanOrEqual(tb.y + tb.height)
+  expect(Math.abs(lb.width - tb.width)).toBeLessThanOrEqual(1)
+  await page.keyboard.press('Escape')
+  await expect(listA).toHaveCount(0)
+  await page.getByTestId('select-b').click()
+  await expect(page.getByRole('listbox', { name: 'Registro B' }).getByRole('option')).toHaveCount(1)
+  await page.getByTestId('select-b').click()
   // Escolher em A o que está em B troca os lados.
-  await page.getByTestId('select-a').selectOption(ids.dry)
-  await expect(page.getByTestId('select-b')).toHaveValue(ids.dryNone)
+  await page.getByTestId('select-a').click()
+  await listA.locator(`[role=option][data-value="${ids.dry}"]`).click()
+  await expect(page.getByTestId('select-a')).toHaveAttribute('data-value', ids.dry)
+  await expect(page.getByTestId('select-b')).toHaveAttribute('data-value', ids.dryNone)
   await expect(page.getByRole('tab', { name: 'Frente' })).toHaveAttribute('aria-selected', 'true')
 
   const dry = await photosOf(ids.dry)

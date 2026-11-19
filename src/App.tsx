@@ -6,6 +6,7 @@ import { History } from './screens/History'
 import { StageDetail } from './screens/StageDetail'
 import { StageFormRoute } from './screens/StageForm'
 import { Compare } from './screens/Compare'
+import { useNewVersion } from './lib/version'
 
 export function App() {
   if (configError) {
@@ -19,7 +20,22 @@ export function App() {
   return (
     <SessionProvider>
       <Gate />
+      <UpdateBanner />
     </SessionProvider>
+  )
+}
+
+/** Avisa quando há versão nova publicada (o app instalado não recarrega sozinho). */
+function UpdateBanner() {
+  const available = useNewVersion()
+  if (!available) return null
+  return (
+    <div className="update-banner" role="status">
+      <span>Nova versão do app</span>
+      <button type="button" className="btn btn-primary btn-small" onClick={() => window.location.reload()}>
+        Atualizar
+      </button>
+    </div>
   )
 }
 

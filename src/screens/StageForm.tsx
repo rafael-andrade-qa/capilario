@@ -8,6 +8,8 @@
 //    idempotente. Se a resposta se perder, consultamos o banco antes de declarar falha.
 //  * Arquivos descartados só são apagados depois de confirmar no banco que não foram associados.
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { DateTimeField } from '../components/DateTimeField'
+import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
 import { AmbiguousError, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, setProductPhoto, type FinalizePhoto } from '../lib/api'
 import {
@@ -58,7 +60,7 @@ export function StageFormRoute(props: RouteProps) {
 function NotFound({ text }: { text: string }) {
   return (
     <main className="page">
-      <a className="back" href={href('/')}>← Histórico</a>
+      <PageHeader title="Registro" back={{ label: 'Voltar ao histórico', href: href('/') }} />
       <p className="muted">{text}</p>
     </main>
   )
@@ -469,23 +471,21 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
 
   return (
     <main className="page form-page">
-      {twoSteps && step === 2 ? (
-        <button type="button" className="back" onClick={backToDetails} disabled={busy}>
-          ← Detalhes
-        </button>
-      ) : (
-        <a className="back" href={href(kind === 'complete' ? `/etapa/${stageId}` : '/')}>
-          ← Voltar
-        </a>
-      )}
-      <header className="form-head">
-        <h1>{title}</h1>
-        {twoSteps && (
-          <p className="muted small step-indicator" aria-live="polite">
-            Passo {step} de 2 · {step === 1 ? 'Detalhes' : 'Fotos'}
-          </p>
-        )}
-      </header>
+      <PageHeader
+        title={title}
+        back={
+          twoSteps && step === 2
+            ? { label: 'Voltar aos detalhes', onClick: backToDetails, disabled: busy }
+            : { label: 'Voltar', href: href(kind === 'complete' ? `/etapa/${stageId}` : '/') }
+        }
+        right={
+          twoSteps && (
+            <span className="muted small step-indicator" aria-live="polite">
+              Passo {step} de 2<span className="visually-hidden"> · {step === 1 ? 'Detalhes' : 'Fotos'}</span>
+            </span>
+          )
+        }
+      />
 
       {kind === 'complete' && stage && experiment && (
         <p className="muted">
@@ -511,10 +511,10 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           </div>
 
           <div className="field">
-            <label htmlFor="f-data" className="field-label">
+            <span id="f-data-label" className="field-label">
               Data e horário<Req />
-            </label>
-            <input id="f-data" type="datetime-local" required value={capturedAt} onChange={(e) => setCapturedAt(e.target.value)} disabled={busy} />
+            </span>
+            <DateTimeField id="f-data" labelledBy="f-data-label" value={capturedAt} onChange={setCapturedAt} disabled={busy} />
             {!capturedIso && <small className="slot-error">Data inválida</small>}
           </div>
 
@@ -531,89 +531,93 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
             </div>
           ) : (
             <>
-              <div className="field">
-                <div className="label-row">
-                  <label htmlFor="f-produto" className="field-label">
-                    Produto
-                    {!noFinisher && <Req />}
-                  </label>
-                  <label className="check inline">
-                    <input type="checkbox" checked={noFinisher} onChange={(e) => setNoFinisher(e.target.checked)} disabled={busy} />
-                    Sem finalizador
-                  </label>
-                </div>
-                {!noFinisher && (
-                  <input
-                    id="f-produto"
-                    type="text"
-                    list="product-names"
-                    value={productName}
-                    onChange={(e) => onProductChange(e.target.value)}
-                    placeholder="Ex.: Creme de Pentear"
-                    disabled={busy}
-                    required
-                    aria-required="true"
-                    maxLength={200}
-                  />
-                )}
-                <datalist id="product-names">
-                  {productNames.map((n) => (
-                    <option key={n} value={n} />
-                  ))}
-                </datalist>
-              </div>
-
-              {!noFinisher && (
+              <div className={`product-block ${noFinisher ? 'no-finisher' : ''}`}>
                 <div className="field">
-                  <label htmlFor="f-marca" className="field-label">
-                    Marca<Req />
-                  </label>
-                  <input
-                    id="f-marca"
-                    type="text"
-                    list="brand-names"
-                    value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                    placeholder="Ex.: Widi Care"
-                    disabled={busy}
-                    required
-                    aria-required="true"
-                    maxLength={100}
-                  />
-                  <datalist id="brand-names">
-                    {brandNames.map((n) => (
+                  <div className="label-row">
+                    <label htmlFor="f-produto" className="field-label">
+                      Produto
+                      {!noFinisher && <Req />}
+                    </label>
+                    <label className="check inline">
+                      <input type="checkbox" checked={noFinisher} onChange={(e) => setNoFinisher(e.target.checked)} disabled={busy} />
+                      Sem finalizador
+                    </label>
+                  </div>
+                  {!noFinisher && (
+                    <input
+                      id="f-produto"
+                      type="text"
+                      list="product-names"
+                      value={productName}
+                      onChange={(e) => onProductChange(e.target.value)}
+                      placeholder="Ex.: Creme de Pentear"
+                      disabled={busy}
+                      required
+                      aria-required="true"
+                      maxLength={200}
+                    />
+                  )}
+                  <datalist id="product-names">
+                    {productNames.map((n) => (
                       <option key={n} value={n} />
                     ))}
                   </datalist>
                 </div>
-              )}
 
-              {!noFinisher && (
-                <div className="field">
-                  <span className="field-label">Foto do produto</span>
-                  <div className="product-photo-row">
+                {!noFinisher && (
+                  <div className="field">
+                    <label htmlFor="f-marca" className="field-label">
+                      Marca<Req />
+                    </label>
+                    <input
+                      id="f-marca"
+                      type="text"
+                      list="brand-names"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      placeholder="Ex.: Widi Care"
+                      disabled={busy}
+                      required
+                      aria-required="true"
+                      maxLength={100}
+                    />
+                    <datalist id="brand-names">
+                      {brandNames.map((n) => (
+                        <option key={n} value={n} />
+                      ))}
+                    </datalist>
+                  </div>
+                )}
+
+                {!noFinisher && (
+                  <div className="product-photo-col">
                     <button
                       type="button"
                       className="product-photo-pick"
                       onClick={() => productPhotoInput.current?.click()}
                       disabled={busy}
                       aria-label={productPhoto ? 'Trocar foto do produto' : 'Escolher foto do produto'}
+                      title="Foto da embalagem (opcional)"
                     >
-                      {productPhoto && !productPhoto.error ? <img src={productPhoto.preview} alt="" /> : <span aria-hidden="true">+</span>}
+                      {productPhoto && !productPhoto.error ? (
+                        <img src={productPhoto.preview} alt="" />
+                      ) : (
+                        <span className="product-photo-empty" aria-hidden="true">
+                          <span className="plus">+</span>
+                          <span>Foto</span>
+                        </span>
+                      )}
                     </button>
-                    <span className="muted small">
-                      {productPhoto ? (productPhoto.error ? '' : productPhoto.file.name) : 'A embalagem, para reconhecer o produto na lista.'}
-                    </span>
                     {productPhoto && (
-                      <button type="button" className="mini-btn danger" onClick={() => setProductPhotoFile(null)} disabled={busy} aria-label="Remover foto do produto">
-                        ✕
+                      <button type="button" className="link danger small-link" onClick={() => setProductPhotoFile(null)} disabled={busy} aria-label="Remover foto do produto">
+                        Remover
                       </button>
                     )}
+                    <input ref={productPhotoInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onProductPhotoPicked} data-testid="product-photo-input" />
                   </div>
-                  {productPhoto?.error && <p className="slot-error">{productPhoto.error}</p>}
-                  <input ref={productPhotoInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onProductPhotoPicked} data-testid="product-photo-input" />
-                </div>
-              )}
+                )}
+              </div>
+              {productPhoto?.error && !noFinisher && <p className="slot-error">{productPhoto.error}</p>}
 
               {kind === 'add' && (
                 <button type="button" className="link" onClick={() => setStartNewExperiment(false)} disabled={busy || finalizeAttemptedRef.current}>
@@ -627,7 +631,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
             <label htmlFor="f-obs" className="field-label">
               Observação
             </label>
-            <textarea id="f-obs" rows={3} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} disabled={busy} placeholder="Como ficou? Volume, definição, frizz…" />
+            <textarea id="f-obs" rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} disabled={busy} placeholder="Como ficou? Volume, definição, frizz…" />
           </div>
         </section>
       )}

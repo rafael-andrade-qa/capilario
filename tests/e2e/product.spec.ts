@@ -73,7 +73,7 @@ test('produtos recolhidos: só o mais recente aberto, busca e abrir/fechar', asy
   await toggle(page, 'Creme Leave-in').click()
   await page.locator('.experiment', { hasText: 'Creme Leave-in' }).locator('.stage-row').click()
   await expect(page.getByRole('heading', { name: 'Seco' })).toBeVisible()
-  await page.getByRole('link', { name: '← Histórico' }).click()
+  await page.getByRole('link', { name: 'Voltar ao histórico' }).click()
   await expect(toggle(page, 'Creme Leave-in')).toHaveAttribute('aria-expanded', 'true')
   await expect(toggle(page, 'Gelatina Supervolume')).toHaveAttribute('aria-expanded', 'true')
 })
@@ -94,6 +94,20 @@ test('foto do produto: enviar e trocar pelo produto aberto', async ({ page }) =>
     .not.toBe(first)
   // A foto anterior foi apagada.
   await expect.poll(async () => (await admin.storage.from(BUCKET).exists(first)).data).toBe(false)
+})
+
+test('excluir um produto inteiro pela lixeira', async ({ page }) => {
+  await login(page)
+  const product = products.find((p) => p.name === 'Óleo Finalizador')!
+  await toggle(page, 'Óleo Finalizador').click()
+  await page.getByRole('button', { name: 'Excluir produto Óleo Finalizador' }).click()
+  const dialog = page.getByRole('alertdialog', { name: 'Excluir este produto?' })
+  await expect(dialog).toContainText('A etapa e a foto serão apagadas')
+  await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
+  await expect(page.getByText('Produto excluído.')).toBeVisible()
+  await expect(page.locator('.experiment', { hasText: 'Óleo Finalizador' })).toHaveCount(0)
+  const { data } = await admin.from('experiments').select('id').eq('id', product.id)
+  expect(data).toEqual([])
 })
 
 test('novo registro com foto do produto, em dois passos', async ({ page }) => {

@@ -89,6 +89,19 @@ export async function deleteStage(stageId: string, paths: string[]): Promise<voi
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch(() => undefined)
 }
 
+/** Exclui o produto inteiro (todas as etapas e fotos) e depois os arquivos. */
+export async function deleteExperiment(experimentId: string, paths: string[]): Promise<void> {
+  const { data: result, error } = await supabase.rpc('delete_experiment', { p_experiment_id: experimentId })
+  if (error) {
+    if (error.code) throw new Error(`Não foi possível excluir: ${error.message}`)
+    const { data, error: checkErr } = await supabase.from('experiments').select('id').eq('id', experimentId)
+    if (checkErr || data?.length) throw new Error('Não foi possível excluir. Verifique a conexão e tente de novo.')
+  }
+  paths = [...new Set([...paths, ...(((result as { paths?: string[] } | null)?.paths) ?? [])])]
+  for (const p of paths) signedCache.delete(p)
+  if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch(() => undefined)
+}
+
 /**
  * Envia a foto do produto e a liga ao experimento. A foto anterior (se houver) é apagada
  * depois que deixa de estar em uso. Devolve o novo caminho.

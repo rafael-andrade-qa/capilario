@@ -95,6 +95,31 @@ describe('exclusão de etapa', () => {
     expect((await a.client.from('experiments').select('id').eq('id', experimentId)).data).toEqual([])
   })
 
+  it('exclui o produto inteiro: etapas, fotos e foto do produto', async () => {
+    const { experimentId } = ids()
+    const s1 = await createStage(a, experimentId, true)
+    const s2 = await createStage(a, experimentId, false, ['front'])
+    const productPhoto = `${a.id}/produto-${experimentId}/${randomUUID()}.jpg`
+    await a.client.storage.from(BUCKET).upload(productPhoto, tinyJpeg(), { contentType: 'image/jpeg' })
+    await a.client.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: productPhoto })
+
+    // Outra conta não alcança.
+    const rb = await b.client.rpc('delete_experiment', { p_experiment_id: experimentId })
+    expect(rb.data.deleted).toBe(false)
+
+    const r = await a.client.rpc('delete_experiment', { p_experiment_id: experimentId })
+    expect(r.error).toBeNull()
+    expect(r.data.deleted).toBe(true)
+    expect([...r.data.paths].sort()).toEqual([...s1.paths, ...s2.paths, productPhoto].sort())
+    expect((await a.client.from('stages').select('id').eq('experiment_id', experimentId)).data).toEqual([])
+    const rm = await a.client.storage.from(BUCKET).remove(r.data.paths)
+    expect(rm.error).toBeNull()
+    for (const p of r.data.paths) expect(await exists(a, p)).toBe(false)
+
+    const again = await a.client.rpc('delete_experiment', { p_experiment_id: experimentId })
+    expect(again.data.deleted).toBe(false)
+  })
+
   it('outra conta e acesso sem sessão não apagam nada', async () => {
     const { experimentId } = ids()
     const target = await createStage(a, experimentId, true)

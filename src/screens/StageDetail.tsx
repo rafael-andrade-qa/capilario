@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
+import { PageHeader } from '../components/PageHeader'
+import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
 import { updateStage } from '../lib/api'
-import { ANGLES, ANGLE_LABEL, STAGE_LABEL, brandLabel, formatDateTime, missingAngles, photoByAngle, productLabel, type Angle } from '../lib/domain'
+import { ANGLES, ANGLE_LABEL, STAGE_LABEL, brandLabel, formatDateTime, formatShortDateTime, missingAngles, photoByAngle, productLabel, type Angle } from '../lib/domain'
 import { href, navigate } from '../lib/router'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
 
@@ -36,7 +38,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
   if (!found || !stage) {
     return (
       <main className="page">
-        <a className="back" href={href('/')}>← Histórico</a>
+        <PageHeader title="Etapa" back={{ label: 'Voltar ao histórico', href: href('/') }} />
         <p className="muted">{experiments === null || loading ? 'Carregando…' : 'Etapa não encontrada.'}</p>
       </main>
     )
@@ -82,15 +84,10 @@ export function StageDetail({ stageId }: { stageId: string }) {
 
   return (
     <main className="page">
-      <a className="back" href={href('/')}>← Histórico</a>
-      <header className="detail-head">
-        <div className="detail-title">
-          <h1>{STAGE_LABEL[stage.stage_type]}</h1>
-          <p className="muted small">
-            {productLabel(experiment)}
-            {brandLabel(experiment) && ` · ${brandLabel(experiment)}`} · {formatDateTime(stage.captured_at)}
-          </p>
-        </div>
+      <PageHeader
+        title={STAGE_LABEL[stage.stage_type]}
+        back={{ label: 'Voltar ao histórico', href: href('/') }}
+        right={
         <div className="detail-actions">
           <a className="icon-btn" href={href(`/comparar?a=${stage.id}`)} aria-label="Comparar esta etapa" title="Comparar">
             <CompareIcon />
@@ -105,8 +102,16 @@ export function StageDetail({ stageId }: { stageId: string }) {
           >
             <span aria-hidden="true">{stage.is_favorite ? '★' : '☆'}</span>
           </button>
+          <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} aria-label="Excluir etapa" title="Excluir etapa">
+            <TrashIcon />
+          </button>
         </div>
-      </header>
+        }
+      />
+      <p className="muted small detail-sub" title={`${productLabel(experiment)}${brandLabel(experiment) ? ` · ${brandLabel(experiment)}` : ''} · ${formatDateTime(stage.captured_at)}`}>
+        <span className="detail-sub-product">{productLabel(experiment)}</span>
+        <span className="detail-sub-when"> · {formatShortDateTime(stage.captured_at)}</span>
+      </p>
 
       {urlError && <p className="alert alert-error">{urlError}</p>}
 
@@ -147,10 +152,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
           </button>
         )}
       </section>
-
-      <button className="btn btn-ghost btn-block danger-text" onClick={() => setConfirmDelete(true)}>
-        Excluir etapa
-      </button>
 
       {confirmDelete && (
         <DeleteStageDialog
