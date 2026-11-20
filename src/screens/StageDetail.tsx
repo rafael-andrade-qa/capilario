@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { CheckIcon, EditIcon } from '../components/ActionIcons'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
+import { useToast } from '../components/Toasts'
 import { PageHeader } from '../components/PageHeader'
 import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
@@ -31,7 +32,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
   const [notes, setNotes] = useState(stage?.notes ?? '')
   const [savingNotes, setSavingNotes] = useState(false)
   const [savingFav, setSavingFav] = useState(false)
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  const notify = useToast()
   const [viewer, setViewer] = useState<Angle | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -60,14 +61,13 @@ export function StageDetail({ stageId }: { stageId: string }) {
   async function saveNotes() {
     if (savingNotes || !stage) return
     setSavingNotes(true)
-    setMessage(null)
     const value = notes.trim() || null
     try {
       await updateStage(stage.id, { notes: value })
       patchStage(stage.id, { notes: value })
-      setMessage({ kind: 'ok', text: 'Observação salva.' })
+      notify('Observação salva.')
     } catch (e) {
-      setMessage({ kind: 'error', text: (e as Error).message })
+      notify((e as Error).message, 'error')
     } finally {
       setSavingNotes(false)
     }
@@ -76,13 +76,12 @@ export function StageDetail({ stageId }: { stageId: string }) {
   async function toggleFavorite() {
     if (savingFav || !stage) return
     setSavingFav(true)
-    setMessage(null)
     const next = !stage.is_favorite
     try {
       await updateStage(stage.id, { is_favorite: next })
       patchStage(stage.id, { is_favorite: next })
     } catch (e) {
-      setMessage({ kind: 'error', text: (e as Error).message })
+      notify((e as Error).message, 'error')
     } finally {
       setSavingFav(false)
     }
@@ -105,18 +104,17 @@ export function StageDetail({ stageId }: { stageId: string }) {
     if (!file || !angle || !stage || !session) return
     const invalid = validateFile(file) ?? ((await canDisplay(file)) ? null : 'O navegador não consegue exibir este arquivo. Use JPEG, PNG ou WebP.')
     if (invalid) {
-      setMessage({ kind: 'error', text: invalid })
+      notify(invalid, 'error')
       return
     }
     const had = !!photoByAngle(stage, angle)
     setWorking(angle)
-    setMessage(null)
     try {
       await replacePhoto(session.user.id, stage.id, angle, file, detectMime(file))
       await reload()
-      setMessage({ kind: 'ok', text: had ? `Foto de ${ANGLE_LABEL[angle]} trocada.` : `Foto de ${ANGLE_LABEL[angle]} adicionada.` })
+      notify(had ? `Foto de ${ANGLE_LABEL[angle]} trocada.` : `Foto de ${ANGLE_LABEL[angle]} adicionada.`)
     } catch (err) {
-      setMessage({ kind: 'error', text: (err as Error).message })
+      notify((err as Error).message, 'error')
     } finally {
       setWorking(null)
     }
@@ -131,13 +129,12 @@ export function StageDetail({ stageId }: { stageId: string }) {
     }
     setConfirmRemove(null)
     setWorking(angle)
-    setMessage(null)
     try {
       await deletePhoto(p.id)
       await reload()
-      setMessage({ kind: 'ok', text: `Foto de ${ANGLE_LABEL[angle]} removida.` })
+      notify(`Foto de ${ANGLE_LABEL[angle]} removida.`)
     } catch (err) {
-      setMessage({ kind: 'error', text: (err as Error).message })
+      notify((err as Error).message, 'error')
     } finally {
       setWorking(null)
     }
@@ -263,7 +260,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
           <span>Observação</span>
           <textarea rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} placeholder="Como ficou? Volume, definição, frizz…" />
         </label>
-        {message && <p className={`alert ${message.kind === 'ok' ? 'alert-success' : 'alert-error'}`}>{message.text}</p>}
         {notesChanged && (
           <button className="btn btn-primary btn-block" onClick={() => void saveNotes()} disabled={savingNotes}>
             {savingNotes ? 'Salvando…' : 'Salvar observação'}
@@ -276,7 +272,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
           stage={stage}
           experiment={experiment}
           onCancel={() => setConfirmDelete(false)}
-          onDeleted={() => navigate('/?excluida=1', { replace: true })}
+          onDeleted={() => navigate(`/?excluida=${stage.id}`, { replace: true })}
         />
       )}
 

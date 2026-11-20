@@ -8,6 +8,7 @@ import { ProductEditRoute } from './screens/ProductEdit'
 import { StageFormRoute } from './screens/StageForm'
 import { Compare } from './screens/Compare'
 import { useNewVersion } from './lib/version'
+import { ToastProvider } from './components/Toasts'
 
 export function App() {
   if (configError) {
@@ -20,8 +21,10 @@ export function App() {
   }
   return (
     <SessionProvider>
-      <Gate />
-      <UpdateBanner />
+      <ToastProvider>
+        <Gate />
+        <UpdateBanner />
+      </ToastProvider>
     </SessionProvider>
   )
 }
@@ -69,9 +72,9 @@ function Screens({ userId }: { userId: string }) {
   return (
     <History
       saved={params.get('salvo')}
-      deleted={params.has('excluida')}
+      deleted={params.get('excluida')}
       productPhotoFailed={params.get('foto') === 'erro'}
-      productSaved={params.get('produto') === 'salvo'}
+      productSaved={params.get('produto')}
     />
   )
 }

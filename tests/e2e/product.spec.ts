@@ -111,8 +111,11 @@ test('editar produto: corrigir nome e marca e trocar a foto da embalagem', async
   await page.getByTestId('edit-product-photo').setInputFiles([LEFT])
   await page.getByRole('button', { name: 'Salvar' }).click()
   await expect(page.getByText('Produto atualizado.')).toBeVisible()
-  const { data } = await admin.from('experiments').select('photo_path, product_name, brand').eq('id', product.id).single()
-  expect(data!.photo_path).not.toBe(first)
+  // O aviso anterior pode ainda estar na tela: confere no banco.
+  await expect
+    .poll(async () => (await admin.from('experiments').select('photo_path').eq('id', product.id).single()).data!.photo_path)
+    .not.toBe(first)
+  const { data } = await admin.from('experiments').select('product_name').eq('id', product.id).single()
   expect(data!.product_name).toBe('Gelatina Supervolume Plus')
   await expect.poll(async () => (await admin.storage.from(BUCKET).exists(first)).data).toBe(false)
 })

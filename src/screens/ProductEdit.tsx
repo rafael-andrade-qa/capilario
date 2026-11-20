@@ -81,7 +81,7 @@ function ProductEdit({ experiment, others }: { experiment: Experiment; others: E
       if (photo.kind === 'new') await setProductPhoto(session.user.id, experiment.id, photo.file, photo.mime)
       if (photo.kind === 'remove') await removeProductPhoto(experiment.id)
       await reload()
-      navigate('/?produto=salvo', { replace: true })
+      navigate(`/?produto=${Date.now()}`, { replace: true })
     } catch (e) {
       setMessage((e as Error).message)
       setBusy(false)

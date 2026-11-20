@@ -108,6 +108,14 @@ os atalhos *Nova finalização* e *Comparar*.
 6. Arquivos descartados são apagados só depois de confirmar no banco que não foram associados; a política do
    Storage também impede apagar uma foto publicada.
 
+## Avisos
+
+Confirmações ("Seco salvo.", "Momento excluído.", "Produto atualizado.", "Foto trocada.") e erros de ações
+rápidas aparecem como avisos flutuantes embaixo da tela (acima do botão fixo, quando houver): verde com ✓,
+vermelho com ! e neutro com i. Somem sozinhos (4 s; erros 7 s), fecham com um toque e o tempo pausa com o
+dedo, o mouse ou o foco em cima. Leitores de tela anunciam (status para sucesso, alert para erro). Validação
+de formulário e falhas que pedem ação (como reenviar fotos) continuam no lugar, perto do botão.
+
 ## Excluir um momento ou um produto
 
 - **Momento:** no detalhe, ícone de lixeira no cabeçalho (**Excluir momento**).

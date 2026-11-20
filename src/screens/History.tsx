@@ -3,6 +3,7 @@
 // próximo. O produto mais recente começa aberto; o que você abre/fecha é lembrado na sessão.
 import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
+import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
 import { EditIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
@@ -47,20 +48,26 @@ export function History({
   saved,
   deleted,
   productPhotoFailed = false,
-  productSaved = false,
+  productSaved = null,
 }: {
   saved: string | null
-  deleted: boolean
+  deleted: string | null
   productPhotoFailed?: boolean
-  productSaved?: boolean
+  productSaved?: string | null
 }) {
   const { experiments, error, loading, reload } = useHistory()
-  const [deletedHere, setDeletedHere] = useState<string | null>(null)
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
   const list = useMemo(() => sortHistory(experiments ?? []), [experiments])
+  const notify = useToast()
+  // Avisos que chegam pelo endereço (depois de salvar, excluir ou editar): uma vez só.
+  const savedText = saved && experiments ? savedLabel(list, saved) : null
+  useToastOnce(savedText ? saved : null, savedText ?? '')
+  useToastOnce(saved && productPhotoFailed ? `foto-${saved}` : null, 'A foto do produto não foi enviada. Toque no lápis do produto para tentar de novo.', 'error')
+  useToastOnce(deleted, 'Momento excluído.')
+  useToastOnce(productSaved, 'Produto atualizado.')
   const totalStages = list.reduce((n, e) => n + publishedStages(e).length, 0)
 
   // Primeira visita: abre o produto mais recente. Depois de salvar: abre o produto da etapa salva.
@@ -128,26 +135,6 @@ export function History({
         <CompareButton total={totalStages} />
       </div>
 
-      {saved && (
-        <p className="alert alert-success" role="status">
-          {savedLabel(list, saved)}
-        </p>
-      )}
-      {productPhotoFailed && (
-        <p className="alert alert-error" role="alert">
-          A foto do produto não foi enviada. Abra o produto e toque no lápis para tentar de novo.
-        </p>
-      )}
-      {productSaved && !saved && (
-        <p className="alert alert-success" role="status">
-          Produto atualizado.
-        </p>
-      )}
-      {(deleted || deletedHere) && !saved && (
-        <p className="alert alert-success" role="status">
-          {deletedHere ?? 'Momento excluído.'}
-        </p>
-      )}
       {error && (
         <p className="alert alert-error">
           {error}{' '}
@@ -269,7 +256,7 @@ export function History({
           onCancel={() => setProductToDelete(null)}
           onDeleted={() => {
             setProductToDelete(null)
-            setDeletedHere('Produto excluído.')
+            notify('Produto excluído.')
           }}
         />
       )}

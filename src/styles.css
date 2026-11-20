@@ -1818,3 +1818,102 @@ input[list]::-webkit-list-button {
 .remove-photo.confirm {
   font-weight: 600;
 }
+
+/* Avisos rápidos (toasts): embaixo, no centro, somem sozinhos ou com um toque ---- */
+.toasts {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.toast-region {
+  display: contents;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 420px);
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: toast-in 180ms ease-out;
+}
+.toast.leaving {
+  animation: toast-out 160ms ease-in forwards;
+}
+.toast-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.toast-text {
+  flex: 1;
+  min-width: 0;
+}
+.toast-success {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+}
+.toast-success .toast-icon {
+  background: var(--ok);
+  color: var(--surface);
+}
+.toast-error {
+  border-color: color-mix(in srgb, var(--err) 55%, var(--line));
+  background: var(--err-soft);
+}
+.toast-error .toast-icon {
+  background: var(--err);
+  color: var(--surface);
+}
+.toast-info .toast-icon {
+  background: var(--muted);
+  color: var(--surface);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.leaving {
+    animation-duration: 1ms;
+  }
+}
+/* Em telas com o botão fixo no rodapé, o aviso fica acima dele. */
+body:has(.save-bar) .toasts {
+  bottom: calc(92px + env(safe-area-inset-bottom));
+}
