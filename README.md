@@ -19,6 +19,12 @@ sem foto de cabelo. Ao cadastrar, o app pergunta se você quer registrar a prime
 (**Registrar finalização** ou **Depois**). Produto sem finalização fica na lista com "Nenhuma finalização
 ainda" e o convite para registrar. Não dá para cadastrar dois produtos com o mesmo nome e marca.
 
+**Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta: a IA (Claude, pela
+função `identify-product`) lê marca e nome, busca as páginas do produto e o app mostra até 3 fotos
+oficiais já padronizadas (retrato 3:4, fundo branco, mesma margem). A foto tirada só serve para
+identificar e não é guardada. Limite de 20 identificações por pessoa por dia. Sem a chave configurada,
+o botão avisa e o cadastro à mão continua igual.
+
 **Nova finalização** fica dentro do produto (o **+**) e é uma tela só: momento (já marcado em Molhado),
 data, fotos e observação, com um único botão fixo no rodapé. **Sem finalizador** está sempre na lista,
 mesmo antes da primeira finalização sem produto.
@@ -77,7 +83,12 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
 4. **Criar a conta pessoal:** Authentication → Users → *Add user* → *Create new user*, com e-mail, senha e *Auto Confirm User*.
 5. **Chaves:** Project Settings → API Keys. Use só a **Publishable key** (`sb_publishable_...`) ou a *anon* legada.
    A *secret/service_role* nunca vai para o app, o build ou o repositório.
-6. **Limite de upload:** o bucket `capilar-photos` aceita JPEG/PNG/WebP até 15 MiB. Confira em
+6. **Identificar pela foto (opcional):** crie uma chave em https://platform.claude.com (com créditos) e
+   guarde-a como segredo das Edge Functions: Dashboard → Edge Functions → Secrets → `ANTHROPIC_API_KEY`
+   (ou `npx supabase secrets set ANTHROPIC_API_KEY=...`). Publique a função com
+   `npx supabase functions deploy identify-product`. Opcional: `IDENTIFY_MODEL` (padrão `claude-opus-5-5`).
+   A chave fica só no Supabase; nunca vai para o app, o build ou o repositório.
+7. **Limite de upload:** o bucket `capilar-photos` aceita JPEG/PNG/WebP até 15 MiB. Confira em
    Storage → Settings que o limite global do projeto é ≥ 15 MiB (no plano Free o padrão é 50 MB).
 
 ## Publicar no GitHub Pages
@@ -168,6 +179,10 @@ PNG de 8 MB (upload retomável), arquivo de 16 MB, GIF e HEIC (recusados por arq
 - Storage privado; leitura, envio e exclusão só no prefixo `<auth.uid()>/`. Fotos aparecem por URLs assinadas de 10 min, guardadas só em memória e limpas ao sair.
 - O service worker guarda só os arquivos estáticos do próprio app; Supabase, imagens privadas e URLs assinadas nunca passam por ele.
 - O repositório usa apenas imagens sintéticas geradas nos testes.
+- Identificar pela foto: a função confere a sessão (pelo RPC `consume_identify_quota`, que também conta o
+  limite diário e não tem tabela acessível pela API), só abre endereços https públicos (sem IP, localhost ou
+  nomes internos, conferindo cada redirecionamento) e limita tempo e tamanho de páginas e imagens. A foto da
+  embalagem vai para a API da Anthropic só para a identificação.
 
 ## Estrutura
 

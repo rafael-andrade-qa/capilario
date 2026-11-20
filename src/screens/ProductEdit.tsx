@@ -1,7 +1,9 @@
 // Novo produto e Editar produto: nome, marca e foto da embalagem.
 // Cadastrar não pede foto de cabelo; ao salvar, convida a registrar a primeira finalização
 // (Registrar agora ou Depois). Editar vale para todas as finalizações do produto.
+// No cadastro, "Identificar pela foto" preenche nome e marca e traz a foto oficial padronizada.
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { CameraIcon } from '../components/ActionIcons'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb } from '../components/ProductThumb'
@@ -9,6 +11,7 @@ import { useToast } from '../components/Toasts'
 import { createProduct, removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
 import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
+import { identifyFromPhoto, type Candidate } from '../lib/identify'
 import { href, navigate } from '../lib/router'
 import { useHistory, useSession, useSignedUrls } from '../lib/state'
 import { uuid } from '../lib/uuid'
@@ -50,7 +53,11 @@ export function ProductNewRoute() {
   return <ProductEdit mode="new" experiment={draft} others={experiments} />
 }
 
-type PhotoChange = { kind: 'keep' } | { kind: 'remove' } | { kind: 'new'; file: File; mime: string; preview: string; error: string | null }
+/** owned: o preview é desta foto (escolhida na galeria); as fotos encontradas têm o seu. */
+type PhotoChange =
+  | { kind: 'keep' }
+  | { kind: 'remove' }
+  | { kind: 'new'; file: File; mime: string; preview: string; error: string | null; owned: boolean }
 
 function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; experiment: Experiment; others: Experiment[] }) {
   const { session } = useSession()
@@ -64,16 +71,61 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
+  const idInput = useRef<HTMLInputElement>(null)
+  const [identifying, setIdentifying] = useState(false)
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [checkNote, setCheckNote] = useState(false)
   const { urls } = useSignedUrls(experiment.photo_path ? [experiment.photo_path] : [])
   const fins = finalizationsOf(experiment).length
+  const locked = busy || identifying
 
-  useEffect(() => () => { if (photo.kind === 'new') URL.revokeObjectURL(photo.preview) }, [photo])
+  useEffect(() => () => { if (photo.kind === 'new' && photo.owned) URL.revokeObjectURL(photo.preview) }, [photo])
+  useEffect(() => () => candidates.forEach((c) => URL.revokeObjectURL(c.preview)), [candidates])
 
   function onPicked(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    setPhoto({ kind: 'new', file, mime: detectMime(file), preview: URL.createObjectURL(file), error: validateFile(file) })
+    setPhoto({ kind: 'new', file, mime: detectMime(file), preview: URL.createObjectURL(file), error: validateFile(file), owned: true })
+  }
+
+  function pickCandidate(c: Candidate) {
+    setPhoto({ kind: 'new', file: c.file, mime: 'image/jpeg', preview: c.preview, error: null, owned: false })
+  }
+
+  async function onIdentifyPicked(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || locked) return
+    const problem = validateFile(file)
+    if (problem) {
+      notify(problem, 'error')
+      return
+    }
+    setIdentifying(true)
+    setMessage(null)
+    try {
+      const r = await identifyFromPhoto(file)
+      if (!r.found) {
+        notify('Não reconheci um produto de cabelo nessa foto. Tente outra foto ou preencha à mão.', 'info')
+        return
+      }
+      setName(r.name)
+      setBrand(r.brand)
+      setCheckNote(r.confidence !== 'high')
+      setCandidates(r.candidates)
+      if (r.candidates.length) {
+        // Só põe a foto encontrada se a pessoa ainda não escolheu uma da galeria.
+        if (!(photo.kind === 'new' && photo.owned)) pickCandidate(r.candidates[0])
+        notify('Produto identificado. Confira e cadastre.', 'success')
+      } else {
+        notify('Achei o produto, mas não a foto oficial. Você pode pôr uma foto abaixo.', 'info')
+      }
+    } catch (err) {
+      notify((err as Error).message, 'error')
+    } finally {
+      setIdentifying(false)
+    }
   }
 
   const nameChanged = name.trim() !== (experiment.product_name ?? '') || brand.trim() !== (experiment.brand ?? '')
@@ -141,6 +193,20 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
             Vale para {fins === 1 ? 'a finalização' : `as ${fins} finalizações`} deste produto.
           </p>
         )}
+        {mode === 'new' && (
+          <div className="identify">
+            <button type="button" className="btn btn-outline-brand btn-block" onClick={() => idInput.current?.click()} disabled={locked} aria-busy={identifying}>
+              {identifying ? <span className="spinner" aria-hidden="true" /> : <CameraIcon size={20} />}
+              {identifying ? 'Identificando o produto…' : 'Identificar pela foto'}
+            </button>
+            <p className="muted small identify-hint">
+              {identifying
+                ? 'Lendo a embalagem e buscando a foto oficial. Leva uns segundos.'
+                : 'Tire uma foto da embalagem: o app preenche o nome e a marca e busca a foto oficial.'}
+            </p>
+            <input ref={idInput} type="file" accept={INPUT_ACCEPT} hidden onChange={(e) => void onIdentifyPicked(e)} data-testid="identify-input" />
+          </div>
+        )}
         <div className="field">
           <label htmlFor="e-produto" className="field-label">
             Produto<span className="req" aria-hidden="true"> *</span>
@@ -150,7 +216,7 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            disabled={busy}
+            disabled={locked}
             required
             aria-required="true"
             maxLength={200}
@@ -167,7 +233,7 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
             list="e-marcas"
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
-            disabled={busy}
+            disabled={locked}
             required
             aria-required="true"
             maxLength={100}
@@ -178,15 +244,49 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
               <option key={b} value={b} />
             ))}
           </datalist>
+          {checkNote && <p className="muted small check-note">Confira o nome e a marca: a foto não estava muito nítida.</p>}
         </div>
         <div className="field">
           <span className="field-label">Foto do produto</span>
+          {candidates.length > 0 ? (
+            <>
+              <div className="candidate-strip" role="group" aria-label="Fotos encontradas">
+                {candidates.map((c, i) => {
+                  const on = photo.kind === 'new' && photo.file === c.file
+                  return (
+                    <button
+                      key={c.preview}
+                      type="button"
+                      className={`candidate${on ? ' on' : ''}`}
+                      aria-pressed={on}
+                      aria-label={`Usar a foto ${i + 1}, de ${c.source}`}
+                      onClick={() => pickCandidate(c)}
+                      disabled={locked}
+                    >
+                      <img src={c.preview} alt="" />
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  className={`candidate own${photo.kind === 'new' && photo.owned ? ' on' : ''}`}
+                  aria-pressed={photo.kind === 'new' && photo.owned}
+                  aria-label={photo.kind === 'new' && photo.owned ? 'Trocar a foto da galeria' : 'Usar uma foto da galeria'}
+                  onClick={() => input.current?.click()}
+                  disabled={locked}
+                >
+                  {photo.kind === 'new' && photo.owned && !photo.error ? <img src={photo.preview} alt="" /> : <span className="plus" aria-hidden="true">+</span>}
+                </button>
+              </div>
+              <p className="muted small candidate-hint">Toque na foto que preferir. O + usa uma foto sua.</p>
+            </>
+          ) : (
           <div className="product-photo-field">
             <button
               type="button"
               className="product-photo-pick"
               onClick={() => input.current?.click()}
-              disabled={busy}
+              disabled={locked}
               aria-label={hasPhoto ? 'Trocar foto do produto' : 'Adicionar foto do produto'}
             >
               {showPhoto ? (
@@ -200,12 +300,13 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
             <div className="product-photo-text">
               <span className="muted small">A embalagem vira a miniatura do produto no histórico.</span>
               {hasPhoto && (
-                <button type="button" className="link danger small-link" onClick={() => setPhoto(experiment.photo_path ? { kind: 'remove' } : { kind: 'keep' })} disabled={busy}>
+                <button type="button" className="link danger small-link" onClick={() => setPhoto(experiment.photo_path ? { kind: 'remove' } : { kind: 'keep' })} disabled={locked}>
                   Remover foto
                 </button>
               )}
             </div>
           </div>
+          )}
           {photo.kind === 'new' && photo.error && <p className="slot-error">{photo.error}</p>}
           <input ref={input} type="file" accept={INPUT_ACCEPT} hidden onChange={onPicked} data-testid="edit-product-photo" />
         </div>
@@ -217,7 +318,7 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
             {message}
           </p>
         )}
-        <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save()} disabled={busy}>
+        <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save()} disabled={locked}>
           {busy ? 'Salvando…' : mode === 'new' ? 'Cadastrar produto' : 'Salvar'}
         </button>
       </section>

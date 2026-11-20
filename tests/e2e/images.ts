@@ -52,6 +52,19 @@ export function colorPng(r: number, g: number, b: number, w = 120, h = 160): Buf
   return encodePng(w, h, rgb)
 }
 
+/** "Foto de vitrine" sintética: fundo branco largo e um frasco colorido fora do centro. */
+export function packshotPng(r: number, g: number, b: number, w = 400, h = 300): Buffer {
+  const rgb = Buffer.alloc(w * h * 3, 255)
+  for (let y = Math.round(h * 0.2); y < Math.round(h * 0.9); y++)
+    for (let x = Math.round(w * 0.1); x < Math.round(w * 0.3); x++) {
+      const i = (y * w + x) * 3
+      rgb[i] = r
+      rgb[i + 1] = g
+      rgb[i + 2] = b
+    }
+  return encodePng(w, h, rgb)
+}
+
 /** PNG de ruído (não comprime) com ~bytes: força o upload retomável (> 6 MB). */
 export function noisyPng(approxBytes: number): Buffer {
   const side = Math.ceil(Math.sqrt(approxBytes / 3))
