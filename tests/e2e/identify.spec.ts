@@ -63,6 +63,7 @@ test('identifica pela foto: preenche nome e marca e usa a foto oficial padroniza
   )
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
 
   await expect(page.getByRole('textbox', { name: 'Produto' })).toHaveValue('Todecacho Gelatina Super Definição')
@@ -96,6 +97,7 @@ test('limite do dia: avisa e deixa preencher à mão', async ({ page }) => {
   mockIdentify(page, (route) => json(route, 429, { error: 'identify_limit' }))
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
   await expect(page.getByText('Você já usou as 20 identificações de hoje.', { exact: false })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Produto' })).toHaveValue('')
@@ -111,6 +113,7 @@ test('não reconheceu: avisa; achou sem foto: preenche e mantém o quadrado da f
   )
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
   await expect(page.getByText('Não reconheci um produto de cabelo nessa foto.', { exact: false })).toBeVisible()
 

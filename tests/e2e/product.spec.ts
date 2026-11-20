@@ -174,6 +174,7 @@ test('excluir um produto inteiro pela lixeira', async ({ page }) => {
 test('novo produto com foto da embalagem; registrar a finalização depois', async ({ page }) => {
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await expect(page.getByRole('heading', { name: 'Novo produto' })).toBeVisible()
   // Produto repetido (mesmo nome e marca, sem diferenciar maiúsculas e acentos) é recusado.
   await page.getByRole('textbox', { name: 'Produto' }).fill('creme de pentear')

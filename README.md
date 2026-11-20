@@ -19,6 +19,14 @@ sem foto de cabelo. Ao cadastrar, o app pergunta se você quer registrar a prime
 (**Registrar finalização** ou **Depois**). Produto sem finalização fica na lista com "Nenhuma finalização
 ainda" e o convite para registrar. Não dá para cadastrar dois produtos com o mesmo nome e marca.
 
+**Catálogo.** O **+ Novo produto** abre numa busca no catálogo de produtos de cabelo (milhares de itens
+com foto padronizada: retrato 3:4, fundo branco, mesma margem). A busca aceita nome ou marca, sem acento e
+com erro de digitação ("todecaxo" acha "Todecacho"); os atalhos mostram as marcas com mais produtos e o filtro
+**Masculino** traz pomadas, ceras, shampoos e marcas masculinas. Tocou no produto, o formulário vem com nome,
+marca e foto prontos. O que já está no seu histórico aparece marcado. Se não achar: **Pela foto** (a IA,
+abaixo) ou **Cadastrar à mão**. O produto do histórico guarda de qual item do catálogo veio, mas copia nome,
+marca e foto: mudar o catálogo não mexe no histórico.
+
 **Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta: a IA (Claude, pela
 função `identify-product`) lê marca e nome, busca as páginas do produto e o app mostra até 3 fotos
 oficiais já padronizadas (retrato 3:4, fundo branco, mesma margem). A foto tirada só serve para
@@ -156,6 +164,24 @@ Se a aba fechar entre o upload e a finalização (ou a rede cair logo depois de 
 SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<secret> node scripts/clean-orphans.mjs           # lista
 SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<secret> node scripts/clean-orphans.mjs --apagar  # remove
 ```
+
+## Catálogo de produtos (como é montado)
+
+Os dados vêm do catálogo público (API de busca VTEX) de lojas que permitem acesso automático no robots.txt
+(Época Cosméticos, Drogaria São Paulo, Pague Menos), só nos departamentos de cabelo, com poucas requisições
+por vez. Os scripts ficam em `scripts/catalog/`:
+
+| Passo | Script | O que faz |
+| --- | --- | --- |
+| 1 | `vtex-harvest.mjs <loja> <categorias> <saida.jsonl>` | Coleta (divide por subcategoria e marca para passar do limite de 2.500 por consulta) |
+| 2 | `topsellers.mjs <loja> <categorias> <ranks.json>` | Posição de mais vendidos (ordena a busca) |
+| 3 | `RANKS=... build.mjs <catalogo.json> <coletas...>` | Filtra (sem kits, coloração, alisamento, acessórios, rosto/corpo/barba), classifica o tipo, marca o público, tira marca e tamanho do nome e junta o mesmo produto de lojas diferentes |
+| 4 | `photos.mjs <catalogo.json> <pasta>` | Foto padronizada (WebP 480x640) com `sharp` |
+| 5 | `SUPABASE_URL=... SUPABASE_SECRET_KEY=... upload.mjs <catalogo.json> <pasta>` | Sobe fotos e linhas; apaga o que saiu do catálogo |
+
+As regras de limpeza estão em `normalize.mjs` (com testes). As fotos são da vitrine das lojas e das marcas:
+servem para uso pessoal e em teste; antes de abrir o app ao público, troque por fotos com licença aberta
+(como as do Open Beauty Facts), enviadas pelos usuários ou autorizadas pelas marcas.
 
 ## Formatos e limites
 

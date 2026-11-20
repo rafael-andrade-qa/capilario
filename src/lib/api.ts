@@ -133,8 +133,13 @@ export async function setProductPhoto(userId: string, experimentId: string, file
 }
 
 /** Cadastra um produto (nome e marca), sem fotos. Repetir com o mesmo id não duplica. */
-export async function createProduct(experimentId: string, name: string, brand: string): Promise<void> {
-  const { error } = await supabase.rpc('create_product', { p_experiment_id: experimentId, p_name: name, p_brand: brand })
+export async function createProduct(experimentId: string, name: string, brand: string, catalogId?: string | null): Promise<void> {
+  const { error } = await supabase.rpc('create_product', {
+    p_experiment_id: experimentId,
+    p_name: name,
+    p_brand: brand,
+    p_catalog_id: catalogId ?? null,
+  })
   if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível cadastrar o produto: ${error.message}`)
 }
 

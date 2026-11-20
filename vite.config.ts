@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react()],
   build: { chunkSizeWarningLimit: 700 },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     environment: 'node',
   },
 })

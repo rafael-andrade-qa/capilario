@@ -11,7 +11,9 @@ import { useToast } from '../components/Toasts'
 import { createProduct, removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
 import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
+import { catalogPhotoFile, searchCatalog } from '../lib/catalog'
 import { identifyFromPhoto, type Candidate } from '../lib/identify'
+import { CatalogPicker, type CatalogChoice } from './CatalogPicker'
 import { href, navigate } from '../lib/router'
 import { useHistory, useSession, useSignedUrls } from '../lib/state'
 import { uuid } from '../lib/uuid'
@@ -49,8 +51,47 @@ export function ProductNewRoute() {
     created_at: new Date().toISOString(),
     stages: [],
   }))
+  // Primeiro o catálogo; o formulário vem com o produto escolhido, com a foto para identificar
+  // ou vazio (à mão).
+  const [step, setStep] = useState<{ kind: 'search' } | { kind: 'form'; initial?: CatalogChoice; identify?: File }>({ kind: 'search' })
   if (experiments === null) return <main className="page muted center">Carregando…</main>
-  return <ProductEdit mode="new" experiment={draft} others={experiments} />
+  if (step.kind === 'search') {
+    return (
+      <CatalogPicker
+        others={experiments}
+        onPick={(choice) => setStep({ kind: 'form', initial: choice })}
+        onManual={() => setStep({ kind: 'form' })}
+        onIdentify={(file) => setStep({ kind: 'form', identify: file })}
+      />
+    )
+  }
+  return (
+    <ProductEdit
+      mode="new"
+      experiment={draft}
+      others={experiments}
+      initial={step.initial}
+      identifyFile={step.identify}
+      onBack={() => setStep({ kind: 'search' })}
+    />
+  )
+}
+
+const words = (v: string) =>
+  normalize(v)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 4)
+
+/** O item do catálogo parece ser o mesmo produto que a IA leu? (marca igual, nome parecido) */
+export function sameProduct(a: { name: string; brand: string }, b: { name: string; brand: string }): boolean {
+  const ba = normalize(a.brand)
+  const bb = normalize(b.brand)
+  if (!ba || !bb || !(ba.includes(bb) || bb.includes(ba))) return false
+  const wa = new Set(words(a.name))
+  const wb = words(b.name)
+  if (!wa.size || !wb.length) return false
+  const hits = wb.filter((w) => wa.has(w)).length
+  return hits / Math.min(wa.size, wb.length) >= 0.6
 }
 
 /** owned: o preview é desta foto (escolhida na galeria); as fotos encontradas têm o seu. */
@@ -59,15 +100,34 @@ type PhotoChange =
   | { kind: 'remove' }
   | { kind: 'new'; file: File; mime: string; preview: string; error: string | null; owned: boolean }
 
-function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; experiment: Experiment; others: Experiment[] }) {
+function ProductEdit({
+  mode,
+  experiment,
+  others,
+  initial,
+  identifyFile,
+  onBack,
+}: {
+  mode: 'new' | 'edit'
+  experiment: Experiment
+  others: Experiment[]
+  initial?: CatalogChoice
+  identifyFile?: File
+  onBack?: () => void
+}) {
   const { session } = useSession()
   const { reload, experiments } = useHistory()
   const notify = useToast()
   const [created, setCreated] = useState(false)
   const brands = [...new Set(others.map((e) => e.brand).filter((b): b is string => !!b))].sort()
-  const [name, setName] = useState(experiment.product_name ?? '')
-  const [brand, setBrand] = useState(experiment.brand ?? '')
-  const [photo, setPhoto] = useState<PhotoChange>({ kind: 'keep' })
+  const [name, setName] = useState(initial?.name ?? experiment.product_name ?? '')
+  const [brand, setBrand] = useState(initial?.brand ?? experiment.brand ?? '')
+  const [catalogId, setCatalogId] = useState<string | null>(initial?.catalogId ?? null)
+  const [photo, setPhoto] = useState<PhotoChange>(() =>
+    initial?.photo
+      ? { kind: 'new', file: initial.photo, mime: initial.photo.type, preview: URL.createObjectURL(initial.photo), error: null, owned: true }
+      : { kind: 'keep' },
+  )
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -90,7 +150,21 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
   }
 
   function pickCandidate(c: Candidate) {
-    setPhoto({ kind: 'new', file: c.file, mime: 'image/jpeg', preview: c.preview, error: null, owned: false })
+    setPhoto({ kind: 'new', file: c.file, mime: c.file.type || 'image/jpeg', preview: c.preview, error: null, owned: false })
+  }
+
+  /** Item do catálogo que bate com o que a IA leu: a foto pronta dele vira a primeira opção. */
+  async function catalogMatch(found: { name: string; brand: string }): Promise<{ id: string; candidate: Candidate | null } | null> {
+    try {
+      const hits = await searchCatalog(found.brand + ' ' + found.name)
+      const hit = hits.slice(0, 5).find((h) => sameProduct(found, h))
+      if (!hit) return null
+      if (!hit.image_path) return { id: hit.id, candidate: null }
+      const file = await catalogPhotoFile(hit.image_path)
+      return { id: hit.id, candidate: { file, preview: URL.createObjectURL(file), source: 'catálogo do app' } }
+    } catch {
+      return null
+    }
   }
 
   async function onIdentifyPicked(e: ChangeEvent<HTMLInputElement>) {
@@ -102,6 +176,20 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
       notify(problem, 'error')
       return
     }
+    await runIdentify(file)
+  }
+
+  // Veio da busca do catálogo com a foto já escolhida: identifica logo ao abrir.
+  const started = useRef(false)
+  useEffect(() => {
+    if (identifyFile && !started.current) {
+      started.current = true
+      void runIdentify(identifyFile)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identifyFile])
+
+  async function runIdentify(file: File) {
     setIdentifying(true)
     setMessage(null)
     try {
@@ -113,10 +201,13 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
       setName(r.name)
       setBrand(r.brand)
       setCheckNote(r.confidence !== 'high')
-      setCandidates(r.candidates)
-      if (r.candidates.length) {
+      const match = await catalogMatch(r)
+      if (match) setCatalogId(match.id)
+      const all = match?.candidate ? [match.candidate, ...r.candidates] : r.candidates
+      setCandidates(all)
+      if (all.length) {
         // Só põe a foto encontrada se a pessoa ainda não escolheu uma da galeria.
-        if (!(photo.kind === 'new' && photo.owned)) pickCandidate(r.candidates[0])
+        if (!(photo.kind === 'new' && photo.owned)) pickCandidate(all[0])
         notify('Produto identificado. Confira e cadastre.', 'success')
       } else {
         notify('Achei o produto, mas não a foto oficial. Você pode pôr uma foto abaixo.', 'info')
@@ -152,7 +243,7 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
     setBusy(true)
     try {
       if (mode === 'new') {
-        await createProduct(experiment.id, name, brand)
+        await createProduct(experiment.id, name, brand, catalogId)
         // O produto já está salvo; se a foto falhar, dá para pôr depois pelo lápis.
         if (photo.kind === 'new') {
           await setProductPhoto(session.user.id, experiment.id, photo.file, photo.mime).catch(() =>
@@ -186,14 +277,17 @@ function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; exper
 
   return (
     <main className="page form-page">
-      <PageHeader title={mode === 'new' ? 'Novo produto' : 'Editar produto'} back={{ label: 'Voltar ao histórico', href: href('/') }} />
+      <PageHeader
+        title={mode === 'new' ? 'Novo produto' : 'Editar produto'}
+        back={onBack ? { label: 'Voltar à busca', onClick: onBack, disabled: locked } : { label: 'Voltar ao histórico', href: href('/') }}
+      />
       <section className="card form-fields">
         {mode === 'edit' && fins > 0 && (
           <p className="muted small edit-scope">
             Vale para {fins === 1 ? 'a finalização' : `as ${fins} finalizações`} deste produto.
           </p>
         )}
-        {mode === 'new' && (
+        {mode === 'new' && !initial && (
           <div className="identify">
             <button type="button" className="btn btn-outline-brand btn-block" onClick={() => idInput.current?.click()} disabled={locked} aria-busy={identifying}>
               {identifying ? <span className="spinner" aria-hidden="true" /> : <CameraIcon size={20} />}
