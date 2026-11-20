@@ -142,5 +142,9 @@ async function harvest(fq, depth = 0) {
 }
 
 // Várias raízes separadas por vírgula (ex.: C:/1160/,C:/1161/).
-for (const root of rootFq.split(",")) await harvest(fqParam(root.trim()))
+// "ft:pomada modeladora" busca por texto em vez de categoria.
+for (const root of rootFq.split(',')) {
+  const r = root.trim()
+  await harvest(r.startsWith('ft:') ? `ft=${encodeURIComponent(r.slice(3))}` : fqParam(r))
+}
 console.log(`fim: ${saved} produtos, ${requests} requisições`)

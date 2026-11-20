@@ -57,6 +57,8 @@ alter table public.experiments
 
 -- Busca: todas as palavras precisam aparecer (sem acento); se nada aparecer, tenta por
 -- semelhança, para aguentar erro de digitação ("todecaxo" acha "Todecacho").
+-- O filtro Masculino traz o que é masculino (nome, departamento ou marca) e também pomadas,
+-- ceras e pastas, os finalizadores que os homens mais procuram.
 create or replace function public.search_catalog(
   p_query text,
   p_brand text default null,
@@ -91,7 +93,7 @@ begin
     from public.catalog_products p
     join public.catalog_brands b on b.id = p.brand_id
     where (p_brand is null or p.brand_id = p_brand)
-      and (p_audience is null or p.audience = p_audience)
+      and (p_audience is null or p.audience = p_audience or (p_audience = 'masculino' and p.category in ('pomada', 'cera', 'pasta')))
       and not exists (select 1 from unnest(v_words) w where p.search_text not like '%' || w || '%')
     order by
       case when v_raw = '' then 0 else extensions.word_similarity(v_raw, p.search_text) end desc,
@@ -113,7 +115,7 @@ begin
     from public.catalog_products p
     join public.catalog_brands b on b.id = p.brand_id
     where (p_brand is null or p.brand_id = p_brand)
-      and (p_audience is null or p.audience = p_audience)
+      and (p_audience is null or p.audience = p_audience or (p_audience = 'masculino' and p.category in ('pomada', 'cera', 'pasta')))
       and exists (select 1 from unnest(v_words) w where length(w) >= 3)
       and not exists (
         select 1 from unnest(v_words) w

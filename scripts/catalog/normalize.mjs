@@ -52,12 +52,13 @@ const DROP = [
   /soft color|color mask|colour mask|tone-?on-?tone|tone on tone|\bcolor (creme|cream|gloss|touch|fresh)|preto azulado|\bcastanho|\bruivo\b|\blouro (claro|escuro|medio)|\bcolor\b.*\b\d{1,2}[.,]\d{1,3}\b/,
   /\balisa(nte|mento)|\bprogressiva|\brelaxamento|\bguanidina|\bpermanente afro|\bselagem termica\b/,
   /\btesoura|\bpente\b|\bpentes\b|\bescova (de|para) cabelo|\bescova raquete|\bescova redonda|\bescova desembaracadora|\bsecador|\bprancha|\bbabyliss|\bchapinha|\bdifusor|\btouca|\belastico|\bpresilha|\bpiranha|\bgrampo|\btiara|\bfaixa\b|\bbandana|\bcapa de corte|\bmaquina de (corte|cortar)|\baparador/,
-  /\bfacial|\brosto\b|\bcorpo\b|\bcorporal|\bolhos\b|\blabial|\bunha|\bcilios|\bsobrancelha|\bmaquiagem|\bprotetor solar|\bfps\b|\bantissinais|\bclareador|\bdesodorante|\bsabonete|\bperfume|\bcolonia\b|\bbarba\b|\bbarbear\b|\bbigode/,
+  /\bfacial|\brosto\b|\bcorpo\b|\bcorporal|\bolhos\b|\blabial|\bunha|\bcilios|\bsobrancelha|\bmaquiagem|\bprotetor solar|\bfps\b|\bantissinais|\bclareador|\bdesodorante|\bsabonete|\bperfume|\bcolonia\b|\bbarbear\b|\bpos-?barba|\bbigode|\bpernas\b|\bpes\b|massageador|\bjoelho|\bassadura|\bcicatriz/,
   /\bvitamina|\bsuplemento|\bcapsulas|\bcomprimido|\bgomas\b|\bpet\b|\bcachorro|\bcaes\b|\bgatos\b/,
 ]
 
 /** Palavras de cabelo: para categorias de loja que misturam rosto e cabelo (Sérum, Tônico...). */
-const HAIR_WORDS = /capilar|cabelo|fios\b|cachos|cacheado|crespo|ondulado|liso\b|pontas|couro cabeludo|caspa|queda|shampoo|condicionador|leave|pentear|finaliz|pomada|modelador|hair/
+const HAIR_WORDS =
+  /capilar|cabelo|fios\b|cachos|cacheado|crespo|ondulado|liso\b|pontas|couro cabeludo|caspa|shampoo|condicionador|leave|pentear|finaliz|\bhair\b|pomada (modeladora|capilar|para cabelo|matte|efeito|fixa|texturiz|em po|de cabelo)|pomada modeladora|texturiz|cera (modeladora|capilar|para cabelo|em bastao|efeito|matte)|\bwax\b|\bpomade\b|\bclay\b|efeito matte|argila modeladora|pasta modeladora|gel (fixador|modelador|capilar|de cabelo)|barber/
 
 // Ordem importa: o mais específico antes.
 const TYPE_RULES = [
@@ -95,6 +96,8 @@ export function classify(name, storeCategories = []) {
   const n = plain(name)
   const cats = plain(storeCategories.join(' '))
   if (DROP.some((r) => r.test(n))) return null
+  // Barba sem cabelo (óleo, balm, shampoo para barba) fica de fora; "cabelo e barba" entra.
+  if (/\bbarba\b/.test(n) && !/cabelo|capilar|\bhair\b/.test(n)) return null
   if (/kits? para cabelos|kit shampoo|coloracao|escova progressiva|alisamento|escovas e acessorios|acessorios/.test(cats)) return null
   for (const [type, re] of TYPE_RULES) if (re.test(n)) return type
   // Pelo caminho da loja.
@@ -108,8 +111,13 @@ export function classify(name, storeCategories = []) {
 export function isHairProduct(name, storeCategories = []) {
   const cats = plain(storeCategories.join(' '))
   if (/\/cabelos?\//.test(cats)) return true
-  const mixed = /dermocosmeticos|\/serum\/|\/tonico\/|\/ampola\/|\/gel\/|\/mousse\/|\/spray|\/fixador|\/modelador\/|\/cera\/|\/locao/.test(cats)
-  return mixed ? HAIR_WORDS.test(plain(name)) : true
+  // Categorias que são de cabelo pelo nome (lojas com categorias "planas", como a Drogaria SP).
+  const hairCat =
+    /capilar|cabelo|shampoo|condicionador|leave-in|pentear|finalizador|gelatina|geleia|umidificador|protetor termico|reparador de pontas|pre shampoo|vinagre capilar|barbearia\/modeladores|cabelos masculinos/.test(cats)
+  const mixed = /dermocosmeticos|\/serum\/|\/tonico\/|\/ampola\/|\/gel\/|\/mousse\/|\/spray|\/fixador|\/modelador\/|\/cera\/|\/locao|\/mascara\/|\/manteiga\//.test(cats)
+  if (hairCat && !mixed) return true
+  // Fora de categoria de cabelo (inclui o que veio de busca por texto): o nome precisa dizer.
+  return HAIR_WORDS.test(plain(name))
 }
 
 // ---------- Público ----------

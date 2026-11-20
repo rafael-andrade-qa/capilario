@@ -106,3 +106,13 @@ describe('público: departamento masculino', () => {
     expect(audienceOf('Pomada Efeito Seco', null, ['/Homem/Cabelos Masculinos/'])).toBe('masculino')
   })
 })
+
+describe('pomada de farmácia não é pomada de cabelo', () => {
+  it('fora de categoria de cabelo, o nome precisa dizer que é de cabelo', () => {
+    expect(isHairProduct('Bepantol Derma Pomada 30g', ['/Medicamentos/Pele/'])).toBe(false)
+    expect(isHairProduct('Pomada para Assaduras Hipoglós 40g', ['/Infantil/Higiene/'])).toBe(false)
+    expect(isHairProduct('Pomada Modeladora Efeito Matte 80g', ['/Homens/Perfumaria/'])).toBe(true)
+    expect(isHairProduct('Shampoo Clear Men 200ml', ['/Shampoo/'])).toBe(true)
+    expect(isHairProduct('Modelador de Seios', ['/Modelador/'])).toBe(false)
+  })
+})

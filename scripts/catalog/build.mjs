@@ -88,14 +88,14 @@ for (const r of rows) {
     dropped++
     continue
   }
-  const category = classify(r.name, r.categories ?? [])
+  const brandKey = brandKeyOf(r.brand)
+  const forms = [...new Set([...(brandForms.get(brandKey) ?? []), BRAND_ALIASES[plain(r.brand)] ?? ''])].filter(Boolean)
+  const name = cleanName(r.name, r.brand, forms)
+  const category = classify(name, r.categories ?? [])
   if (!category) {
     dropped++
     continue
   }
-  const brandKey = brandKeyOf(r.brand)
-  const forms = [...new Set([...(brandForms.get(brandKey) ?? []), BRAND_ALIASES[plain(r.brand)] ?? ''])].filter(Boolean)
-  const name = cleanName(r.name, r.brand, forms)
   const eans = (r.items ?? []).map((i) => i.ean).filter((e) => e && /^\d{8,14}$/.test(e))
   let key = mergeKey(brandKey, name)
   const viaEan = eans.map((e) => byEan.get(e)).find((k) => k && k.startsWith(`${brandKey}|`))
@@ -193,7 +193,12 @@ for (const p of finalProducts) {
 const brandRows = [...brands.values()].map((b) => ({
   id: b.id,
   name: b.name,
-  audience: b.male / b.product_count >= 0.5 ? 'masculino' : b.female / b.product_count >= 0.5 ? 'feminino' : 'geral',
+  audience:
+    b.product_count >= 3 && b.male / b.product_count >= 0.6
+      ? 'masculino'
+      : b.product_count >= 3 && b.female / b.product_count >= 0.6
+        ? 'feminino'
+        : 'geral',
   product_count: b.product_count,
 }))
 

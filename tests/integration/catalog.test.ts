@@ -37,6 +37,7 @@ describe('catálogo', () => {
       product('gelatina', brandA, `Todecacho Gelatina Super Definição ${tag}`, { popularity: 5 }),
       product('creme', brandA, `Todecacho Creme de Pentear ${tag}`, { popularity: 9 }),
       product('pomada', brandB, `Pomada Modeladora Efeito Matte ${tag}`, { audience: 'masculino' }),
+      product('cera', brandA, `Cera Modeladora Brilho ${tag}`, { category: 'cera' }),
     ])
     if (p.error) throw p.error
   })
@@ -64,8 +65,9 @@ describe('catálogo', () => {
   it('filtra por marca e por público', async () => {
     const byBrand = await search('', { p_brand: brandB })
     expect(byBrand.data?.map((x: { id: string }) => x.id)).toEqual([`pomada-${tag}`])
+    // Masculino: o que é masculino e também pomadas, ceras e pastas.
     const men = await search(tag, { p_audience: 'masculino' })
-    expect(men.data?.map((x: { id: string }) => x.id)).toEqual([`pomada-${tag}`])
+    expect(men.data?.map((x: { id: string }) => x.id).sort()).toEqual([`cera-${tag}`, `pomada-${tag}`])
   })
 
   it('quem entrou só lê; sem login nem lê', async () => {
