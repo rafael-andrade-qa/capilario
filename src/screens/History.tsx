@@ -3,6 +3,7 @@
 // próximo. O produto mais recente começa aberto; o que você abre/fecha é lembrado na sessão.
 import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
+import { NO_FINISHER_ID } from './StageForm'
 import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
 import { EditIcon, PlusIcon } from '../components/ActionIcons'
@@ -49,11 +50,14 @@ export function History({
   deleted,
   productPhotoFailed = false,
   productSaved = null,
+  created = null,
 }: {
   saved: string | null
   deleted: string | null
   productPhotoFailed?: boolean
   productSaved?: string | null
+  /** Produto recém-cadastrado (escolheu registrar Depois). */
+  created?: string | null
 }) {
   const { experiments, error, loading, reload } = useHistory()
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
@@ -68,6 +72,7 @@ export function History({
   useToastOnce(saved && productPhotoFailed ? `foto-${saved}` : null, 'A foto do produto não foi enviada. Toque no lápis do produto para tentar de novo.', 'error')
   useToastOnce(deleted, 'Momento excluído.')
   useToastOnce(productSaved, 'Produto atualizado.')
+  useToastOnce(created, 'Produto cadastrado.')
   const totalStages = list.reduce((n, e) => n + publishedStages(e).length, 0)
 
   // Primeira visita: abre o produto mais recente. Depois de salvar: abre o produto da etapa salva.
@@ -80,10 +85,11 @@ export function History({
         const exp = list.find((e) => e.stages.some((s) => s.id === saved))
         if (exp) next.add(exp.id)
       }
+      if (created && list.some((e) => e.id === created)) next.add(created)
       openRemembered = true
       return next.size === prev.size && [...next].every((id) => prev.has(id)) ? prev : next
     })
-  }, [list, saved])
+  }, [list, saved, created])
 
   useEffect(() => {
     openMemory.clear()
@@ -129,8 +135,8 @@ export function History({
       </header>
 
       <div className="actions-bar">
-        <a className="btn btn-primary" href={href('/novo')}>
-          + Nova finalização
+        <a className="btn btn-primary" href={href('/produto/novo')}>
+          + Novo produto
         </a>
         <CompareButton total={totalStages} />
       </div>
@@ -147,10 +153,16 @@ export function History({
 
       {experiments !== null && list.length === 0 && (
         <section className="empty-state card">
-          <h2>Comece sua primeira finalização</h2>
-          <p className="muted">Fotografe o cabelo logo depois de finalizar, depois seco e no dia seguinte. Assim dá para comparar os produtos.</p>
-          <a className="btn btn-primary" href={href('/novo')}>
-            Nova finalização
+          <h2>Comece pelo produto que você vai testar</h2>
+          <p className="muted">
+            Cadastre o produto e, dentro dele, registre cada finalização: o cabelo molhado, seco e no dia seguinte. Assim dá para comparar os
+            produtos.
+          </p>
+          <a className="btn btn-primary" href={href('/produto/novo')}>
+            Cadastrar produto
+          </a>
+          <a className="link empty-secondary" href={href(`/produto/${NO_FINISHER_ID}/nova-finalizacao`)}>
+            Ou registre sem finalizador
           </a>
         </section>
       )}
@@ -190,8 +202,14 @@ export function History({
                       <span className="muted small experiment-sub">
                         {brand && <span className="brand-name">{brand}</span>}
                         <span className="dates">
-                          {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {fins.length}{' '}
-                          {fins.length === 1 ? 'finalização' : 'finalizações'}
+                          {stages.length ? (
+                            <>
+                              {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {fins.length}{' '}
+                              {fins.length === 1 ? 'finalização' : 'finalizações'}
+                            </>
+                          ) : (
+                            'Nenhuma finalização ainda'
+                          )}
                         </span>
                       </span>
                     </span>
@@ -201,6 +219,14 @@ export function History({
 
                 {isOpen && (
                   <div id={`produto-${exp.id}`} className="product-body">
+                    {fins.length === 0 && (
+                      <div className="fin-empty">
+                        <p className="muted small">Registre a primeira finalização com este produto: molhado, seco e dia seguinte.</p>
+                        <a className="btn btn-outline-brand btn-block" href={href(`/produto/${exp.id}/nova-finalizacao`)}>
+                          + Registrar finalização
+                        </a>
+                      </div>
+                    )}
                     <ol className="fin-list">
                       {fins.map((f, i) => (
                         <FinalizationRow
@@ -247,6 +273,7 @@ export function History({
               </section>
             )
           })}
+          {!query && !list.some((e) => e.product_mode === 'none') && <NoFinisherRow open={open.has(NO_FINISHER_ID)} onToggle={() => toggle(NO_FINISHER_ID)} />}
         </div>
       )}
 
@@ -377,5 +404,36 @@ function MomentTile({ stage, urls, highlight }: { stage: Stage; urls: Record<str
         {formatTime(stage.captured_at)}
       </time>
     </a>
+  )
+}
+
+/** "Sem finalizador" fica sempre na lista, mesmo antes da primeira finalização sem produto. */
+function NoFinisherRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const placeholder: Experiment = { id: NO_FINISHER_ID, product_mode: 'none', product_name: null, brand: null, photo_path: null, created_at: '', stages: [] }
+  return (
+    <section className={`experiment fixed-product ${open ? 'open' : ''}`} aria-label="Produto Sem finalizador">
+      <h2 className="product-title">
+        <button type="button" className="product-toggle" aria-expanded={open} aria-controls="produto-sem-finalizador" onClick={onToggle}>
+          <ProductThumb experiment={placeholder} urls={{}} />
+          <span className="product-text">
+            <span className="product-name muted-title">Sem finalizador</span>
+            <span className="muted small experiment-sub">
+              <span className="dates">Para quando você não usou produto</span>
+            </span>
+          </span>
+          <ChevronIcon />
+        </button>
+      </h2>
+      {open && (
+        <div id="produto-sem-finalizador" className="product-body">
+          <div className="fin-empty">
+            <p className="muted small">Registre como o cabelo fica sem nenhum produto, para comparar com os outros.</p>
+            <a className="btn btn-outline-brand btn-block" href={href(`/produto/${NO_FINISHER_ID}/nova-finalizacao`)}>
+              + Registrar finalização
+            </a>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

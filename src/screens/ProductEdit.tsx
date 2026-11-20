@@ -1,13 +1,17 @@
-// Editar produto: corrigir nome e marca e trocar ou remover a foto da embalagem.
-// Vale para todas as finalizações do produto.
+// Novo produto e Editar produto: nome, marca e foto da embalagem.
+// Cadastrar não pede foto de cabelo; ao salvar, convida a registrar a primeira finalização
+// (Registrar agora ou Depois). Editar vale para todas as finalizações do produto.
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
-import { removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
-import { finalizationsOf, type Experiment } from '../lib/domain'
+import { ProductThumb } from '../components/ProductThumb'
+import { useToast } from '../components/Toasts'
+import { createProduct, removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
+import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
 import { href, navigate } from '../lib/router'
 import { useHistory, useSession, useSignedUrls } from '../lib/state'
+import { uuid } from '../lib/uuid'
 
 const normalize = (v: string | null | undefined) =>
   (v ?? '')
@@ -28,14 +32,32 @@ export function ProductEditRoute({ experimentId }: { experimentId: string }) {
       </main>
     )
   }
-  return <ProductEdit key={experiment.id} experiment={experiment} others={experiments.filter((e) => e.id !== experiment.id)} />
+  return <ProductEdit key={experiment.id} mode="edit" experiment={experiment} others={experiments.filter((e) => e.id !== experiment.id)} />
+}
+
+export function ProductNewRoute() {
+  const { experiments } = useHistory()
+  const [draft] = useState<Experiment>(() => ({
+    id: uuid(),
+    product_mode: 'named',
+    product_name: null,
+    brand: null,
+    photo_path: null,
+    created_at: new Date().toISOString(),
+    stages: [],
+  }))
+  if (experiments === null) return <main className="page muted center">Carregando…</main>
+  return <ProductEdit mode="new" experiment={draft} others={experiments} />
 }
 
 type PhotoChange = { kind: 'keep' } | { kind: 'remove' } | { kind: 'new'; file: File; mime: string; preview: string; error: string | null }
 
-function ProductEdit({ experiment, others }: { experiment: Experiment; others: Experiment[] }) {
+function ProductEdit({ mode, experiment, others }: { mode: 'new' | 'edit'; experiment: Experiment; others: Experiment[] }) {
   const { session } = useSession()
-  const { reload } = useHistory()
+  const { reload, experiments } = useHistory()
+  const notify = useToast()
+  const [created, setCreated] = useState(false)
+  const brands = [...new Set(others.map((e) => e.brand).filter((b): b is string => !!b))].sort()
   const [name, setName] = useState(experiment.product_name ?? '')
   const [brand, setBrand] = useState(experiment.brand ?? '')
   const [photo, setPhoto] = useState<PhotoChange>({ kind: 'keep' })
@@ -68,7 +90,7 @@ function ProductEdit({ experiment, others }: { experiment: Experiment; others: E
 
   async function save() {
     if (busy || !session) return
-    if (!changed) {
+    if (mode === 'edit' && !changed) {
       navigate('/')
       return
     }
@@ -77,6 +99,19 @@ function ProductEdit({ experiment, others }: { experiment: Experiment; others: E
     if (problem) return
     setBusy(true)
     try {
+      if (mode === 'new') {
+        await createProduct(experiment.id, name, brand)
+        // O produto já está salvo; se a foto falhar, dá para pôr depois pelo lápis.
+        if (photo.kind === 'new') {
+          await setProductPhoto(session.user.id, experiment.id, photo.file, photo.mime).catch(() =>
+            notify('A foto do produto não foi enviada. Toque no lápis do produto para tentar de novo.', 'error'),
+          )
+        }
+        await reload()
+        setCreated(true)
+        setBusy(false)
+        return
+      }
       if (nameChanged) await updateExperiment(experiment.id, name, brand)
       if (photo.kind === 'new') await setProductPhoto(session.user.id, experiment.id, photo.file, photo.mime)
       if (photo.kind === 'remove') await removeProductPhoto(experiment.id)
@@ -88,28 +123,61 @@ function ProductEdit({ experiment, others }: { experiment: Experiment; others: E
     }
   }
 
+  if (created) {
+    const saved = experiments?.find((e) => e.id === experiment.id) ?? { ...experiment, product_name: name.trim(), brand: brand.trim() }
+    return <ProductCreated experiment={saved} />
+  }
+
   const currentUrl = experiment.photo_path ? urls[experiment.photo_path] : undefined
   const showPhoto = photo.kind === 'new' ? (photo.error ? null : photo.preview) : photo.kind === 'keep' ? currentUrl : null
   const hasPhoto = photo.kind === 'new' || (photo.kind === 'keep' && !!experiment.photo_path)
 
   return (
     <main className="page form-page">
-      <PageHeader title="Editar produto" back={{ label: 'Voltar ao histórico', href: href('/') }} />
+      <PageHeader title={mode === 'new' ? 'Novo produto' : 'Editar produto'} back={{ label: 'Voltar ao histórico', href: href('/') }} />
       <section className="card form-fields">
-        <p className="muted small edit-scope">
-          Vale para {fins === 1 ? 'a finalização' : `as ${fins} finalizações`} deste produto.
-        </p>
+        {mode === 'edit' && fins > 0 && (
+          <p className="muted small edit-scope">
+            Vale para {fins === 1 ? 'a finalização' : `as ${fins} finalizações`} deste produto.
+          </p>
+        )}
         <div className="field">
           <label htmlFor="e-produto" className="field-label">
             Produto<span className="req" aria-hidden="true"> *</span>
           </label>
-          <input id="e-produto" type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={busy} required aria-required="true" maxLength={200} />
+          <input
+            id="e-produto"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={busy}
+            required
+            aria-required="true"
+            maxLength={200}
+            placeholder="Ex.: Creme de Pentear"
+          />
         </div>
         <div className="field">
           <label htmlFor="e-marca" className="field-label">
             Marca<span className="req" aria-hidden="true"> *</span>
           </label>
-          <input id="e-marca" type="text" value={brand} onChange={(e) => setBrand(e.target.value)} disabled={busy} required aria-required="true" maxLength={100} />
+          <input
+            id="e-marca"
+            type="text"
+            list="e-marcas"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            disabled={busy}
+            required
+            aria-required="true"
+            maxLength={100}
+            placeholder="Ex.: Widi Care"
+          />
+          <datalist id="e-marcas">
+            {brands.map((b) => (
+              <option key={b} value={b} />
+            ))}
+          </datalist>
         </div>
         <div className="field">
           <span className="field-label">Foto do produto</span>
@@ -150,8 +218,34 @@ function ProductEdit({ experiment, others }: { experiment: Experiment; others: E
           </p>
         )}
         <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save()} disabled={busy}>
-          {busy ? 'Salvando…' : 'Salvar'}
+          {busy ? 'Salvando…' : mode === 'new' ? 'Cadastrar produto' : 'Salvar'}
         </button>
+      </section>
+    </main>
+  )
+}
+
+/** Depois de cadastrar: registrar a primeira finalização agora ou depois. */
+function ProductCreated({ experiment }: { experiment: Experiment }) {
+  const { urls } = useSignedUrls(experiment.photo_path ? [experiment.photo_path] : [])
+  return (
+    <main className="page form-page">
+      <PageHeader title="Produto cadastrado" back={{ label: 'Voltar ao histórico', href: href(`/?novo=${experiment.id}`) }} />
+      <section className="card created-card" role="status">
+        <ProductThumb experiment={experiment} urls={urls} />
+        <div className="created-text">
+          <strong>{productLabel(experiment)}</strong>
+          {brandLabel(experiment) && <span className="muted small">{brandLabel(experiment)}</span>}
+        </div>
+      </section>
+      <p className="created-question">Quer registrar a primeira finalização com ele agora?</p>
+      <section className="save-bar">
+        <a className="btn btn-primary btn-block btn-large" href={href(`/produto/${experiment.id}/nova-finalizacao`)}>
+          Registrar finalização
+        </a>
+        <a className="btn btn-ghost btn-block" href={href(`/?novo=${experiment.id}`)}>
+          Depois
+        </a>
       </section>
     </main>
   )

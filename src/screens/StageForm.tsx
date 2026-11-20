@@ -1,5 +1,6 @@
-// Formulário único para: Nova finalização (produto novo ou já usado), próximo momento de uma
-// finalização (+ Seco, + Dia seguinte) e Completar fotos de um momento.
+// Formulário de fotos, numa tela só, para: Nova finalização dentro de um produto, próximo
+// momento de uma finalização (+ Seco, + Dia seguinte) e Completar fotos de um momento.
+// O produto já é conhecido em todos os casos (cadastrar produto é outra tela).
 //
 // Consistência do envio:
 //  * IDs de experimento, etapa e fotos são reservados ao abrir o formulário/escolher o arquivo
@@ -8,18 +9,17 @@
 //  * A finalização grava experimento + etapa + fotos numa única transação (finalize_stage),
 //    idempotente. Se a resposta se perder, consultamos o banco antes de declarar falha.
 //  * Arquivos descartados só são apagados depois de confirmar no banco que não foram associados.
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { DateTimeField } from '../components/DateTimeField'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
-import { AmbiguousError, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, setProductPhoto, type FinalizePhoto } from '../lib/api'
+import { AmbiguousError, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, type FinalizePhoto } from '../lib/api'
 import {
   ANGLES,
   ANGLE_LABEL,
   STAGE_LABEL,
   STAGE_TYPES,
   formatDateTime,
-  formatShortDateTime,
   finalizationWhen,
   findFinalization,
   localInputToIso,
@@ -44,18 +44,24 @@ import { uploadPhoto } from '../lib/upload'
 import { uuid } from '../lib/uuid'
 
 type RouteProps =
-  | { kind: 'new'; userId: string }
   | { kind: 'add'; userId: string; experimentId: string }
   | { kind: 'complete'; userId: string; stageId: string }
   | { kind: 'moment'; userId: string; finalizationId: string; moment: string }
 
+/** Endereço do produto fixo "Sem finalizador" (existe mesmo antes da primeira finalização). */
+export const NO_FINISHER_ID = 'sem-finalizador'
+
 export function StageFormRoute(props: RouteProps) {
   const { experiments } = useHistory()
-  if (props.kind === 'new') return <StageForm kind="new" userId={props.userId} />
   if (experiments === null) return <main className="page muted center">Carregando…</main>
   if (props.kind === 'add') {
+    if (props.experimentId === NO_FINISHER_ID) {
+      // Sem finalizador: usa o do histórico; se ainda não existe, a primeira finalização o cria.
+      const existing = experiments.find((e) => e.product_mode === 'none')
+      return <StageForm key="sem-finalizador" kind="add" userId={props.userId} experiment={existing ?? newNoFinisher()} createsNoFinisher={!existing} />
+    }
     const experiment = experiments.find((e) => e.id === props.experimentId)
-    if (!experiment) return <NotFound text="Experimento não encontrado." />
+    if (!experiment) return <NotFound text="Produto não encontrado." />
     return <StageForm key={experiment.id} kind="add" userId={props.userId} experiment={experiment} />
   }
   if (props.kind === 'moment') {
@@ -104,8 +110,14 @@ interface Item {
 
 type Phase = 'editing' | 'uploading' | 'partial' | 'finalizing' | 'error'
 
+function newNoFinisher(): Experiment {
+  return { id: uuid(), product_mode: 'none', product_name: null, brand: null, photo_path: null, created_at: new Date().toISOString(), stages: [] }
+}
+
 interface FormProps {
-  kind: 'new' | 'add' | 'complete' | 'moment'
+  kind: 'add' | 'complete' | 'moment'
+  /** Sem finalizador ainda não existe no banco: a finalização o cria. */
+  createsNoFinisher?: boolean
   userId: string
   experiment?: Experiment
   stage?: Stage
@@ -121,14 +133,12 @@ async function runPool<T>(list: T[], limit: number, fn: (t: T) => Promise<void>)
   await Promise.all(workers)
 }
 
-function StageForm({ kind, userId, experiment, stage, finalization, momentType }: FormProps) {
-  const { experiments, reload } = useHistory()
+function StageForm({ kind, userId, experiment, stage, finalization, momentType, createsNoFinisher = false }: FormProps) {
+  const { reload } = useHistory()
 
   // IDs reservados uma vez por formulário.
   const [stageId] = useState(() => stage?.id ?? uuid())
-  const [newExperimentId] = useState(() => uuid())
   const [newFinalizationId] = useState(() => uuid())
-  const [startNewExperiment, setStartNewExperiment] = useState(kind === 'new')
   // Nova finalização = finalização nova; próximo momento = a finalização escolhida.
   const finalizationId = kind === 'moment' ? finalization!.id : kind === 'complete' ? stage!.finalization_id : newFinalizationId
 
@@ -143,17 +153,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
   // Uma finalização nova quase sempre começa no Molhado.
   const [stageType, setStageType] = useState<StageType | null>(kind === 'moment' ? momentType! : kind === 'complete' ? null : 'wet')
   const [capturedAt, setCapturedAt] = useState(() => toLocalInputValue(new Date()))
-  const [productName, setProductName] = useState(experiment?.product_mode === 'named' ? experiment.product_name ?? '' : '')
-  const [brand, setBrand] = useState(experiment?.product_mode === 'named' ? experiment.brand ?? '' : '')
-  const [noFinisher, setNoFinisher] = useState(experiment?.product_mode === 'none')
-  const [productPhoto, setProductPhotoFile] = useState<{ file: File; mime: string; preview: string; error: string | null } | null>(null)
-  const productPhotoInput = useRef<HTMLInputElement>(null)
-  useEffect(() => () => { if (productPhoto) URL.revokeObjectURL(productPhoto.preview) }, [productPhoto])
   const [notes, setNotes] = useState('')
-
-  // Dois passos (novo registro e adicionar etapa): 1 = detalhes, 2 = fotos. Completar fotos é só o passo 2.
-  const twoSteps = kind === 'new' || kind === 'add'
-  const [step, setStep] = useState<1 | 2>(twoSteps ? 1 : 2)
   const [phase, setPhase] = useState<Phase>('editing')
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
@@ -293,14 +293,6 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
     checkDisplayable([item])
   }
 
-  function onProductPhotoPicked(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    const error = validateFile(file)
-    setProductPhotoFile({ file, mime: detectMime(file), preview: URL.createObjectURL(file), error })
-  }
-
   function pickForSlot(angle: Angle) {
     slotTarget.current = angle
     slotInput.current?.click()
@@ -335,77 +327,17 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
   const doneCount = filledItems.filter((i) => i.status === 'done').length
   const failedItems = filledItems.filter((i) => i.status === 'error')
 
-  const named = useMemo(() => (experiments ?? []).filter((e) => e.product_mode === 'named'), [experiments])
-  const productNames = useMemo(() => [...new Set(named.map((e) => e.product_name!))].sort(), [named])
-  const brandNames = useMemo(() => [...new Set(named.map((e) => e.brand).filter((b): b is string => !!b))].sort(), [named])
-
-  // Escolher um produto já usado preenche a marca dele (se o campo estiver vazio).
-  function onProductChange(value: string) {
-    setProductName(value)
-    if (!brand.trim()) {
-      const known = named.find((e) => e.product_name === value.trim() && e.brand)
-      if (known) setBrand(known.brand!)
-    }
-  }
-
-  // Produto digitado igual a um que já está no histórico (mesmo nome e marca, ou Sem finalizador):
-  // a finalização entra nele, em vez de criar um produto repetido.
-  const productMatch = useMemo(() => {
-    if (!twoSteps || !startNewExperiment) return undefined
-    if (noFinisher) return (experiments ?? []).find((e) => e.product_mode === 'none')
-    if (!productName.trim()) return undefined
-    const key = (v: string | null | undefined) => normalizeName(v ?? '')
-    return named.find((e) => key(e.product_name) === key(productName) && key(e.brand) === key(brand))
-  }, [twoSteps, startNewExperiment, noFinisher, productName, brand, named, experiments])
-  const experimentId =
-    kind === 'complete'
-      ? stage!.experiment_id
-      : kind === 'moment'
-        ? experiment!.id
-        : startNewExperiment
-          ? (productMatch?.id ?? newExperimentId)
-          : experiment!.id
-  const createsExperiment = twoSteps && startNewExperiment && !productMatch
-
-  const wantsProductPhoto = twoSteps && startNewExperiment && !noFinisher && !productMatch?.photo_path
-
-  /** Passo 1: momento, data, produto e marca. (Próximo momento: só a data.) */
-  function validateDetails(): string | null {
-    if (kind === 'complete') return null
-    if (kind === 'moment') return localInputToIso(capturedAt) ? null : 'Informe uma data e horário válidos.'
-    if (!stageType) return 'Escolha o momento: Molhado, Seco ou Dia seguinte.'
-    if (!localInputToIso(capturedAt)) return 'Informe uma data e horário válidos.'
-    if (startNewExperiment && !noFinisher) {
-      if (!productName.trim()) return 'Informe o produto ou marque Sem finalizador.'
-      if (!brand.trim()) return 'Informe a marca do produto.'
-    }
-    return null
-  }
+  const experimentId = kind === 'complete' ? stage!.experiment_id : experiment!.id
 
   function validate(): string | null {
-    const details = validateDetails()
-    if (details) {
-      setStep(1)
-      return details
+    if (kind !== 'complete') {
+      if (!stageType) return 'Escolha o momento: Molhado, Seco ou Dia seguinte.'
+      if (!localInputToIso(capturedAt)) return 'Informe uma data e horário válidos.'
     }
     if (!filled.length) return 'Escolha ao menos uma foto.'
     if (invalidCount) return 'Troque ou remova os arquivos marcados com problema.'
     if (checkingCount) return 'Aguarde a verificação das fotos.'
-    if (wantsProductPhoto && productPhoto?.error) return 'Troque ou remova a foto do produto.'
     return null
-  }
-
-  function goToPhotos() {
-    const problem = validateDetails()
-    setMessage(problem)
-    if (problem) return
-    setStep(2)
-    window.scrollTo(0, 0)
-  }
-
-  function backToDetails() {
-    setStep(1)
-    setMessage(null)
   }
 
   async function save(onlyCompleted = false) {
@@ -459,7 +391,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
           experimentId,
           stageId,
           photos,
-          newExperiment: createsExperiment ? productFromForm(noFinisher, productName, brand) : null,
+          newExperiment: createsNoFinisher ? productFromForm(true, '') : null,
           newStage:
             kind === 'complete'
               ? null
@@ -475,15 +407,6 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
       }
 
       finalizedRef.current = true
-      // Foto do produto (opcional): o registro já está salvo; se ela falhar, avisamos no histórico.
-      let productPhotoFailed = false
-      if (productPhoto && !productPhoto.error && wantsProductPhoto) {
-        try {
-          await setProductPhoto(userId, experimentId, productPhoto.file, productPhoto.mime)
-        } catch {
-          productPhotoFailed = true
-        }
-      }
       // Fotos que falharam e foram deixadas de fora: entram na limpeza.
       for (const { key } of failed) discardItem(key)
       const toClean = [...discardedRef.current]
@@ -491,7 +414,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
       void removeUnlinkedObjects(toClean)
       await reload()
       if (kind === 'complete') navigate(`/etapa/${stageId}`, { replace: true })
-      else navigate(`/?salvo=${stageId}${productPhotoFailed ? '&foto=erro' : ''}`, { replace: true })
+      else navigate(`/?salvo=${stageId}`, { replace: true })
     } catch (err) {
       setPhase('error')
       setMessage((err as Error).message)
@@ -505,34 +428,11 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
   const capturedIso = localInputToIso(capturedAt)
   const lockedUrls = useSignedUrls(lockedAngles.map((a) => photoByAngle(stage!, a)!.storage_path)).urls
 
-  const detailsSummary =
-    twoSteps && stageType
-      ? [
-          STAGE_LABEL[stageType],
-          capturedIso ? formatShortDateTime(capturedIso) : null,
-          // Por último: se não couber, o nome do produto é que fica com reticências.
-          startNewExperiment ? productLabel(productMatch ?? productFromForm(noFinisher, productName, brand)) : productLabel(experiment!),
-        ]
-          .filter(Boolean)
-          .join(' · ')
-      : null
-
   return (
     <main className="page form-page">
       <PageHeader
         title={title}
-        back={
-          twoSteps && step === 2
-            ? { label: 'Voltar aos detalhes', onClick: backToDetails, disabled: busy }
-            : { label: 'Voltar', href: href(kind === 'complete' ? `/etapa/${stageId}` : '/') }
-        }
-        right={
-          twoSteps && (
-            <span className="muted small step-indicator" aria-live="polite">
-              Passo {step} de 2<span className="visually-hidden"> · {step === 1 ? 'Detalhes' : 'Fotos'}</span>
-            </span>
-          )
-        }
+        back={{ label: 'Voltar', href: href(kind === 'complete' ? `/etapa/${stageId}` : '/') }}
       />
 
       {kind === 'complete' && stage && experiment && (
@@ -541,142 +441,34 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
         </p>
       )}
 
-      {/* Passo 1: etapa, data, produto, observação ------------------------ */}
-      {twoSteps && step === 1 && (
-        <section className="card form-fields">
-          <div className="field" role="radiogroup" aria-labelledby="f-etapa" aria-required="true">
-            <span id="f-etapa" className="field-label">
-              Momento<Req />
-            </span>
-            <div className="segmented">
-              {STAGE_TYPES.map((t) => (
-                <label key={t} className={`seg ${stageType === t ? 'on' : ''}`}>
-                  <input type="radio" name="stage" value={t} checked={stageType === t} onChange={() => setStageType(t)} disabled={busy} />
-                  {STAGE_LABEL[t]}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="field">
-            <span id="f-data-label" className="field-label">
-              Data e horário<Req />
-            </span>
-            <DateTimeField id="f-data" labelledBy="f-data-label" value={capturedAt} onChange={setCapturedAt} disabled={busy} />
-            {!capturedIso && <small className="slot-error">Data inválida</small>}
-          </div>
-
-          {kind === 'add' && !startNewExperiment ? (
-            <div className="field">
-              <span className="field-label">Produto</span>
-              <p className="inherited">
-                {productLabel(experiment!)}
-                {brandLabel(experiment!) && <span className="muted small"> · {brandLabel(experiment!)}</span>}
-              </p>
-              <button type="button" className="link" onClick={() => setStartNewExperiment(true)} disabled={busy || finalizeAttemptedRef.current}>
-                Usei outro produto
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="product-block">
-                <div className="field">
-                  <div className="label-row">
-                    <label htmlFor="f-produto" className="field-label">
-                      Produto
-                      {!noFinisher && <Req />}
-                    </label>
-                    <label className="check inline">
-                      <input type="checkbox" checked={noFinisher} onChange={(e) => setNoFinisher(e.target.checked)} disabled={busy} />
-                      Sem finalizador
-                    </label>
-                  </div>
-                  {!noFinisher && (
-                    <input
-                      id="f-produto"
-                      type="text"
-                      list="product-names"
-                      value={productName}
-                      onChange={(e) => onProductChange(e.target.value)}
-                      placeholder="Ex.: Creme de Pentear"
-                      disabled={busy}
-                      required
-                      aria-required="true"
-                      maxLength={200}
-                    />
-                  )}
-                  <datalist id="product-names">
-                    {productNames.map((n) => (
-                      <option key={n} value={n} />
-                    ))}
-                  </datalist>
-                </div>
-
-                {!noFinisher && (
-                  <div className="field">
-                    <label htmlFor="f-marca" className="field-label">
-                      Marca<Req />
-                    </label>
-                    <input
-                      id="f-marca"
-                      type="text"
-                      list="brand-names"
-                      value={brand}
-                      onChange={(e) => setBrand(e.target.value)}
-                      placeholder="Ex.: Widi Care"
-                      disabled={busy}
-                      required
-                      aria-required="true"
-                      maxLength={100}
-                    />
-                    <datalist id="brand-names">
-                      {brandNames.map((n) => (
-                        <option key={n} value={n} />
-                      ))}
-                    </datalist>
-                  </div>
-                )}
-              </div>
-              {productMatch && (
-                <p className="muted small product-known" role="status">
-                  Já está no seu histórico: entra nesse produto.
-                </p>
-              )}
-
-              {kind === 'add' && (
-                <button type="button" className="link" onClick={() => setStartNewExperiment(false)} disabled={busy || finalizeAttemptedRef.current}>
-                  Usar “{productLabel(experiment!)}”
-                </button>
-              )}
-            </>
-          )}
-
-          <div className="field">
-            <label htmlFor="f-obs" className="field-label">
-              Observação
-            </label>
-            <textarea id="f-obs" rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} disabled={busy} placeholder="Como ficou? Volume, definição, frizz…" />
-          </div>
-        </section>
-      )}
-
-      {/* Passo 2: fotos ------------------------------------------------------- */}
-      {step === 2 && (
-        <section className="card form-fields">
-          {detailsSummary && (
-            <p className="details-summary small">
-              <span>{detailsSummary}</span>
-              <button type="button" className="link" onClick={backToDetails} disabled={busy}>
-                Editar
-              </button>
-            </p>
-          )}
-          {kind === 'moment' && (
+      {/* Uma tela só: (momento), data, fotos e observação ----------------------- */}
+      {(
+        <section className="card form-fields compact-form">
+          {kind !== 'complete' && (
             <>
               <div className="field moment-head">
                 <p className="moment-context muted small">
-                  Finalização de {finalizationWhen(finalization!).replace(/^(Hoje|Ontem)$/, (w) => w.toLowerCase())} · <span>{productLabel(experiment!)}</span>
+                  {kind === 'moment' ? (
+                    <>
+                      Finalização de {finalizationWhen(finalization!).replace(/^(Hoje|Ontem)$/, (w) => w.toLowerCase())} · <span>{productLabel(experiment!)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{productLabel(experiment!)}</span>
+                      {brandLabel(experiment!) && <> · {brandLabel(experiment!)}</>}
+                    </>
+                  )}
                 </p>
+                {kind === 'add' && (
+                  <div className="segmented moment-picker" role="radiogroup" aria-label="Momento" aria-required="true">
+                    {STAGE_TYPES.map((t) => (
+                      <label key={t} className={`seg ${stageType === t ? 'on' : ''}`}>
+                        <input type="radio" name="stage" value={t} checked={stageType === t} onChange={() => setStageType(t)} disabled={busy} />
+                        {STAGE_LABEL[t]}
+                      </label>
+                    ))}
+                  </div>
+                )}
                 <span id="f-data-label" className="visually-hidden">
                   Data e horário
                 </span>
@@ -757,13 +549,13 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
               )
             })}
           </div>
-          <p className={`muted small hint ${kind === 'moment' && !selected ? 'visually-hidden' : ''}`}>
+          <p className={`muted small hint ${kind !== 'complete' && !selected ? 'visually-hidden' : ''}`}>
             {selected
               ? `Toque em outro espaço para trocar com ${ANGLE_LABEL[selected]}.`
               : `Toque em duas fotos para trocá-las de lugar. Esquerdo e direito: lado da pessoa na foto.`}
           </p>
 
-          {kind === 'moment' && (
+          {kind !== 'complete' && (
             <div className="field">
               <label htmlFor="f-obs" className="field-label">
                 Observação
@@ -772,38 +564,6 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
             </div>
           )}
 
-          {wantsProductPhoto && (
-            <div className="field">
-              <span className="field-label">Foto do produto</span>
-              <div className="product-photo-field">
-                <button
-                  type="button"
-                  className="product-photo-pick"
-                  onClick={() => productPhotoInput.current?.click()}
-                  disabled={busy}
-                  aria-label={productPhoto ? 'Trocar foto do produto' : 'Escolher foto do produto'}
-                >
-                  {productPhoto && !productPhoto.error ? (
-                    <img src={productPhoto.preview} alt="" />
-                  ) : (
-                    <span className="product-photo-empty" aria-hidden="true">
-                      <span className="plus">+</span>
-                    </span>
-                  )}
-                </button>
-                <div className="product-photo-text">
-                  <span className="muted small">A embalagem vira a miniatura do produto no histórico.</span>
-                  {productPhoto && (
-                    <button type="button" className="link danger small-link" onClick={() => setProductPhotoFile(null)} disabled={busy} aria-label="Remover foto do produto">
-                      Remover
-                    </button>
-                  )}
-                </div>
-              </div>
-              {productPhoto?.error && <p className="slot-error">{productPhoto.error}</p>}
-              <input ref={productPhotoInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onProductPhotoPicked} data-testid="product-photo-input" />
-            </div>
-          )}
         </section>
       )}
 
@@ -819,7 +579,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
             Salvando registro…
           </p>
         )}
-        {phase === 'partial' && !busy && step === 2 && (
+        {phase === 'partial' && !busy && (
           <div className="alert alert-error" role="alert">
             <p>
               {failedItems.length === 1 ? '1 foto não foi enviada.' : `${failedItems.length} fotos não foram enviadas.`} Seus dados continuam aqui.
@@ -841,16 +601,10 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
             {message}
           </p>
         )}
-        {step === 1 ? (
-          <button key="continuar" type="button" className="btn btn-primary btn-block btn-large" onClick={goToPhotos}>
-            Continuar
+        {phase !== 'partial' && (
+          <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save(false)} disabled={busy}>
+            {busy ? 'Salvando…' : 'Salvar'}
           </button>
-        ) : (
-          phase !== 'partial' && (
-            <button key="salvar" type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save(false)} disabled={busy}>
-              {busy ? 'Salvando…' : 'Salvar'}
-            </button>
-          )
         )}
       </section>
     </main>
@@ -874,10 +628,3 @@ function StatusBadge({ item }: { item: Item }) {
   if (item.invalid) return <span className="badge err">Não aceita</span>
   return null
 }
-
-const normalizeName = (v: string) =>
-  v
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase()

@@ -111,3 +111,31 @@ describe('editar fotos do momento', () => {
     expect(data).toEqual([{ id: photos[0].id }])
   })
 })
+
+describe('cadastrar produto', () => {
+  let a: TestUser
+  let b: TestUser
+  beforeAll(async () => {
+    a = await testUser('cadastrar-produto-a')
+    b = await testUser('cadastrar-produto-b')
+  })
+
+  it('cadastra só com nome e marca, sem fotos; repetir a chamada não duplica', async () => {
+    const id = randomUUID()
+    const r = await a.client.rpc('create_product', { p_experiment_id: id, p_name: ' Leave-in ', p_brand: ' Marca ' })
+    expect(r.data).toEqual({ experiment_id: id, created: true })
+    const again = await a.client.rpc('create_product', { p_experiment_id: id, p_name: 'Leave-in', p_brand: 'Marca' })
+    expect(again.data).toEqual({ experiment_id: id, created: false })
+    const { data } = await a.client.from('experiments').select('product_mode, product_name, brand, stages(id)').eq('id', id).single()
+    expect(data).toEqual({ product_mode: 'named', product_name: 'Leave-in', brand: 'Marca', stages: [] })
+  })
+
+  it('recusa produto repetido, nome vazio e id de outra pessoa', async () => {
+    await a.client.rpc('create_product', { p_experiment_id: randomUUID(), p_name: 'Mousse', p_brand: 'X' })
+    expect((await a.client.rpc('create_product', { p_experiment_id: randomUUID(), p_name: 'mousse', p_brand: 'x' })).error?.message).toBe('product_exists')
+    expect((await a.client.rpc('create_product', { p_experiment_id: randomUUID(), p_name: ' ', p_brand: 'x' })).error?.message).toBe('product_name_required')
+    const id = randomUUID()
+    await a.client.rpc('create_product', { p_experiment_id: id, p_name: 'Gel', p_brand: 'Y' })
+    expect((await b.client.rpc('create_product', { p_experiment_id: id, p_name: 'Gel', p_brand: 'Y' })).error?.message).toBe('experiment_not_found')
+  })
+})

@@ -77,15 +77,8 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeStage = useCallback((id: string) => {
-    // Igual ao banco: se era a última etapa, o experimento sai junto.
-    setExperiments(
-      (prev) =>
-        prev?.flatMap((e) => {
-          if (!e.stages.some((s) => s.id === id)) return [e]
-          const stages = e.stages.filter((s) => s.id !== id)
-          return stages.length ? [{ ...e, stages }] : []
-        }) ?? prev,
-    )
+    // Igual ao banco: o momento sai e o produto fica (mesmo sem nenhum momento).
+    setExperiments((prev) => prev?.map((e) => (e.stages.some((s) => s.id === id) ? { ...e, stages: e.stages.filter((s) => s.id !== id) } : e)) ?? prev)
   }, [])
 
   const removeExperiment = useCallback((id: string) => {

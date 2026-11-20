@@ -30,7 +30,6 @@ export function DeleteStageDialog({ stage, experiment, onCancel, onDeleted }: Pr
   }, [busy, onCancel])
 
   const n = stage.photos.length
-  const last = experiment.stages.length <= 1
 
   async function confirm() {
     if (busy) return
@@ -71,7 +70,6 @@ export function DeleteStageDialog({ stage, experiment, onCancel, onDeleted }: Pr
             {stage.notes ? ' e a observação ' : ' '}
             {n === 1 && !stage.notes ? 'será apagada' : 'serão apagadas'}. Não dá para desfazer.
           </p>
-          {last && <p className="muted small">É o único momento deste produto, então ele também sai do histórico.</p>}
         </div>
         {error && <p className="alert alert-error">{error}</p>}
         <div className="dialog-actions">

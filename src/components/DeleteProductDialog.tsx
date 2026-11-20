@@ -63,8 +63,9 @@ export function DeleteProductDialog({ experiment, onCancel, onDeleted }: Props) 
             <strong>{productFullLabel(experiment)}</strong>
           </p>
           <p>
-            {fins === 1 ? 'A finalização' : `As ${fins} finalizações`} e {photos === 1 ? 'a foto' : `as ${photos} fotos`} serão apagadas
-            {experiment.photo_path ? ', junto com a foto do produto' : ''}. Não dá para desfazer.
+            {fins === 0
+              ? `O produto ainda não tem finalização${experiment.photo_path ? '; a foto da embalagem será apagada' : ''}. Não dá para desfazer.`
+              : `${fins === 1 ? 'A finalização' : `As ${fins} finalizações`} e ${photos === 1 ? 'a foto' : `as ${photos} fotos`} serão apagadas${experiment.photo_path ? ', junto com a foto do produto' : ''}. Não dá para desfazer.`}
           </p>
         </div>
         {error && <p className="alert alert-error">{error}</p>}

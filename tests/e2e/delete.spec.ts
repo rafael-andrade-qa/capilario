@@ -45,7 +45,7 @@ async function login(page: Page) {
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
 }
 
 async function stageExists(id: string) {
@@ -100,15 +100,16 @@ test('excluir o Dia seguinte mantém a finalização com o Molhado', async ({ pa
   for (const p of stages[2].paths) expect(await objectExists(p)).toBe(false)
 })
 
-test('último momento: o produto sai do histórico', async ({ page }) => {
+test('último momento: a finalização sai e o produto fica, sem finalização', async ({ page }) => {
   await login(page)
   const dialog = await deleteFromDetail(page, 'Molhado')
-  await expect(dialog).toContainText('único momento deste produto')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
-  await expect(page.getByText('Comece sua primeira finalização')).toBeVisible()
+  await expect(page.getByText('Momento excluído.')).toBeVisible()
+  const card = page.locator('.experiment', { hasText: 'Creme de Teste' })
+  await expect(card.locator('.experiment-sub')).toContainText('Nenhuma finalização ainda')
 
   const { data } = await admin.from('experiments').select('id').eq('id', experimentId)
-  expect(data).toEqual([])
+  expect(data).toEqual([{ id: experimentId }])
   const { data: fins } = await admin.from('finalizations').select('id').eq('experiment_id', experimentId)
   expect(fins).toEqual([])
   for (const p of stages[0].paths) expect(await objectExists(p)).toBe(false)

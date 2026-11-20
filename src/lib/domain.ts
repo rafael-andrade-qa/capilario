@@ -151,15 +151,16 @@ export function publishedStages(e: Experiment): Stage[] {
     .sort((a, b) => ts(a.captured_at) - ts(b.captured_at) || ts(a.created_at) - ts(b.created_at))
 }
 
-/** Experimentos com etapas publicadas, do mais recente (última etapa) para o mais antigo. */
+/**
+ * Produtos do mais recente para o mais antigo: vale a última foto ou, sem nenhuma, o cadastro.
+ * Produto cadastrado sem finalização também aparece (registrar fica para depois).
+ */
 export function sortHistory(experiments: Experiment[]): Experiment[] {
   const latest = (e: Experiment) => {
     const st = publishedStages(e)
-    return st.length ? ts(st[st.length - 1].captured_at) : 0
+    return st.length ? ts(st[st.length - 1].captured_at) : ts(e.created_at)
   }
-  return experiments
-    .filter((e) => publishedStages(e).length > 0)
-    .sort((a, b) => latest(b) - latest(a) || ts(b.created_at) - ts(a.created_at))
+  return [...experiments].sort((a, b) => latest(b) - latest(a) || ts(b.created_at) - ts(a.created_at))
 }
 
 /**

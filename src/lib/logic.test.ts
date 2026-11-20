@@ -114,13 +114,14 @@ describe('histórico', () => {
     created_at: '2026-11-05T10:00:00+00:00',
     stages: [stage('s3', '2026-11-03T10:00:00+00:00')],
   }
-  const e3: Experiment = { id: 'e3', product_mode: 'unspecified', product_name: null, brand: null, photo_path: null, created_at: '2026-11-10T10:00:00+00:00', stages: [] }
+  const e3: Experiment = { id: 'e3', product_mode: 'named', product_name: 'Novo', brand: 'M', photo_path: null, created_at: '2026-01-10T10:00:00+00:00', stages: [] }
 
   it('mostra só etapas com foto, em ordem cronológica', () => {
     expect(publishedStages(e1).map((s) => s.id)).toEqual(['s1', 's2'])
   })
-  it('ordena experimentos pela etapa publicada mais recente e esconde experimentos vazios', () => {
-    expect(sortHistory([e1, e2, e3]).map((e) => e.id)).toEqual(['e2', 'e1'])
+  it('ordena pela foto mais recente; produto sem finalização aparece pela data de cadastro', () => {
+    expect(sortHistory([e1, e2, e3]).map((e) => e.id)).toEqual(['e2', 'e1', 'e3'])
+    expect(sortHistory([e1, { ...e3, created_at: '2027-01-01T00:00:00Z' }]).map((e) => e.id)).toEqual(['e3', 'e1'])
   })
   it('rótulo de seleção traz data curta e produto; horário só para desempatar', () => {
     const now = new Date('2026-12-01T12:00:00Z')

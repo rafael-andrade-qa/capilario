@@ -72,16 +72,16 @@ describe('exclusão de etapa', () => {
     expect(again.data.deleted).toBe(false)
   })
 
-  it('remove o experimento quando a última etapa sai', async () => {
+  it('o produto fica quando o último momento sai (só sai pela lixeira do produto)', async () => {
     const { experimentId } = ids()
     const only = await createStage(a, experimentId, true)
     const r = await a.client.rpc('delete_stage', { p_stage_id: only.stageId })
     expect(r.error).toBeNull()
-    expect(r.data.experiment_deleted).toBe(true)
-    expect((await a.client.from('experiments').select('id').eq('id', experimentId)).data).toEqual([])
+    expect(r.data.experiment_deleted).toBe(false)
+    expect((await a.client.from('experiments').select('id').eq('id', experimentId)).data).toEqual([{ id: experimentId }])
   })
 
-  it('duas exclusões simultâneas das últimas etapas não deixam experimento vazio', async () => {
+  it('duas exclusões simultâneas apagam os dois momentos e mantêm o produto', async () => {
     const { experimentId } = ids()
     const s1 = await createStage(a, experimentId, true)
     const s2 = await createStage(a, experimentId, false)
@@ -91,8 +91,8 @@ describe('exclusão de etapa', () => {
     ])
     expect(r1.error).toBeNull()
     expect(r2.error).toBeNull()
-    expect([r1.data.experiment_deleted, r2.data.experiment_deleted].filter(Boolean)).toHaveLength(1)
-    expect((await a.client.from('experiments').select('id').eq('id', experimentId)).data).toEqual([])
+    expect((await a.client.from('stages').select('id').eq('experiment_id', experimentId)).data).toEqual([])
+    expect((await a.client.from('experiments').select('id').eq('id', experimentId)).data).toEqual([{ id: experimentId }])
   })
 
   it('exclui o produto inteiro: etapas, fotos e foto do produto', async () => {

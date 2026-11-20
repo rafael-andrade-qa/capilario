@@ -14,10 +14,18 @@ primeiros 3 dias, o que falta aparece como atalho (**+ Seco**, **+ Dia seguinte*
 fotos, sem perguntar produto de novo. O mais recente começa aberto, e a busca por produto ou marca
 aparece a partir de 6 produtos.
 
-**Nova finalização** tem dois passos: detalhes (momento, já marcado em Molhado, data, produto, marca e
-observação) e depois as fotos (e a foto da embalagem, se o produto for novo), com um único botão fixo
-no rodapé. Digitar um produto que já está no histórico (mesmo nome e marca, ou Sem finalizador) põe a
-finalização nele, sem criar produto repetido.
+**Produto primeiro.** O botão de cima é **+ Novo produto**: nome, marca e (opcional) foto da embalagem,
+sem foto de cabelo. Ao cadastrar, o app pergunta se você quer registrar a primeira finalização agora
+(**Registrar finalização** ou **Depois**). Produto sem finalização fica na lista com "Nenhuma finalização
+ainda" e o convite para registrar. Não dá para cadastrar dois produtos com o mesmo nome e marca.
+
+**Nova finalização** fica dentro do produto (o **+**) e é uma tela só: momento (já marcado em Molhado),
+data, fotos e observação, com um único botão fixo no rodapé. **Sem finalizador** está sempre na lista,
+mesmo antes da primeira finalização sem produto.
+
+O lápis do produto abre **Editar produto** (nome, marca e foto da embalagem, valendo para todas as
+finalizações). No detalhe do momento, o lápis liga a edição das fotos: trocar, pôr no ângulo vazio ou
+remover (a última não sai).
 
 No comparador você escolhe o momento primeiro e só compara iguais: Molhado com Molhado, Seco com Seco,
 Dia seguinte com Dia seguinte. Cada lista esconde o que está do outro lado, e só os ângulos que os dois
@@ -122,8 +130,8 @@ de formulário e falhas que pedem ação (como reenviar fotos) continuam no luga
 - **Produto inteiro:** no histórico, com o produto aberto, ícone de lixeira à direita.
 
 Os dois pedem confirmação. A função `delete_stage` (Postgres, `SECURITY INVOKER`) apaga o momento e as fotos numa
-transação. Se era o último momento da finalização, a finalização sai; se era o último do produto, o experimento
-também sai. Em seguida o app apaga os arquivos do Storage:
+transação. Se era o último momento da finalização, a finalização sai. O produto fica (mesmo sem nenhuma
+finalização); ele só sai pela lixeira do produto. Em seguida o app apaga os arquivos do Storage:
 sem a linha em `photos`, a política de exclusão libera o objeto para o dono. Não tem como desfazer.
 
 ### Arquivos órfãos (aba fechada durante o envio)

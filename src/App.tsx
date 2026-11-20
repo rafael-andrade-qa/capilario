@@ -4,7 +4,7 @@ import { match, useRoute } from './lib/router'
 import { Login } from './screens/Login'
 import { History } from './screens/History'
 import { StageDetail } from './screens/StageDetail'
-import { ProductEditRoute } from './screens/ProductEdit'
+import { ProductEditRoute, ProductNewRoute } from './screens/ProductEdit'
 import { StageFormRoute } from './screens/StageForm'
 import { Compare } from './screens/Compare'
 import { useNewVersion } from './lib/version'
@@ -58,7 +58,8 @@ function Gate() {
 function Screens({ userId }: { userId: string }) {
   const { path, params } = useRoute()
   let m: Record<string, string> | null
-  if (path === '/novo') return <StageFormRoute kind="new" userId={userId} />
+  // Cadastrar produto (o caminho antigo /novo leva para cá).
+  if (path === '/produto/novo' || path === '/novo') return <ProductNewRoute />
   if ((m = match('/produto/:id/editar', path))) return <ProductEditRoute experimentId={m.id} />
   // Nova finalização com um produto que já está no histórico (o caminho antigo continua valendo).
   if ((m = match('/produto/:id/nova-finalizacao', path)) || (m = match('/experimento/:id/nova-etapa', path)))
@@ -75,6 +76,7 @@ function Screens({ userId }: { userId: string }) {
       deleted={params.get('excluida')}
       productPhotoFailed={params.get('foto') === 'erro'}
       productSaved={params.get('produto')}
+      created={params.get('novo')}
     />
   )
 }

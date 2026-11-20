@@ -23,7 +23,7 @@ async function login(page: Page, user: TestUser) {
   await page.getByLabel('E-mail').fill(user.email)
   await page.getByLabel('Senha').fill(user.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
 }
 
 async function pick(page: Page, files: TestFile[]) {
@@ -34,13 +34,24 @@ async function pick(page: Page, files: TestFile[]) {
 const slot = (page: Page, angle: string) => page.locator(`.slot[data-angle=${angle}]`)
 const stageRadio = (page: Page, label: string) => page.locator('label.seg', { hasText: label })
 const saveButton = (page: Page) => page.getByRole('button', { name: 'Salvar', exact: true })
-const productInput = (page: Page) => page.getByRole('combobox', { name: 'Produto', exact: true })
-const brandInput = (page: Page) => page.getByRole('combobox', { name: 'Marca', exact: true })
+const productInput = (page: Page) => page.getByRole('textbox', { name: 'Produto' })
+const brandInput = (page: Page) => page.getByRole('combobox', { name: 'Marca' })
 
-/** Passo 1 do formulário: confirma e vai para as fotos. */
-async function continueToPhotos(page: Page) {
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByText('Passo 2 de 2')).toBeVisible()
+/** Cadastra o produto (Novo produto) e segue para a primeira finalização dele. */
+async function newProduct(page: Page, name: string, brand: string) {
+  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await productInput(page).fill(name)
+  await brandInput(page).fill(brand)
+  await page.getByRole('button', { name: 'Cadastrar produto' }).click()
+  await expect(page.getByRole('heading', { name: 'Produto cadastrado' })).toBeVisible()
+  await page.getByRole('link', { name: 'Registrar finalização' }).click()
+  await expect(page.locator('.moment-context')).toContainText(name)
+}
+
+/** Nova finalização no produto fixo Sem finalizador. */
+async function noFinisherFinalization(page: Page) {
+  await page.goto('./#/produto/sem-finalizador/nova-finalizacao')
+  await expect(page.locator('.moment-context')).toContainText('Sem finalizador')
 }
 
 async function saveAndGetStage(page: Page): Promise<string> {
@@ -76,25 +87,28 @@ async function noHorizontalScroll(page: Page) {
 
 test('A1: quatro fotos em um envio, troca de posição antes de salvar', async ({ page }) => {
   await login(page, me)
-  await expect(page.getByText('Comece sua primeira finalização')).toBeVisible()
+  await expect(page.getByText('Comece pelo produto que você vai testar')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Comparar' })).toBeDisabled()
   await noHorizontalScroll(page)
 
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
-  // Passo 1: detalhes. Produto e marca são obrigatórios.
-  await expect(page.getByText('Passo 1 de 2')).toBeVisible()
-  await stageRadio(page, 'Molhado').click()
-  await page.getByRole('button', { name: 'Continuar' }).click()
-  await expect(page.getByText('Informe o produto ou marque Sem finalizador.')).toBeVisible()
+  // Cadastrar produto: só nome, marca e (opcional) a foto da embalagem; nome e marca obrigatórios.
+  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('button', { name: 'Cadastrar produto' }).click()
+  await expect(page.getByText('Informe o nome do produto.')).toBeVisible()
   await productInput(page).fill('Ondulando a Gema')
-  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByRole('button', { name: 'Cadastrar produto' }).click()
   await expect(page.getByText('Informe a marca do produto.')).toBeVisible()
   await brandInput(page).fill('Gema Labs')
   await noHorizontalScroll(page)
-  await continueToPhotos(page)
-  await expect(page.locator('.details-summary')).toContainText(/^Molhado · .+ · Ondulando a Gema/)
+  await page.getByRole('button', { name: 'Cadastrar produto' }).click()
+  await expect(page.getByRole('heading', { name: 'Produto cadastrado' })).toBeVisible()
+  await page.getByRole('link', { name: 'Registrar finalização' }).click()
 
-  // Passo 2: fotos. Troca Frente <-> Esquerdo por toque.
+  // Nova finalização numa tela só: produto conhecido, Molhado já marcado.
+  await expect(page.getByRole('heading', { name: 'Nova finalização' })).toBeVisible()
+  await expect(page.locator('.moment-context')).toContainText('Ondulando a Gema')
+  await expect(stageRadio(page, 'Molhado')).toHaveClass(/on/)
+  // Troca Frente <-> Esquerdo por toque.
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   await noHorizontalScroll(page)
   await slot(page, 'front').locator('.slot-target').click()
@@ -102,7 +116,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await expect(slot(page, 'front').locator('.slot-target')).toHaveAttribute('aria-label', /esquerdo\.png/)
   ids.wet = await saveAndGetStage(page)
 
-  await expect(page.locator('.experiment')).toHaveCount(1)
+  await expect(page.locator('.experiment:not(.fixed-product)')).toHaveCount(1)
   await expect(page.locator('.moment-tile')).toHaveCount(1)
   const photos = await photosOf(ids.wet)
   expect(Object.keys(photos).sort()).toEqual(['back', 'front', 'left', 'right'])
@@ -128,7 +142,7 @@ test('A2: + Seco completa a finalização direto nas fotos; observação e favor
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   ids.dry = await saveAndGetStage(page)
 
-  await expect(page.locator('.experiment')).toHaveCount(1)
+  await expect(page.locator('.experiment:not(.fixed-product)')).toHaveCount(1)
   await expect(page.locator('.fin')).toHaveCount(1)
   await expect(page.locator('.fin .moment-tile')).toHaveCount(2)
   await expect(page.locator('.fin .moment-add.next')).toContainText('Dia seguinte')
@@ -152,10 +166,8 @@ test('A2: + Seco completa a finalização direto nas fotos; observação e favor
 
 test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await noFinisherFinalization(page)
   await stageRadio(page, 'Seco').click()
-  await page.getByLabel('Sem finalizador').check()
-  await continueToPhotos(page)
   await pick(page, [FRONT, LEFT])
   ids.dryNone = await saveAndGetStage(page)
   expect(Object.keys(await photosOf(ids.dryNone)).sort()).toEqual(['front', 'left'])
@@ -225,11 +237,8 @@ test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ 
 
 test('A5: só os ângulos que os dois registros têm ficam clicáveis', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await newProduct(page, 'Gelatina A5', 'Marca Teste')
   await stageRadio(page, 'Seco').click()
-  await productInput(page).fill('Gelatina A5')
-  await brandInput(page).fill('Marca Teste')
-  await continueToPhotos(page)
   await pick(page, [BACK])
   // A foto entra em Frente; move para Costas tocando nos dois espaços.
   await slot(page, 'front').locator('.slot-target').click()
@@ -275,12 +284,8 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
     return route.continue()
   })
 
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
-  await stageRadio(page, 'Molhado').click()
-  await productInput(page).fill('Creme teste A6')
-  await brandInput(page).fill('Marca A6')
+  await newProduct(page, 'Creme teste A6', 'Marca A6')
   await page.getByLabel('Observação').fill('nota preservada')
-  await continueToPhotos(page)
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   // Dois toques seguidos em Salvar.
   await saveButton(page).evaluate((b: HTMLButtonElement) => {
@@ -288,7 +293,7 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
     b.click()
   })
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
-  await expect(page.locator('.details-summary')).toContainText('Creme teste A6')
+  await expect(page.locator('.moment-context')).toContainText('Creme teste A6')
   await expect(page.locator('.slot .badge.ok')).toHaveCount(3)
   await expect(page.locator('.slot .badge.err')).toHaveCount(1)
 
@@ -316,10 +321,8 @@ test('A6: resposta perdida na finalização é confirmada no banco, sem duplicar
     }
     return route.continue()
   })
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await noFinisherFinalization(page)
   await stageRadio(page, 'Seco').click()
-  await page.getByLabel('Sem finalizador').check()
-  await continueToPhotos(page)
   await pick(page, [FRONT, LEFT])
   await saveAndGetStage(page)
   const after = await counts(me.id)
@@ -336,10 +339,8 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
     if (route.request().method() === 'POST' && ++posts > 2) return route.abort('failed')
     return route.continue()
   })
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await noFinisherFinalization(page)
   await stageRadio(page, 'Seco').click()
-  await page.getByLabel('Sem finalizador').check()
-  await continueToPhotos(page)
   await pick(page, [FRONT, LEFT, RIGHT])
   await saveButton(page).click()
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
@@ -351,10 +352,8 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
 
 test('A9: arquivo grande, formato não aceito e upload retomável', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await noFinisherFinalization(page)
   await stageRadio(page, 'Seco').click()
-  await page.getByLabel('Sem finalizador').check()
-  await continueToPhotos(page)
   const big: TestFile = { name: 'grande.jpg', mimeType: 'image/jpeg', buffer: Buffer.alloc(16 * 1024 * 1024, 1) }
   const gif: TestFile = { name: 'animado.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') }
   const heic: TestFile = { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: Buffer.from('fake') }
@@ -386,7 +385,7 @@ test('A9: arquivo grande, formato não aceito e upload retomável', async ({ pag
 
 test('A7: outra conta não vê os registros da conta pessoal', async ({ page }) => {
   await login(page, other)
-  await expect(page.getByText('Comece sua primeira finalização')).toBeVisible()
+  await expect(page.getByText('Comece pelo produto que você vai testar')).toBeVisible()
   await page.goto(`./#/etapa/${ids.wet}`)
   await expect(page.getByText('Momento não encontrado.')).toBeVisible()
   await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)

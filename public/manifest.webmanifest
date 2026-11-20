@@ -15,7 +15,7 @@
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Nova finalização", "short_name": "Finalizar", "url": "./#/novo", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Novo produto", "short_name": "Produto", "url": "./#/produto/novo", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Comparar", "url": "./#/comparar", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

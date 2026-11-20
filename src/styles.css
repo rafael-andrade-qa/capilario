@@ -1919,3 +1919,49 @@ input[list]::-webkit-list-button {
 body:has(.save-bar) .toasts {
   bottom: calc(92px + env(safe-area-inset-bottom));
 }
+
+/* Produto cadastrado ------------------------------------------------------- */
+.created-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.created-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.created-question {
+  margin: 4px 2px 0;
+  font-weight: 600;
+}
+.save-bar .btn-ghost {
+  margin-top: 8px;
+}
+
+/* Produto sem finalização --------------------------------------------------- */
+.fin-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 10px;
+}
+.fin-empty p {
+  margin: 0;
+}
+.empty-secondary {
+  display: inline-block;
+  margin-top: 10px;
+}
+/* Nova finalização numa tela só: o seletor de momento logo abaixo do produto. */
+.moment-picker .seg {
+  min-height: 38px;
+}
+/* Telas de fotos (nova finalização, + Seco): um pouco mais justas para caber sem rolar. */
+.form-fields.compact-form {
+  --form-gap: clamp(12px, 2.2vh, 24px);
+}
+.compact-form textarea {
+  min-height: 0;
+  height: 3.6em;
+}

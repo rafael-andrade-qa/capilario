@@ -77,15 +77,14 @@ describe('foto do produto', () => {
     expect(rename.error?.code).toBe('42501')
   })
 
-  it('excluir a última etapa devolve também a foto do produto para apagar', async () => {
+  it('excluir o último momento mantém o produto e a foto da embalagem', async () => {
     const { experimentId, stageId } = await createProduct(a)
     const path = await uploadProductPhoto(a, experimentId)
     await a.client.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: path })
     const r = await a.client.rpc('delete_stage', { p_stage_id: stageId })
     expect(r.error).toBeNull()
-    expect(r.data.experiment_deleted).toBe(true)
-    expect(r.data.paths).toContain(path)
-    await a.client.storage.from(BUCKET).remove(r.data.paths)
-    expect(await exists(a, path)).toBe(false)
+    expect(r.data.experiment_deleted).toBe(false)
+    expect(r.data.paths).not.toContain(path)
+    expect(await exists(a, path)).toBe(true)
   })
 })
