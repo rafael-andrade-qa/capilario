@@ -1,13 +1,12 @@
 // Histórico: um produto por linha, recolhido. Tocar abre as finalizações daquele produto,
 // cada uma com os três momentos lado a lado (Molhado, Seco, Dia seguinte) e um atalho para o
 // próximo. O produto mais recente começa aberto; o que você abre/fecha é lembrado na sessão.
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { TrashIcon } from '../components/TrashIcon'
-import { ImageIcon, PlusIcon } from '../components/ActionIcons'
+import { EditIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
-import { setProductPhoto } from '../lib/api'
 import {
   MOMENT_SLUG,
   STAGE_LABEL,
@@ -28,9 +27,8 @@ import {
   type Finalization,
   type Stage,
 } from '../lib/domain'
-import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
 import { href, navigate } from '../lib/router'
-import { signOut, useHistory, useSession, useSignedUrls } from '../lib/state'
+import { signOut, useHistory, useSignedUrls } from '../lib/state'
 
 /** A partir de quantos produtos a busca aparece. */
 const SEARCH_FROM = 6
@@ -45,7 +43,17 @@ const normalize = (s: string) =>
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
 
-export function History({ saved, deleted, productPhotoFailed = false }: { saved: string | null; deleted: boolean; productPhotoFailed?: boolean }) {
+export function History({
+  saved,
+  deleted,
+  productPhotoFailed = false,
+  productSaved = false,
+}: {
+  saved: string | null
+  deleted: boolean
+  productPhotoFailed?: boolean
+  productSaved?: boolean
+}) {
   const { experiments, error, loading, reload } = useHistory()
   const [deletedHere, setDeletedHere] = useState<string | null>(null)
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
@@ -127,7 +135,12 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
       )}
       {productPhotoFailed && (
         <p className="alert alert-error" role="alert">
-          A foto do produto não foi enviada. Abra o produto e toque no ícone de imagem para tentar de novo.
+          A foto do produto não foi enviada. Abra o produto e toque no lápis para tentar de novo.
+        </p>
+      )}
+      {productSaved && !saved && (
+        <p className="alert alert-success" role="status">
+          Produto atualizado.
         </p>
       )}
       {(deleted || deletedHere) && !saved && (
@@ -222,7 +235,16 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
                       >
                         <PlusIcon />
                       </a>
-                      {exp.product_mode === 'named' && <ProductPhotoButton experiment={exp} onDone={reload} />}
+                      {exp.product_mode === 'named' && (
+                        <a
+                          className="icon-btn"
+                          href={href(`/produto/${exp.id}/editar`)}
+                          aria-label={`Editar produto ${productLabel(exp)}`}
+                          title="Editar produto"
+                        >
+                          <EditIcon />
+                        </a>
+                      )}
                       <button
                         type="button"
                         className="icon-btn danger-icon product-delete"
@@ -252,53 +274,6 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
         />
       )}
     </main>
-  )
-}
-
-/** Envia ou troca a foto da embalagem do produto. */
-function ProductPhotoButton({ experiment, onDone }: { experiment: Experiment; onDone: () => Promise<void> }) {
-  const { session } = useSession()
-  const input = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-
-  async function onPicked(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file || !session) return
-    const invalid = validateFile(file)
-    if (invalid) {
-      setMessage(invalid)
-      return
-    }
-    setBusy(true)
-    setMessage(null)
-    try {
-      await setProductPhoto(session.user.id, experiment.id, file, detectMime(file))
-      await onDone()
-    } catch (err) {
-      setMessage((err as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        className={`icon-btn ${busy ? 'busy' : ''}`}
-        onClick={() => input.current?.click()}
-        disabled={busy}
-        aria-busy={busy}
-        aria-label={busy ? 'Enviando foto do produto' : experiment.photo_path ? 'Trocar foto do produto' : 'Adicionar foto do produto'}
-        title={busy ? 'Enviando foto…' : experiment.photo_path ? 'Trocar foto do produto' : 'Adicionar foto do produto'}
-      >
-        <ImageIcon />
-      </button>
-      <input ref={input} type="file" accept={INPUT_ACCEPT} hidden onChange={onPicked} data-testid={`product-photo-${experiment.id}`} />
-      {message && <p className="slot-error product-photo-error">{message}</p>}
-    </>
   )
 }
 

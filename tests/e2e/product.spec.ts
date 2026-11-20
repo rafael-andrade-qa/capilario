@@ -78,22 +78,80 @@ test('produtos recolhidos: só o mais recente aberto, busca e abrir/fechar', asy
   await expect(toggle(page, 'Gelatina Supervolume')).toHaveAttribute('aria-expanded', 'true')
 })
 
-test('foto do produto: enviar e trocar pelo produto aberto', async ({ page }) => {
+test('editar produto: corrigir nome e marca e trocar a foto da embalagem', async ({ page }) => {
   await login(page)
-  const card = page.locator('.experiment', { hasText: 'Gelatina Supervolume' })
   const product = products.find((p) => p.name === 'Gelatina Supervolume')!
-  await card.getByRole('button', { name: 'Adicionar foto do produto' }).click()
-  await page.getByTestId(`product-photo-${product.id}`).setInputFiles([FRONT])
-  await expect(card.getByRole('button', { name: 'Trocar foto do produto' })).toBeVisible()
-  await expect(card.locator('.product-thumb img')).toHaveAttribute('src', new RegExp(`produto-${product.id}`))
+  const card = page.locator('.experiment', { hasText: 'Gelatina Supervolume' })
+  // Ações do produto juntas à direita: nova finalização, editar e excluir.
+  const actions = card.locator('.product-actions')
+  await expect(actions.getByRole('link', { name: 'Nova finalização com Gelatina Supervolume' })).toBeVisible()
+  await actions.getByRole('link', { name: 'Editar produto Gelatina Supervolume' }).click()
 
+  await expect(page.getByRole('heading', { name: 'Editar produto' })).toBeVisible()
+  await expect(page.getByText('Vale para a finalização deste produto.')).toBeVisible()
+  // Nome igual a outro produto do histórico é recusado.
+  await page.getByRole('textbox', { name: 'Produto' }).fill('creme de pentear')
+  await page.getByRole('textbox', { name: 'Marca' }).fill('widi care')
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page.getByText('Já existe um produto com esse nome e essa marca no seu histórico.')).toBeVisible()
+
+  await page.getByRole('textbox', { name: 'Produto' }).fill('Gelatina Supervolume Plus')
+  await page.getByRole('textbox', { name: 'Marca' }).fill('Marca Corrigida')
+  await page.getByTestId('edit-product-photo').setInputFiles([FRONT])
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page.getByText('Produto atualizado.')).toBeVisible()
+  const renamed = page.locator('.experiment', { hasText: 'Gelatina Supervolume Plus' })
+  await expect(renamed.locator('.brand-name')).toHaveText('Marca Corrigida')
+  await expect(renamed.locator('.product-thumb img')).toHaveAttribute('src', new RegExp(`produto-${product.id}`))
+  product.name = 'Gelatina Supervolume Plus'
+
+  // Trocar a foto apaga a anterior.
   const first = (await admin.from('experiments').select('photo_path').eq('id', product.id).single()).data!.photo_path as string
-  await page.getByTestId(`product-photo-${product.id}`).setInputFiles([LEFT])
-  await expect
-    .poll(async () => (await admin.from('experiments').select('photo_path').eq('id', product.id).single()).data!.photo_path)
-    .not.toBe(first)
-  // A foto anterior foi apagada.
+  await renamed.getByRole('link', { name: 'Editar produto Gelatina Supervolume Plus' }).click()
+  await page.getByTestId('edit-product-photo').setInputFiles([LEFT])
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page.getByText('Produto atualizado.')).toBeVisible()
+  const { data } = await admin.from('experiments').select('photo_path, product_name, brand').eq('id', product.id).single()
+  expect(data!.photo_path).not.toBe(first)
+  expect(data!.product_name).toBe('Gelatina Supervolume Plus')
   await expect.poll(async () => (await admin.storage.from(BUCKET).exists(first)).data).toBe(false)
+})
+
+test('editar fotos do momento: trocar, adicionar no ângulo vazio e remover', async ({ page }) => {
+  await login(page)
+  const card = page.locator('.experiment', { hasText: 'Óleo Finalizador' })
+  await card.locator('.product-toggle').click()
+  await card.locator('.moment-tile').click()
+  await expect(page.getByRole('heading', { name: 'Seco' })).toBeVisible()
+  const stageId = page.url().split('/etapa/')[1]
+  const before = (await admin.from('photos').select('id, angle, storage_path').eq('stage_id', stageId)).data!
+  expect(before.map((p) => p.angle)).toEqual(['front'])
+
+  await page.getByRole('button', { name: 'Editar fotos' }).click()
+  // Única foto: não dá para remover (para apagar tudo, exclui o momento).
+  await expect(page.getByRole('button', { name: 'Remover foto: Frente' })).toHaveCount(0)
+
+  // Trocar a Frente.
+  await page.getByRole('button', { name: 'Trocar foto: Frente' }).click()
+  await page.getByTestId('detail-photo-input').setInputFiles([LEFT])
+  await expect(page.getByText('Foto de Frente trocada.')).toBeVisible()
+  await expect.poll(async () => (await admin.storage.from(BUCKET).exists(before[0].storage_path)).data).toBe(false)
+
+  // Pôr foto nas Costas, que estavam vazias.
+  await page.getByRole('button', { name: 'Adicionar foto: Costas' }).click()
+  await page.getByTestId('detail-photo-input').setInputFiles([BACK])
+  await expect(page.getByText('Foto de Costas adicionada.')).toBeVisible()
+
+  // Remover pede um segundo toque.
+  await page.getByRole('button', { name: 'Remover foto: Costas' }).click()
+  await page.getByRole('button', { name: 'Confirmar remoção: Costas' }).click()
+  await expect(page.getByText('Foto de Costas removida.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Concluir edição das fotos' }).click()
+  await expect(page.locator('.angle-cell img')).toHaveCount(1)
+  const after = (await admin.from('photos').select('id, angle').eq('stage_id', stageId)).data!
+  expect(after.map((p) => p.angle)).toEqual(['front'])
+  expect(after[0].id).not.toBe(before[0].id)
 })
 
 test('excluir um produto inteiro pela lixeira', async ({ page }) => {

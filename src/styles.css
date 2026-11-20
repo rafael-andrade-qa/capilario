@@ -1611,8 +1611,11 @@ button.back {
     opacity: 0.25;
   }
 }
-.product-actions .product-delete {
-  margin-left: auto;
+.product-actions {
+  justify-content: flex-end;
+}
+.product-actions .slot-error {
+  flex-basis: 100%;
 }
 .page-header .detail-actions {
   gap: 6px;
@@ -1772,4 +1775,46 @@ input[list]::-webkit-list-button {
 }
 .product-known {
   margin: calc(8px - var(--form-gap)) 0 0;
+}
+
+.edit-scope {
+  margin: 0;
+}
+
+/* Detalhe do momento em edição ------------------------------------------- */
+.icon-btn.on-edit {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.edit-hint {
+  margin: 0 0 8px;
+}
+.angle-grid.editing .angle-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.angle-grid.editing .photo-button {
+  position: relative;
+  width: 100%;
+}
+.angle-grid.editing .photo-button .badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+}
+.angle-grid.editing .working .photo-button {
+  opacity: 0.6;
+}
+.angle-grid.editing .photo-frame.empty.plus {
+  aspect-ratio: 3 / 4;
+  border: 1.5px dashed var(--line);
+}
+.remove-photo {
+  margin-top: 2px;
+  min-height: 32px;
+}
+.remove-photo.confirm {
+  font-weight: 600;
 }

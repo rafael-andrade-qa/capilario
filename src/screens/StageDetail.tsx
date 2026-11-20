@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+// Detalhe do momento: fotos, observação e favorita. O lápis liga o modo de edição das fotos:
+// trocar a foto de um ângulo, remover (menos a última) ou pôr foto num ângulo vazio.
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { CheckIcon, EditIcon } from '../components/ActionIcons'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { PageHeader } from '../components/PageHeader'
 import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
-import { updateStage } from '../lib/api'
+import { deletePhoto, replacePhoto, updateStage } from '../lib/api'
+import { INPUT_ACCEPT, canDisplay, detectMime, validateFile } from '../lib/files'
 import { ANGLES, ANGLE_LABEL, STAGE_LABEL, brandLabel, formatDateTime, formatShortDateTime, missingAngles, photoByAngle, productLabel, type Angle } from '../lib/domain'
 import { href, navigate } from '../lib/router'
-import { findStage, useHistory, useSignedUrls } from '../lib/state'
+import { findStage, useHistory, useSession, useSignedUrls } from '../lib/state'
 
 function CompareIcon() {
   return (
@@ -18,7 +22,8 @@ function CompareIcon() {
 }
 
 export function StageDetail({ stageId }: { stageId: string }) {
-  const { experiments, patchStage, loading } = useHistory()
+  const { experiments, patchStage, loading, reload } = useHistory()
+  const { session } = useSession()
   const found = findStage(experiments, stageId)
   const stage = found?.stage
   const { urls, error: urlError } = useSignedUrls(stage?.photos.map((p) => p.storage_path) ?? [])
@@ -29,6 +34,11 @@ export function StageDetail({ stageId }: { stageId: string }) {
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [viewer, setViewer] = useState<Angle | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [working, setWorking] = useState<Angle | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<Angle | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const pickFor = useRef<Angle | null>(null)
 
   useEffect(() => {
     setNotes(stage?.notes ?? '')
@@ -80,6 +90,59 @@ export function StageDetail({ stageId }: { stageId: string }) {
 
   const viewerPhoto = viewer ? photoByAngle(stage, viewer) : undefined
 
+  function pick(angle: Angle) {
+    if (working) return
+    setConfirmRemove(null)
+    pickFor.current = angle
+    fileInput.current?.click()
+  }
+
+  async function onPicked(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    const angle = pickFor.current
+    pickFor.current = null
+    if (!file || !angle || !stage || !session) return
+    const invalid = validateFile(file) ?? ((await canDisplay(file)) ? null : 'O navegador não consegue exibir este arquivo. Use JPEG, PNG ou WebP.')
+    if (invalid) {
+      setMessage({ kind: 'error', text: invalid })
+      return
+    }
+    const had = !!photoByAngle(stage, angle)
+    setWorking(angle)
+    setMessage(null)
+    try {
+      await replacePhoto(session.user.id, stage.id, angle, file, detectMime(file))
+      await reload()
+      setMessage({ kind: 'ok', text: had ? `Foto de ${ANGLE_LABEL[angle]} trocada.` : `Foto de ${ANGLE_LABEL[angle]} adicionada.` })
+    } catch (err) {
+      setMessage({ kind: 'error', text: (err as Error).message })
+    } finally {
+      setWorking(null)
+    }
+  }
+
+  async function remove(angle: Angle) {
+    const p = stage ? photoByAngle(stage, angle) : undefined
+    if (!p || working) return
+    if (confirmRemove !== angle) {
+      setConfirmRemove(angle)
+      return
+    }
+    setConfirmRemove(null)
+    setWorking(angle)
+    setMessage(null)
+    try {
+      await deletePhoto(p.id)
+      await reload()
+      setMessage({ kind: 'ok', text: `Foto de ${ANGLE_LABEL[angle]} removida.` })
+    } catch (err) {
+      setMessage({ kind: 'error', text: (err as Error).message })
+    } finally {
+      setWorking(null)
+    }
+  }
+
   const present = ANGLES.filter((a) => photoByAngle(stage, a))
 
   return (
@@ -102,6 +165,19 @@ export function StageDetail({ stageId }: { stageId: string }) {
           >
             <span aria-hidden="true">{stage.is_favorite ? '★' : '☆'}</span>
           </button>
+          <button
+            className={`icon-btn ${editing ? 'on-edit' : ''}`}
+            onClick={() => {
+              setEditing((v) => !v)
+              setConfirmRemove(null)
+            }}
+            disabled={!!working}
+            aria-pressed={editing}
+            aria-label={editing ? 'Concluir edição das fotos' : 'Editar fotos'}
+            title={editing ? 'Concluir' : 'Editar fotos'}
+          >
+            {editing ? <CheckIcon /> : <EditIcon />}
+          </button>
           <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} aria-label="Excluir momento" title="Excluir momento">
             <TrashIcon />
           </button>
@@ -115,6 +191,47 @@ export function StageDetail({ stageId }: { stageId: string }) {
 
       {urlError && <p className="alert alert-error">{urlError}</p>}
 
+      {editing && <p className="muted small edit-hint">Toque numa foto para trocar. Ângulo vazio: toque para adicionar.</p>}
+      <input ref={fileInput} type="file" accept={INPUT_ACCEPT} hidden onChange={(e) => void onPicked(e)} data-testid="detail-photo-input" />
+
+      {editing ? (
+        <div className="angle-grid editing">
+          {ANGLES.map((a) => {
+            const p = photoByAngle(stage, a)
+            return (
+              <figure key={a} className={`angle-cell ${working === a ? 'working' : ''}`} data-angle={a}>
+                <button
+                  className="photo-button"
+                  onClick={() => pick(a)}
+                  disabled={!!working}
+                  aria-label={p ? `Trocar foto: ${ANGLE_LABEL[a]}` : `Adicionar foto: ${ANGLE_LABEL[a]}`}
+                >
+                  {p ? (
+                    <PhotoView url={urls[p.storage_path]} alt={ANGLE_LABEL[a]} />
+                  ) : (
+                    <div className="photo-frame empty plus" aria-hidden="true">
+                      +
+                    </div>
+                  )}
+                  {working === a && <span className="badge">Enviando…</span>}
+                </button>
+                <figcaption>{ANGLE_LABEL[a]}</figcaption>
+                {p && present.length > 1 && (
+                  <button
+                    type="button"
+                    className={`link danger small-link remove-photo ${confirmRemove === a ? 'confirm' : ''}`}
+                    onClick={() => void remove(a)}
+                    disabled={!!working}
+                    aria-label={confirmRemove === a ? `Confirmar remoção: ${ANGLE_LABEL[a]}` : `Remover foto: ${ANGLE_LABEL[a]}`}
+                  >
+                    {confirmRemove === a ? 'Toque de novo para remover' : 'Remover'}
+                  </button>
+                )}
+              </figure>
+            )
+          })}
+        </div>
+      ) : (
       <div className="angle-grid">
         {present.map((a) => {
           const p = photoByAngle(stage, a)!
@@ -128,8 +245,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
           )
         })}
       </div>
+      )}
 
-      {missing.length > 0 && (
+      {!editing && missing.length > 0 && (
         <div className="missing-row">
           <span className="muted small">Faltam</span>
           {missing.map((a) => (

@@ -55,6 +55,11 @@ const FRIENDLY: Record<string, string> = {
   experiment_not_found: 'Produto não encontrado.',
   stage_not_found: 'Momento não encontrado.',
   not_authenticated: 'Sua sessão expirou. Entre novamente.',
+  product_exists: 'Já existe um produto com esse nome e essa marca no seu histórico.',
+  product_name_required: 'Informe o nome do produto.',
+  product_not_editable: 'Este produto não tem nome para editar.',
+  last_photo: 'Esta é a única foto do momento. Para apagar tudo, exclua o momento.',
+  invalid_storage_path: 'Não foi possível salvar a foto. Tente de novo.',
 }
 
 export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult> {
@@ -125,6 +130,60 @@ export async function setProductPhoto(userId: string, experimentId: string, file
     await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
   }
   return path
+}
+
+/** Corrige nome e marca do produto (vale para todas as finalizações dele). */
+export async function updateExperiment(experimentId: string, name: string, brand: string): Promise<void> {
+  const { error } = await supabase.rpc('update_experiment', { p_experiment_id: experimentId, p_name: name, p_brand: brand })
+  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar o produto: ${error.message}`)
+}
+
+/** Remove a foto da embalagem do produto e apaga o arquivo. */
+export async function removeProductPhoto(experimentId: string): Promise<void> {
+  const { data, error } = await supabase.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: null })
+  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível remover a foto: ${error.message}`)
+  const old = (data as { old_path?: string | null } | null)?.old_path
+  if (old) {
+    signedCache.delete(old)
+    await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
+  }
+}
+
+/**
+ * Troca a foto de um ângulo do momento (ou põe num ângulo vazio): envia o arquivo novo,
+ * liga no banco numa transação e só então apaga o arquivo antigo.
+ */
+export async function replacePhoto(userId: string, stageId: string, angle: Angle, file: File, mime: string, onProgress?: (f: number) => void): Promise<void> {
+  const ext = EXT_BY_MIME[mime as AcceptedMime]
+  if (!ext) throw new Error('Formato não aceito. Use JPEG, PNG ou WebP.')
+  const id = uuid()
+  const path = `${userId}/${stageId}/${id}.${ext}`
+  await uploadPhoto({ path, file, contentType: mime, onProgress })
+  const { data, error } = await supabase.rpc('replace_photo', {
+    p_stage_id: stageId,
+    p_angle: angle,
+    p_photo: { id, storage_path: path, mime_type: mime, size_bytes: file.size },
+  })
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined)
+    throw new Error(FRIENDLY[error.message] ?? `Não foi possível trocar a foto: ${error.message}`)
+  }
+  const old = (data as { old_path?: string | null } | null)?.old_path
+  if (old) {
+    signedCache.delete(old)
+    await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
+  }
+}
+
+/** Remove uma foto do momento (a última não sai) e apaga o arquivo. */
+export async function deletePhoto(photoId: string): Promise<void> {
+  const { data, error } = await supabase.rpc('delete_photo', { p_photo_id: photoId })
+  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível remover a foto: ${error.message}`)
+  const path = (data as { path?: string | null } | null)?.path
+  if (path) {
+    signedCache.delete(path)
+    await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined)
+  }
 }
 
 /** Quais destas fotos já estão registradas no banco (para respostas perdidas e limpeza). */

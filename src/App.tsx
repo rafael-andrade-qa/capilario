@@ -4,6 +4,7 @@ import { match, useRoute } from './lib/router'
 import { Login } from './screens/Login'
 import { History } from './screens/History'
 import { StageDetail } from './screens/StageDetail'
+import { ProductEditRoute } from './screens/ProductEdit'
 import { StageFormRoute } from './screens/StageForm'
 import { Compare } from './screens/Compare'
 import { useNewVersion } from './lib/version'
@@ -55,6 +56,7 @@ function Screens({ userId }: { userId: string }) {
   const { path, params } = useRoute()
   let m: Record<string, string> | null
   if (path === '/novo') return <StageFormRoute kind="new" userId={userId} />
+  if ((m = match('/produto/:id/editar', path))) return <ProductEditRoute experimentId={m.id} />
   // Nova finalização com um produto que já está no histórico (o caminho antigo continua valendo).
   if ((m = match('/produto/:id/nova-finalizacao', path)) || (m = match('/experimento/:id/nova-etapa', path)))
     return <StageFormRoute kind="add" userId={userId} experimentId={m.id} />
@@ -64,5 +66,12 @@ function Screens({ userId }: { userId: string }) {
   if ((m = match('/etapa/:id/completar', path))) return <StageFormRoute kind="complete" userId={userId} stageId={m.id} />
   if ((m = match('/etapa/:id', path))) return <StageDetail stageId={m.id} />
   if (path === '/comparar') return <Compare params={params} />
-  return <History saved={params.get('salvo')} deleted={params.has('excluida')} productPhotoFailed={params.get('foto') === 'erro'} />
+  return (
+    <History
+      saved={params.get('salvo')}
+      deleted={params.has('excluida')}
+      productPhotoFailed={params.get('foto') === 'erro'}
+      productSaved={params.get('produto') === 'salvo'}
+    />
+  )
 }
