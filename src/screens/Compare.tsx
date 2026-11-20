@@ -1,9 +1,12 @@
 // Comparador: primeiro a etapa (Molhado, Seco, Dia seguinte), depois os dois registros.
 // Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
 // os dois registros têm ficam clicáveis (ver lib/compare.ts).
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Dropdown, type DropdownOption } from '../components/Dropdown'
 import { PageHeader } from '../components/PageHeader'
+import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
+import { comparePdf } from '../lib/pdf'
+import { compareFileName, compareMessage, momentInfo, productTitle } from '../lib/share'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, productThumbPath } from '../components/ProductThumb'
 import { commonAngles, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
@@ -13,6 +16,7 @@ import {
   STAGE_LABEL,
   STAGE_TYPES,
   brandLabel,
+  formatDateTime,
   formatShortDate,
   formatShortDateTime,
   photoByAngle,
@@ -34,7 +38,12 @@ interface Entry {
 
 const isAngle = (v: string | null): v is Angle => !!v && (ANGLES as readonly string[]).includes(v)
 const isType = (v: string | null): v is StageType => !!v && (STAGE_TYPES as readonly string[]).includes(v)
-const toItem = (e: Entry): CompareItem => ({ id: e.stage.id, type: e.stage.stage_type, capturedAt: e.stage.captured_at })
+const toItem = (e: Entry): CompareItem => ({
+  id: e.stage.id,
+  type: e.stage.stage_type,
+  capturedAt: e.stage.captured_at,
+  noFinisher: e.experiment.product_mode === 'none',
+})
 const anglesOf = (e?: Entry): Angle[] => (e ? e.stage.photos.map((p) => p.angle) : [])
 
 function compareUrl(type: StageType, a?: string, b?: string, angle?: Angle) {
@@ -67,6 +76,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
     return (e: Entry) => ((count.get(key(e)) ?? 0) > 1 ? formatShortDateTime(e.stage.captured_at) : formatShortDate(e.stage.captured_at))
   }, [recent])
 
+  const [pdfOpen, setPdfOpen] = useState(false)
   const aId = params.get('a')
   const bId = params.get('b')
   const angleParam = params.get('angulo')
@@ -153,7 +163,17 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
   return (
     <main className="page compare-page">
-      <PageHeader title="Comparar" back={{ label: 'Voltar ao histórico', href: href('/') }} />
+      <PageHeader
+        title="Comparar"
+        back={{ label: 'Voltar ao histórico', href: href('/') }}
+        right={
+          a && b && common.length > 0 ? (
+            <button className="icon-btn" onClick={() => setPdfOpen(true)} aria-label="Enviar PDF do comparativo" title="Enviar PDF">
+              <PdfIcon />
+            </button>
+          ) : undefined
+        }
+      />
 
       <div className="segmented type-picker" role="radiogroup" aria-label="Momento">
         {STAGE_TYPES.map((t) => (
@@ -235,6 +255,33 @@ export function Compare({ params }: { params: URLSearchParams }) {
             </p>
           )}
           {error && <p className="alert alert-error">{error}</p>}
+
+          {pdfOpen && (
+            <PdfShareSheet
+              heading="Enviar PDF do comparativo"
+              summary={`${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`}
+              message={compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage))}
+              onClose={() => setPdfOpen(false)}
+              build={async () => ({
+                fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
+                blob: await comparePdf({
+                  title: `Comparativo · ${STAGE_LABEL[type]}`,
+                  subtitle: 'Mesmo momento, mesmos ângulos, lado a lado.',
+                  a: { title: productTitle(a.experiment), subtitle: formatDateTime(a.stage.captured_at) },
+                  b: { title: productTitle(b.experiment), subtitle: formatDateTime(b.stage.captured_at) },
+                  rows: common.map((ang) => {
+                    const pa = photoByAngle(a.stage, ang)!
+                    const pb = photoByAngle(b.stage, ang)!
+                    return {
+                      label: ANGLE_LABEL[ang],
+                      a: { label: ANGLE_LABEL[ang], url: urls[pa.storage_path], crop: pa.crop },
+                      b: { label: ANGLE_LABEL[ang], url: urls[pb.storage_path], crop: pb.crop },
+                    }
+                  }),
+                }),
+              })}
+            />
+          )}
 
           <div className="compare-grid">
             {([['A', a], ['B', b]] as const).map(([label, e]) => {

@@ -130,6 +130,8 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
 
 test('A2: + Seco completa a finalização direto nas fotos; observação e favorita persistem', async ({ page }) => {
   await login(page, me)
+  // Ao abrir o app tudo vem recolhido: abre o produto.
+  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   // A finalização de hoje tem o Molhado; o próximo momento aparece como atalho.
   const fin = page.locator('.fin').first()
   await expect(fin.locator('.fin-when')).toHaveText('Hoje')

@@ -46,10 +46,13 @@ async function login(page: Page) {
 
 const toggle = (page: Page, name: string) => page.locator('.experiment', { hasText: name }).locator('.product-toggle')
 
-test('produtos recolhidos: só o mais recente aberto, busca e abrir/fechar', async ({ page }) => {
+test('produtos recolhidos: tudo fechado ao abrir o app, busca e abrir/fechar', async ({ page }) => {
   await login(page)
   await expect(page.locator('.experiment:not(.fixed-product)')).toHaveCount(7)
-  await expect(page.locator('.experiment.open')).toHaveCount(1)
+  // Ao abrir o app, tudo começa recolhido.
+  await expect(page.locator('.experiment.open')).toHaveCount(0)
+  await expect(page.locator('.moment-tile')).toHaveCount(0)
+  await toggle(page, 'Gelatina Supervolume').click()
   await expect(toggle(page, 'Gelatina Supervolume')).toHaveAttribute('aria-expanded', 'true')
   await expect(page.locator('.moment-tile')).toHaveCount(1)
 
@@ -82,6 +85,7 @@ test('editar produto: corrigir nome e marca e trocar a foto da embalagem', async
   await login(page)
   const product = products.find((p) => p.name === 'Gelatina Supervolume')!
   const card = page.locator('.experiment', { hasText: 'Gelatina Supervolume' })
+  await card.locator('.product-toggle').click()
   // Ações do produto juntas à direita: nova finalização, editar e excluir.
   const actions = card.locator('.product-actions')
   await expect(actions.getByRole('link', { name: 'Nova finalização com Gelatina Supervolume' })).toBeVisible()

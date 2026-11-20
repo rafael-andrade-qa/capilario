@@ -173,6 +173,14 @@ describe('etapas comparáveis', () => {
     expect(defaultPair([items[0]], 'wet')).toBeNull()
   })
 
+  it('Sem finalizador vai no A (é a referência); B = o com produto mais recente', () => {
+    const withNone = [...items, { ...item('nf', 'dry', 5), noFinisher: true }, item('d3', 'dry', 20)]
+    expect(defaultPair(withNone, 'dry')).toEqual({ a: 'nf', b: 'd3' })
+    // Dois Sem finalizador e nenhum com produto: compara os dois.
+    const onlyNone = [{ ...item('x1', 'wet', 1), noFinisher: true }, { ...item('x2', 'wet', 2), noFinisher: true }]
+    expect(defaultPair(onlyNone, 'wet')).toEqual({ a: 'x2', b: 'x1' })
+  })
+
   it('ângulos comparáveis: só os que os dois têm', () => {
     expect(commonAngles(['front', 'left', 'back'], ['left', 'front'])).toEqual(['front', 'left'])
     expect(commonAngles(['back'], ['front'])).toEqual([])

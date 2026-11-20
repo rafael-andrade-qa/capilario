@@ -41,14 +41,26 @@ export interface CompareItem {
   id: string
   type: StageType
   capturedAt: string
+  /** Registro do "Sem finalizador" (vai no A quando existe: é a referência). */
+  noFinisher?: boolean
 }
 
 const byRecent = (x: CompareItem, y: CompareItem) => Date.parse(y.capturedAt) - Date.parse(x.capturedAt)
 
-/** Sugestão para um tipo: A = mais recente desse tipo; B = o anterior do mesmo tipo. */
+/**
+ * Sugestão para um tipo. Se houver "Sem finalizador" nesse momento, ele vai no A (é a
+ * referência: o cabelo sem produto) e o B é o registro com produto mais recente. Sem ele:
+ * A = mais recente, B = o anterior.
+ */
 export function defaultPair(items: CompareItem[], type: StageType): { a: string; b: string } | null {
   const same = items.filter((i) => i.type === type).sort(byRecent)
-  return same.length >= 2 ? { a: same[0].id, b: same[1].id } : null
+  if (same.length < 2) return null
+  const base = same.find((i) => i.noFinisher)
+  if (base) {
+    const other = same.find((i) => !i.noFinisher) ?? same.find((i) => i.id !== base.id)!
+    return { a: base.id, b: other.id }
+  }
+  return { a: same[0].id, b: same[1].id }
 }
 
 /** Tipo inicial: o da etapa mais recente que tenha com quem comparar. */

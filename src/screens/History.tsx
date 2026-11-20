@@ -36,9 +36,21 @@ import { signOut, useHistory, useSignedUrls } from '../lib/state'
 /** A partir de quantos produtos a busca aparece. */
 const SEARCH_FROM = 6
 
-// Produtos abertos, lembrados enquanto o app estiver aberto (voltar do detalhe não fecha tudo).
+// Produtos abertos, lembrados enquanto o app estiver em uso (voltar do detalhe não fecha tudo).
+// Ao abrir o app, tudo começa recolhido; se o app voltar do segundo plano depois de um tempo
+// (ficou "fechado"), recolhe de novo.
 const openMemory = new Set<string>()
-let openRemembered = false
+const COLLAPSE_AFTER_MS = 5 * 60 * 1000
+let hiddenAt: number | null = null
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') hiddenAt = Date.now()
+    else if (hiddenAt !== null && Date.now() - hiddenAt > COLLAPSE_AFTER_MS) {
+      openMemory.clear()
+      window.dispatchEvent(new Event('capilar:recolher'))
+    }
+  })
+}
 
 const normalize = (s: string) =>
   s
@@ -78,21 +90,26 @@ export function History({
   useToastOnce(created, 'Produto cadastrado.')
   const totalStages = list.reduce((n, e) => n + publishedStages(e).length, 0)
 
-  // Primeira visita: abre o produto mais recente. Depois de salvar: abre o produto da etapa salva.
+  // Tudo começa recolhido. Depois de salvar ou cadastrar: abre só o produto em questão.
   useEffect(() => {
     if (!list.length) return
     setOpen((prev) => {
       const next = new Set(prev)
-      if (!openRemembered) next.add(recent[0].id) // o mais recente (pode não ser o primeiro da lista)
       if (saved) {
         const exp = list.find((e) => e.stages.some((s) => s.id === saved))
         if (exp) next.add(exp.id)
       }
       if (created && list.some((e) => e.id === created)) next.add(created)
-      openRemembered = true
       return next.size === prev.size && [...next].every((id) => prev.has(id)) ? prev : next
     })
-  }, [list, recent, saved, created])
+  }, [list, saved, created])
+
+  // Voltou do segundo plano depois de muito tempo: recolhe tudo.
+  useEffect(() => {
+    const collapse = () => setOpen(new Set())
+    window.addEventListener('capilar:recolher', collapse)
+    return () => window.removeEventListener('capilar:recolher', collapse)
+  }, [])
 
   useEffect(() => {
     openMemory.clear()

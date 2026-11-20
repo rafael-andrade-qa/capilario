@@ -62,12 +62,14 @@ const tile = (page: Page, label: string) => page.locator('.moment-tile', { hasTe
 async function deleteFromDetail(page: Page, label: string) {
   await tile(page, label).click()
   await expect(page.getByRole('heading', { name: label })).toBeVisible()
+  await page.getByRole('button', { name: 'Editar fotos' }).click()
   await page.getByRole('button', { name: 'Excluir momento' }).click()
   return page.getByRole('alertdialog', { name: 'Excluir este momento?' })
 }
 
 test('excluir pelo botão no detalhe do momento, com opção de cancelar', async ({ page }) => {
   await login(page)
+  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   // Os três momentos estão na mesma finalização.
   await expect(page.locator('.fin')).toHaveCount(1)
   await expect(page.locator('.fin .moment-tile')).toHaveCount(3)
@@ -79,6 +81,7 @@ test('excluir pelo botão no detalhe do momento, com opção de cancelar', async
   await expect(dialog).toHaveCount(0)
   expect(await stageExists(stages[1].id)).toBe(true)
 
+  // Ainda no modo de edição: o botão de excluir continua ali.
   await page.getByRole('button', { name: 'Excluir momento' }).click()
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Momento excluído.')).toBeVisible()
@@ -91,6 +94,7 @@ test('excluir pelo botão no detalhe do momento, com opção de cancelar', async
 
 test('excluir o Dia seguinte mantém a finalização com o Molhado', async ({ page }) => {
   await login(page)
+  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   const dialog = await deleteFromDetail(page, 'Dia seguinte')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Momento excluído.')).toBeVisible()
@@ -102,6 +106,7 @@ test('excluir o Dia seguinte mantém a finalização com o Molhado', async ({ pa
 
 test('último momento: a finalização sai e o produto fica, sem finalização', async ({ page }) => {
   await login(page)
+  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   const dialog = await deleteFromDetail(page, 'Molhado')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Momento excluído.')).toBeVisible()

@@ -10,6 +10,9 @@ import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
 import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
+import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
+import { momentPdf } from '../lib/pdf'
+import { momentFileName, momentInfo, momentMessage, productTitle } from '../lib/share'
 import { deletePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
 import { analyzeUrl } from '../lib/faces'
 import { momentCrops, type Crop } from '../lib/framing'
@@ -61,6 +64,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
   const [adjusting, setAdjusting] = useState<Angle | null>(null)
   const [framing, setFraming] = useState(false)
   const [savingTime, setSavingTime] = useState(false)
+  const [pdfOpen, setPdfOpen] = useState(false)
 
   useEffect(() => {
     setNotes(stage?.notes ?? '')
@@ -230,6 +234,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
           <a className="icon-btn" href={href(`/comparar?a=${stage.id}`)} aria-label="Comparar este momento" title="Comparar">
             <CompareIcon />
           </a>
+          <button className="icon-btn" onClick={() => setPdfOpen(true)} disabled={present.length === 0} aria-label="Enviar PDF" title="Enviar PDF">
+            <PdfIcon />
+          </button>
           <button
             className={`icon-btn ${stage.is_favorite ? 'on' : ''}`}
             onClick={() => void toggleFavorite()}
@@ -252,9 +259,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
             title={editing ? 'Concluir' : 'Editar fotos'}
           >
             {editing ? <CheckIcon /> : <EditIcon />}
-          </button>
-          <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} aria-label="Excluir momento" title="Excluir momento">
-            <TrashIcon />
           </button>
         </div>
         }
@@ -386,6 +390,33 @@ export function StageDetail({ stageId }: { stageId: string }) {
           onCancel={() => setAdjusting(null)}
           onSave={(crop) => saveCrop(adjusting, crop)}
         />
+      )}
+
+      {pdfOpen && (
+        <PdfShareSheet
+          heading="Enviar PDF"
+          summary={`${present.length} ${present.length === 1 ? 'foto' : 'fotos'} do ${STAGE_LABEL[stage.stage_type]}`}
+          message={momentMessage(momentInfo(experiment, stage))}
+          onClose={() => setPdfOpen(false)}
+          build={async () => ({
+            fileName: momentFileName(momentInfo(experiment, stage)),
+            blob: await momentPdf({
+              title: productTitle(experiment),
+              subtitle: `${STAGE_LABEL[stage.stage_type]} · ${formatDateTime(stage.captured_at)}`,
+              notes: stage.notes,
+              photos: present.map((ang) => {
+                const p = photoByAngle(stage, ang)!
+                return { label: ANGLE_LABEL[ang], url: urls[p.storage_path], crop: p.crop }
+              }),
+            }),
+          })}
+        />
+      )}
+
+      {editing && (
+        <button type="button" className="btn btn-block delete-moment" onClick={() => setConfirmDelete(true)} disabled={!!working} aria-label="Excluir momento">
+          <TrashIcon /> Excluir momento
+        </button>
       )}
 
       {viewer && viewerPhoto && (

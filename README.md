@@ -135,6 +135,13 @@ os atalhos *Nova finalização* e *Comparar*.
 6. Arquivos descartados são apagados só depois de confirmar no banco que não foram associados; a política do
    Storage também impede apagar uma foto publicada.
 
+## Enviar em PDF
+
+No detalhe do momento e no comparador há o ícone **Enviar PDF**. Ele monta, no próprio aparelho, um PDF com as
+fotos (com o enquadramento do app): o momento em grade, com a observação, ou o comparativo A × B lado a lado, um
+ângulo por linha. A mensagem já vem pronta (dá para editar) e **Enviar** abre o compartilhamento do aparelho
+(WhatsApp, e-mail…). Onde não há compartilhamento de arquivos (computador), o PDF é baixado e a mensagem copiada.
+
 ## Avisos
 
 Confirmações ("Seco salvo.", "Momento excluído.", "Produto atualizado.", "Foto trocada.") e erros de ações

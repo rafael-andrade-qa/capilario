@@ -1,6 +1,7 @@
 // Novo produto, primeiro passo: achar o produto no catálogo (com foto pronta).
 //  - Busca por nome ou marca (sem acento, aguenta erro de digitação), com lupa.
-//  - Filtro de Marca: todas as marcas numa folha com busca.
+//  - Filtro de Marca (todas as marcas numa folha com busca) e, ao lado, Todos: marcado quando
+//    nenhuma marca está escolhida; escolher marca desmarca, o ✕ ou Todos voltam.
 //  - Resultados em páginas que cabem na tela sem rolar: a quantidade por página vem da altura
 //    do aparelho (cada linha tem altura fixa), com Anterior e Próxima.
 //  - Não achou: Pela foto ou Cadastrar à mão, sempre no rodapé.
@@ -136,6 +137,7 @@ export function CatalogPicker({
       <PageHeader title="Novo produto" back={{ label: 'Voltar ao histórico', href: href('/') }} />
       <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar no catálogo" />
 
+      <div className="catalog-filters">
       <div className="brand-filter">
         <button
           type="button"
@@ -144,7 +146,7 @@ export function CatalogPicker({
           aria-haspopup="dialog"
           aria-label={brand ? `Marca: ${brand.name}. Trocar marca` : 'Filtrar por marca'}
         >
-          <span className="filter-text">{brand ? brand.name : 'Todas as marcas'}</span>
+          <span className="filter-text">{brand ? brand.name : 'Marca'}</span>
           <Chevron />
         </button>
         {brand && (
@@ -152,6 +154,10 @@ export function CatalogPicker({
             ✕
           </button>
         )}
+      </div>
+      <button type="button" className={`seg all-brands ${brand ? '' : 'on'}`} aria-pressed={!brand} onClick={() => setBrand(null)}>
+        Todos
+      </button>
       </div>
 
       <p ref={caption} className="muted small catalog-caption" aria-live="polite">

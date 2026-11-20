@@ -116,14 +116,19 @@ async function chooseBrand(page: Page, name: string) {
 test('filtro de marca (lista com busca); o que já está no histórico aparece marcado', async ({ page }) => {
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
-  // Só marca: nada de "Masculino" misturado.
+  // Só marca: nada de "Masculino" misturado. "Todos" começa marcado.
   await expect(page.getByText('Masculino', { exact: true })).toHaveCount(0)
+  const todos = page.getByRole('button', { name: 'Todos', exact: true })
+  await expect(todos).toHaveAttribute('aria-pressed', 'true')
   await chooseBrand(page, `Barbearia ${tag}`)
   await expect(page.getByRole('button', { name: `Marca: Barbearia ${tag}. Trocar marca` })).toBeVisible()
+  await expect(todos).toHaveAttribute('aria-pressed', 'false')
   await expect(results(page)).toHaveCount(1)
   await expect(results(page).first()).toContainText('Pomada Efeito Matte')
 
   await page.getByRole('button', { name: 'Limpar marca' }).click()
+  await expect(todos).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'Filtrar por marca' })).toContainText('Marca')
   await chooseBrand(page, `Crespa ${tag}`)
   await expect(results(page)).toHaveCount(2)
   const owned = results(page).filter({ hasText: 'Creme de Pentear Cachos Leves' })
