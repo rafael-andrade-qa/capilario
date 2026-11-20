@@ -1,7 +1,7 @@
 // Confirmação para excluir um produto inteiro, com todas as etapas e fotos.
 import { useEffect, useRef, useState } from 'react'
 import { deleteExperiment } from '../lib/api'
-import { productFullLabel, publishedStages, type Experiment } from '../lib/domain'
+import { finalizationsOf, productFullLabel, publishedStages, type Experiment } from '../lib/domain'
 import { useHistory } from '../lib/state'
 
 interface Props {
@@ -29,6 +29,7 @@ export function DeleteProductDialog({ experiment, onCancel, onDeleted }: Props) 
   }, [busy, onCancel])
 
   const stages = publishedStages(experiment)
+  const fins = finalizationsOf(experiment).length
   const photos = stages.reduce((n, s) => n + s.photos.length, 0)
   const paths = [...experiment.stages.flatMap((s) => s.photos.map((p) => p.storage_path)), ...(experiment.photo_path ? [experiment.photo_path] : [])]
 
@@ -62,7 +63,7 @@ export function DeleteProductDialog({ experiment, onCancel, onDeleted }: Props) 
             <strong>{productFullLabel(experiment)}</strong>
           </p>
           <p>
-            {stages.length === 1 ? 'A etapa' : `As ${stages.length} etapas`} e {photos === 1 ? 'a foto' : `as ${photos} fotos`} serão apagadas
+            {fins === 1 ? 'A finalização' : `As ${fins} finalizações`} e {photos === 1 ? 'a foto' : `as ${photos} fotos`} serão apagadas
             {experiment.photo_path ? ', junto com a foto do produto' : ''}. Não dá para desfazer.
           </p>
         </div>

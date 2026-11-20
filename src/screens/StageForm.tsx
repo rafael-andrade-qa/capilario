@@ -1,4 +1,5 @@
-// Formulário único para: Novo registro, Adicionar etapa e Completar fotos.
+// Formulário único para: Nova finalização (produto novo ou já usado), próximo momento de uma
+// finalização (+ Seco, + Dia seguinte) e Completar fotos de um momento.
 //
 // Consistência do envio:
 //  * IDs de experimento, etapa e fotos são reservados ao abrir o formulário/escolher o arquivo
@@ -19,7 +20,10 @@ import {
   STAGE_TYPES,
   formatDateTime,
   formatShortDateTime,
+  finalizationWhen,
+  findFinalization,
   localInputToIso,
+  momentFromSlug,
   missingAngles,
   photoByAngle,
   productFromForm,
@@ -28,6 +32,7 @@ import {
   toLocalInputValue,
   type Angle,
   type Experiment,
+  type Finalization,
   type Stage,
   type StageType,
 } from '../lib/domain'
@@ -42,6 +47,7 @@ type RouteProps =
   | { kind: 'new'; userId: string }
   | { kind: 'add'; userId: string; experimentId: string }
   | { kind: 'complete'; userId: string; stageId: string }
+  | { kind: 'moment'; userId: string; finalizationId: string; moment: string }
 
 export function StageFormRoute(props: RouteProps) {
   const { experiments } = useHistory()
@@ -52,8 +58,24 @@ export function StageFormRoute(props: RouteProps) {
     if (!experiment) return <NotFound text="Experimento não encontrado." />
     return <StageForm key={experiment.id} kind="add" userId={props.userId} experiment={experiment} />
   }
+  if (props.kind === 'moment') {
+    const type = momentFromSlug(props.moment)
+    const hit = findFinalization(experiments, props.finalizationId)
+    if (!hit || !type) return <NotFound text="Finalização não encontrada." />
+    if (hit.finalization.moments[type]) return <NotFound text={`Esta finalização já tem o ${STAGE_LABEL[type]}.`} />
+    return (
+      <StageForm
+        key={`${hit.finalization.id}-${type}`}
+        kind="moment"
+        userId={props.userId}
+        experiment={hit.experiment}
+        finalization={hit.finalization}
+        momentType={type}
+      />
+    )
+  }
   const found = findStage(experiments, props.stageId)
-  if (!found) return <NotFound text="Etapa não encontrada." />
+  if (!found) return <NotFound text="Momento não encontrado." />
   return <StageForm key={found.stage.id} kind="complete" userId={props.userId} experiment={found.experiment} stage={found.stage} />
 }
 
@@ -83,10 +105,12 @@ interface Item {
 type Phase = 'editing' | 'uploading' | 'partial' | 'finalizing' | 'error'
 
 interface FormProps {
-  kind: 'new' | 'add' | 'complete'
+  kind: 'new' | 'add' | 'complete' | 'moment'
   userId: string
   experiment?: Experiment
   stage?: Stage
+  finalization?: Finalization
+  momentType?: StageType
 }
 
 async function runPool<T>(list: T[], limit: number, fn: (t: T) => Promise<void>) {
@@ -97,14 +121,16 @@ async function runPool<T>(list: T[], limit: number, fn: (t: T) => Promise<void>)
   await Promise.all(workers)
 }
 
-function StageForm({ kind, userId, experiment, stage }: FormProps) {
+function StageForm({ kind, userId, experiment, stage, finalization, momentType }: FormProps) {
   const { experiments, reload } = useHistory()
 
   // IDs reservados uma vez por formulário.
   const [stageId] = useState(() => stage?.id ?? uuid())
   const [newExperimentId] = useState(() => uuid())
+  const [newFinalizationId] = useState(() => uuid())
   const [startNewExperiment, setStartNewExperiment] = useState(kind === 'new')
-  const experimentId = kind === 'complete' ? stage!.experiment_id : startNewExperiment ? newExperimentId : experiment!.id
+  // Nova finalização = finalização nova; próximo momento = a finalização escolhida.
+  const finalizationId = kind === 'moment' ? finalization!.id : kind === 'complete' ? stage!.finalization_id : newFinalizationId
 
   const lockedAngles: Angle[] = kind === 'complete' && stage ? ANGLES.filter((a) => photoByAngle(stage, a)) : []
   const allowedAngles: Angle[] = kind === 'complete' && stage ? missingAngles(stage) : [...ANGLES]
@@ -114,7 +140,8 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
   const itemsRef = useRef(items)
   const [selected, setSelected] = useState<Angle | null>(null)
 
-  const [stageType, setStageType] = useState<StageType | null>(null)
+  // Uma finalização nova quase sempre começa no Molhado.
+  const [stageType, setStageType] = useState<StageType | null>(kind === 'moment' ? momentType! : kind === 'complete' ? null : 'wet')
   const [capturedAt, setCapturedAt] = useState(() => toLocalInputValue(new Date()))
   const [productName, setProductName] = useState(experiment?.product_mode === 'named' ? experiment.product_name ?? '' : '')
   const [brand, setBrand] = useState(experiment?.product_mode === 'named' ? experiment.brand ?? '' : '')
@@ -125,7 +152,8 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
   const [notes, setNotes] = useState('')
 
   // Dois passos (novo registro e adicionar etapa): 1 = detalhes, 2 = fotos. Completar fotos é só o passo 2.
-  const [step, setStep] = useState<1 | 2>(kind === 'complete' ? 2 : 1)
+  const twoSteps = kind === 'new' || kind === 'add'
+  const [step, setStep] = useState<1 | 2>(twoSteps ? 1 : 2)
   const [phase, setPhase] = useState<Phase>('editing')
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false)
@@ -242,7 +270,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
     setSelected(null)
     setNotice(
       ignored > 0
-        ? `Só cabem ${allowedAngles.length} fotos por etapa. ${ignored} ${ignored === 1 ? 'foto foi ignorada' : 'fotos foram ignoradas'}.`
+        ? `Só cabem ${allowedAngles.length} fotos por momento. ${ignored} ${ignored === 1 ? 'foto foi ignorada' : 'fotos foram ignoradas'}.`
         : null,
     )
     checkDisplayable(newItems)
@@ -320,12 +348,32 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
     }
   }
 
-  const wantsProductPhoto = kind !== 'complete' && startNewExperiment && !noFinisher
+  // Produto digitado igual a um que já está no histórico (mesmo nome e marca, ou Sem finalizador):
+  // a finalização entra nele, em vez de criar um produto repetido.
+  const productMatch = useMemo(() => {
+    if (!twoSteps || !startNewExperiment) return undefined
+    if (noFinisher) return (experiments ?? []).find((e) => e.product_mode === 'none')
+    if (!productName.trim()) return undefined
+    const key = (v: string | null | undefined) => normalizeName(v ?? '')
+    return named.find((e) => key(e.product_name) === key(productName) && key(e.brand) === key(brand))
+  }, [twoSteps, startNewExperiment, noFinisher, productName, brand, named, experiments])
+  const experimentId =
+    kind === 'complete'
+      ? stage!.experiment_id
+      : kind === 'moment'
+        ? experiment!.id
+        : startNewExperiment
+          ? (productMatch?.id ?? newExperimentId)
+          : experiment!.id
+  const createsExperiment = twoSteps && startNewExperiment && !productMatch
 
-  /** Passo 1: etapa, data, produto e marca. */
+  const wantsProductPhoto = twoSteps && startNewExperiment && !noFinisher && !productMatch?.photo_path
+
+  /** Passo 1: momento, data, produto e marca. (Próximo momento: só a data.) */
   function validateDetails(): string | null {
     if (kind === 'complete') return null
-    if (!stageType) return 'Escolha a etapa: Molhado, Seco ou Dia seguinte.'
+    if (kind === 'moment') return localInputToIso(capturedAt) ? null : 'Informe uma data e horário válidos.'
+    if (!stageType) return 'Escolha o momento: Molhado, Seco ou Dia seguinte.'
     if (!localInputToIso(capturedAt)) return 'Informe uma data e horário válidos.'
     if (startNewExperiment && !noFinisher) {
       if (!productName.trim()) return 'Informe o produto ou marque Sem finalizador.'
@@ -411,11 +459,11 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           experimentId,
           stageId,
           photos,
-          newExperiment: kind !== 'complete' && startNewExperiment ? productFromForm(noFinisher, productName, brand) : null,
+          newExperiment: createsExperiment ? productFromForm(noFinisher, productName, brand) : null,
           newStage:
             kind === 'complete'
               ? null
-              : { stage_type: stageType!, captured_at: localInputToIso(capturedAt)!, notes: notes.trim() || null },
+              : { stage_type: stageType!, captured_at: localInputToIso(capturedAt)!, notes: notes.trim() || null, finalization_id: finalizationId },
         })
       } catch (err) {
         if (!(err instanceof AmbiguousError)) throw err
@@ -453,18 +501,17 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
     }
   }
 
-  const title = kind === 'new' ? 'Novo registro' : kind === 'add' ? 'Adicionar etapa' : 'Completar fotos'
+  const title = kind === 'complete' ? 'Completar fotos' : kind === 'moment' ? STAGE_LABEL[momentType!] : 'Nova finalização'
   const capturedIso = localInputToIso(capturedAt)
   const lockedUrls = useSignedUrls(lockedAngles.map((a) => photoByAngle(stage!, a)!.storage_path)).urls
 
-  const twoSteps = kind !== 'complete'
   const detailsSummary =
     twoSteps && stageType
       ? [
           STAGE_LABEL[stageType],
           capturedIso ? formatShortDateTime(capturedIso) : null,
           // Por último: se não couber, o nome do produto é que fica com reticências.
-          startNewExperiment ? productLabel(productFromForm(noFinisher, productName, brand)) : productLabel(experiment!),
+          startNewExperiment ? productLabel(productMatch ?? productFromForm(noFinisher, productName, brand)) : productLabel(experiment!),
         ]
           .filter(Boolean)
           .join(' · ')
@@ -499,7 +546,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
         <section className="card form-fields">
           <div className="field" role="radiogroup" aria-labelledby="f-etapa" aria-required="true">
             <span id="f-etapa" className="field-label">
-              Etapa<Req />
+              Momento<Req />
             </span>
             <div className="segmented">
               {STAGE_TYPES.map((t) => (
@@ -527,7 +574,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
                 {brandLabel(experiment!) && <span className="muted small"> · {brandLabel(experiment!)}</span>}
               </p>
               <button type="button" className="link" onClick={() => setStartNewExperiment(true)} disabled={busy || finalizeAttemptedRef.current}>
-                Usou outro produto ou finalização? Criar novo experimento
+                Usei outro produto
               </button>
             </div>
           ) : (
@@ -590,10 +637,15 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
                   </div>
                 )}
               </div>
+              {productMatch && (
+                <p className="muted small product-known" role="status">
+                  Já está no seu histórico: a finalização entra nesse produto.
+                </p>
+              )}
 
               {kind === 'add' && (
                 <button type="button" className="link" onClick={() => setStartNewExperiment(false)} disabled={busy || finalizeAttemptedRef.current}>
-                  Voltar a usar o experimento “{productLabel(experiment!)}”
+                  Usar “{productLabel(experiment!)}”
                 </button>
               )}
             </>
@@ -618,6 +670,20 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
                 Editar
               </button>
             </p>
+          )}
+          {kind === 'moment' && (
+            <>
+              <div className="field moment-head">
+                <p className="moment-context muted small">
+                  Finalização de {finalizationWhen(finalization!).replace(/^(Hoje|Ontem)$/, (w) => w.toLowerCase())} · <span>{productLabel(experiment!)}</span>
+                </p>
+                <span id="f-data-label" className="visually-hidden">
+                  Data e horário
+                </span>
+                <DateTimeField id="f-data" labelledBy="f-data-label" value={capturedAt} onChange={setCapturedAt} disabled={busy} />
+                {!capturedIso && <small className="slot-error">Data inválida</small>}
+              </div>
+            </>
           )}
           <div className="field">
             <div className="label-row">
@@ -691,11 +757,20 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
               )
             })}
           </div>
-          <p className="muted small hint">
+          <p className={`muted small hint ${kind === 'moment' && !selected ? 'visually-hidden' : ''}`}>
             {selected
               ? `Toque em outro espaço para trocar com ${ANGLE_LABEL[selected]}.`
               : `Toque em duas fotos para trocá-las de lugar. Esquerdo e direito: lado da pessoa na foto.`}
           </p>
+
+          {kind === 'moment' && (
+            <div className="field">
+              <label htmlFor="f-obs" className="field-label">
+                Observação
+              </label>
+              <textarea id="f-obs" rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} disabled={busy} placeholder="Como ficou? Volume, definição, frizz…" />
+            </div>
+          )}
 
           {wantsProductPhoto && (
             <div className="field">
@@ -799,3 +874,10 @@ function StatusBadge({ item }: { item: Item }) {
   if (item.invalid) return <span className="badge err">Não aceita</span>
   return null
 }
+
+const normalizeName = (v: string) =>
+  v
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()

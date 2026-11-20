@@ -109,7 +109,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
       <main className="page">
         <PageHeader title="Comparar" back={{ label: 'Voltar ao histórico', href: href('/') }} />
         <p className="alert alert-info">
-          {entries.size === 0 ? 'Você ainda não tem etapas salvas.' : 'Você tem só 1 etapa salva.'} Registre pelo menos duas etapas para comparar.
+          {entries.size === 0 ? 'Você ainda não tem fotos salvas.' : 'Você tem só 1 momento salvo.'} Registre pelo menos dois momentos iguais para comparar.
         </p>
         <a className="btn btn-primary" href={href('/novo')}>
           Novo registro
@@ -155,7 +155,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
     <main className="page compare-page">
       <PageHeader title="Comparar" back={{ label: 'Voltar ao histórico', href: href('/') }} />
 
-      <div className="segmented type-picker" role="radiogroup" aria-label="Etapa">
+      <div className="segmented type-picker" role="radiogroup" aria-label="Momento">
         {STAGE_TYPES.map((t) => (
           <button
             key={t}
@@ -174,12 +174,12 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
       {type && a && !b && (
         <p className="alert alert-info" role="status">
-          Só há 1 registro {STAGE_LABEL[type]}. Cada etapa se compara com a mesma etapa: registre outro {STAGE_LABEL[type]} para comparar.
+          Só há 1 registro {STAGE_LABEL[type]}. Cada momento se compara com o mesmo momento: registre outro {STAGE_LABEL[type]} para comparar.
         </p>
       )}
       {!type && (
         <p className="alert alert-info" role="status">
-          Compare etapas iguais: Molhado com Molhado, Seco com Seco, Dia seguinte com Dia seguinte. Registre mais uma etapa para comparar.
+          Compare momentos iguais: Molhado com Molhado, Seco com Seco, Dia seguinte com Dia seguinte. Registre mais um momento para comparar.
         </p>
       )}
 

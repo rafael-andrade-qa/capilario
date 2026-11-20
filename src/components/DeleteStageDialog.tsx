@@ -59,7 +59,7 @@ export function DeleteStageDialog({ stage, experiment, onCancel, onDeleted }: Pr
         aria-describedby="delete-desc"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="delete-title">Excluir esta etapa?</h2>
+        <h2 id="delete-title">Excluir este momento?</h2>
         <div id="delete-desc">
           <p>
             <strong>{STAGE_LABEL[stage.stage_type]}</strong> · {formatDateTime(stage.captured_at)}
@@ -71,7 +71,7 @@ export function DeleteStageDialog({ stage, experiment, onCancel, onDeleted }: Pr
             {stage.notes ? ' e a observação ' : ' '}
             {n === 1 && !stage.notes ? 'será apagada' : 'serão apagadas'}. Não dá para desfazer.
           </p>
-          {last && <p className="muted small">É a única etapa deste produto, então ele também sai do histórico.</p>}
+          {last && <p className="muted small">É o único momento deste produto, então ele também sai do histórico.</p>}
         </div>
         {error && <p className="alert alert-error">{error}</p>}
         <div className="dialog-actions">

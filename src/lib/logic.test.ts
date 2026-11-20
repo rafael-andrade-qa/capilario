@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { assignInOrder, clearSlot, emptySlots, filledAngles, swapSlots } from './slots'
 import { commonAngles, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from './compare'
 import {
+  canAddMoment,
+  finalizationWhen,
+  finalizationsOf,
+  nextMoment,
   formatDateRange,
   formatShortDate,
   brandLabel,
@@ -70,11 +74,12 @@ describe('produto', () => {
   })
 })
 
-function stage(id: string, captured: string, photos = 1): Stage {
+function stage(id: string, captured: string, photos = 1, type: Stage['stage_type'] = 'dry', fin = 'f'): Stage {
   return {
     id,
     experiment_id: 'e',
-    stage_type: 'dry',
+    finalization_id: fin,
+    stage_type: type,
     captured_at: captured,
     notes: null,
     is_favorite: false,
@@ -176,5 +181,52 @@ describe('etapas comparáveis', () => {
     expect(initialType(items)).toBe('dry')
     expect(initialType([item('w', 'wet', 1), item('d', 'dry', 2)])).toBeNull()
     expect(initialType([item('w', 'wet', 1), item('w2', 'wet', 2), item('d', 'dry', 3)])).toBe('wet')
+  })
+})
+
+describe('finalizações', () => {
+  const exp = (stages: Stage[]): Experiment => ({
+    id: 'e',
+    product_mode: 'named',
+    product_name: 'Creme',
+    brand: null,
+    photo_path: null,
+    created_at: '2026-11-01T00:00:00Z',
+    stages,
+  })
+
+  it('agrupa por finalização, a mais recente primeiro', () => {
+    const fins = finalizationsOf(
+      exp([
+        stage('w1', '2026-11-18T17:55:00Z', 1, 'wet', 'f1'),
+        stage('w2', '2026-11-18T18:00:00Z', 1, 'wet', 'f2'),
+        stage('d2', '2026-11-18T20:00:00Z', 1, 'dry', 'f2'),
+        stage('n2', '2026-11-19T10:14:00Z', 1, 'next_day', 'f2'),
+      ]),
+    )
+    expect(fins.map((f) => f.id)).toEqual(['f2', 'f1'])
+    expect(Object.keys(fins[0].moments).sort()).toEqual(['dry', 'next_day', 'wet'])
+    expect(fins[0].start).toBe('2026-11-18T18:00:00Z')
+    expect(fins[0].end).toBe('2026-11-19T10:14:00Z')
+  })
+
+  it('próximo momento: o que falta depois do primeiro registrado', () => {
+    const s = (t: Stage['stage_type']) => stage(t, '2026-11-18T18:00:00Z', 1, t)
+    expect(nextMoment({ moments: { wet: s('wet') } })).toBe('dry')
+    expect(nextMoment({ moments: { wet: s('wet'), dry: s('dry') } })).toBe('next_day')
+    expect(nextMoment({ moments: { dry: s('dry') } })).toBe('next_day')
+    expect(nextMoment({ moments: { wet: s('wet'), next_day: s('next_day') } })).toBe('dry')
+    expect(nextMoment({ moments: { wet: s('wet'), dry: s('dry'), next_day: s('next_day') } })).toBeNull()
+    expect(nextMoment({ moments: { next_day: s('next_day') } })).toBeNull()
+  })
+
+  it('completar só nos primeiros dias; rótulo pelo dia em que começou', () => {
+    const now = new Date(2026, 10, 20, 9, 0)
+    expect(canAddMoment({ start: new Date(2026, 10, 18, 15, 0).toISOString() }, now)).toBe(true)
+    expect(canAddMoment({ start: new Date(2026, 10, 10, 15, 0).toISOString() }, now)).toBe(false)
+    const at = (d: number, h: number) => new Date(2026, 10, d, h, 0).toISOString()
+    expect(finalizationWhen({ start: at(20, 8) }, now)).toBe('Hoje')
+    expect(finalizationWhen({ start: at(19, 8) }, now)).toBe('Ontem')
+    expect(finalizationWhen({ start: at(18, 15) }, now)).toBe('18/11')
   })
 })

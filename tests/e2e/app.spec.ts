@@ -23,7 +23,7 @@ async function login(page: Page, user: TestUser) {
   await page.getByLabel('E-mail').fill(user.email)
   await page.getByLabel('Senha').fill(user.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo registro' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 async function pick(page: Page, files: TestFile[]) {
@@ -46,7 +46,7 @@ async function continueToPhotos(page: Page) {
 async function saveAndGetStage(page: Page): Promise<string> {
   await saveButton(page).click()
   await page.waitForURL(/salvo=/)
-  await expect(page.getByText('Registro salvo.')).toBeVisible()
+  await expect(page.getByText(/^(Molhado|Seco|Dia seguinte) salvo\.$/)).toBeVisible()
   return new URL(page.url()).hash.split('salvo=')[1]
 }
 
@@ -76,11 +76,11 @@ async function noHorizontalScroll(page: Page) {
 
 test('A1: quatro fotos em um envio, troca de posição antes de salvar', async ({ page }) => {
   await login(page, me)
-  await expect(page.getByText('Nenhum registro ainda')).toBeVisible()
+  await expect(page.getByText('Comece sua primeira finalização')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Comparar' })).toBeDisabled()
   await noHorizontalScroll(page)
 
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   // Passo 1: detalhes. Produto e marca são obrigatórios.
   await expect(page.getByText('Passo 1 de 2')).toBeVisible()
   await stageRadio(page, 'Molhado').click()
@@ -103,7 +103,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   ids.wet = await saveAndGetStage(page)
 
   await expect(page.locator('.experiment')).toHaveCount(1)
-  await expect(page.locator('.stage-row')).toHaveCount(1)
+  await expect(page.locator('.moment-tile')).toHaveCount(1)
   const photos = await photosOf(ids.wet)
   expect(Object.keys(photos).sort()).toEqual(['back', 'front', 'left', 'right'])
   expect((await bytesOf(photos.front.storage_path)).equals(LEFT.buffer)).toBe(true)
@@ -112,19 +112,28 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   expect((await bytesOf(photos.back.storage_path)).equals(BACK.buffer)).toBe(true)
 })
 
-test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ page }) => {
+test('A2: + Seco completa a finalização direto nas fotos; observação e favorita persistem', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: 'Adicionar etapa em Ondulando a Gema' }).click()
-  await expect(page.locator('.inherited')).toContainText('Ondulando a Gema')
-  await expect(page.locator('.inherited')).toContainText('Gema Labs')
-  await stageRadio(page, 'Seco').click()
+  // A finalização de hoje tem o Molhado; o próximo momento aparece como atalho.
+  const fin = page.locator('.fin').first()
+  await expect(fin.locator('.fin-when')).toHaveText('Hoje')
+  await expect(fin.locator('.moment-add.next')).toContainText('Seco')
+  await fin.getByRole('link', { name: 'Registrar Seco da finalização de Hoje' }).click()
+
+  // Uma tela só: produto e finalização já são conhecidos.
+  await expect(page.getByRole('heading', { name: 'Seco' })).toBeVisible()
+  await expect(page.locator('.moment-context')).toContainText('Ondulando a Gema')
+  await expect(page.getByText('Passo 1 de 2')).toHaveCount(0)
   await page.getByLabel('Observação').fill('Macio e solto.')
-  await continueToPhotos(page)
   await pick(page, [FRONT, LEFT, RIGHT, BACK])
   ids.dry = await saveAndGetStage(page)
 
   await expect(page.locator('.experiment')).toHaveCount(1)
-  await expect(page.locator('.experiment .stage-row')).toHaveCount(2)
+  await expect(page.locator('.fin')).toHaveCount(1)
+  await expect(page.locator('.fin .moment-tile')).toHaveCount(2)
+  await expect(page.locator('.fin .moment-add.next')).toContainText('Dia seguinte')
+  const { data: st } = await admin.from('stages').select('finalization_id').in('id', [ids.wet, ids.dry])
+  expect(new Set(st!.map((r) => r.finalization_id)).size).toBe(1)
 
   await page.locator(`a[href="#/etapa/${ids.dry}"]`).click()
   const fav = page.getByRole('button', { name: 'Favorita' })
@@ -143,7 +152,7 @@ test('A2: adicionar Seco, editar observação e favoritar persistem', async ({ p
 
 test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
   await continueToPhotos(page)
@@ -216,7 +225,7 @@ test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ 
 
 test('A5: só os ângulos que os dois registros têm ficam clicáveis', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await stageRadio(page, 'Seco').click()
   await productInput(page).fill('Gelatina A5')
   await brandInput(page).fill('Marca Teste')
@@ -228,10 +237,8 @@ test('A5: só os ângulos que os dois registros têm ficam clicáveis', async ({
   ids.backOnly = await saveAndGetStage(page)
   const card = page.locator('.experiment', { hasText: 'Gelatina A5' })
   await expect(card.locator('.product-name')).toHaveText('Gelatina A5')
-  // Sem observação: um traço no lugar, para a linha não mudar de altura.
-  await expect(card.locator('.stage-note')).toHaveText('—')
   await expect(card.locator('.brand-name')).toHaveText('Marca Teste')
-  // A etapa com 1 de 4 fotos mostra o contador ao lado do nome.
+  // O momento com 1 de 4 fotos mostra o contador na miniatura.
   await expect(card.locator('.count-pill')).toHaveText('1/4')
 
   // Três registros Seco: a lista de A abre logo abaixo do campo, com a mesma largura,
@@ -268,7 +275,7 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
     return route.continue()
   })
 
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await stageRadio(page, 'Molhado').click()
   await productInput(page).fill('Creme teste A6')
   await brandInput(page).fill('Marca A6')
@@ -309,14 +316,15 @@ test('A6: resposta perdida na finalização é confirmada no banco, sem duplicar
     }
     return route.continue()
   })
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
   await continueToPhotos(page)
   await pick(page, [FRONT, LEFT])
   await saveAndGetStage(page)
   const after = await counts(me.id)
-  expect(after).toEqual({ experiments: before.experiments! + 1, stages: before.stages! + 1, photos: before.photos! + 2 })
+  // Sem finalizador já está no histórico (A3): a finalização entra nele, sem produto repetido.
+  expect(after).toEqual({ experiments: before.experiments!, stages: before.stages! + 1, photos: before.photos! + 2 })
   expect(finalizeCalls).toBe(1) // confirmou pelo banco, sem reenviar
 })
 
@@ -328,7 +336,7 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
     if (route.request().method() === 'POST' && ++posts > 2) return route.abort('failed')
     return route.continue()
   })
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
   await continueToPhotos(page)
@@ -343,7 +351,7 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
 
 test('A9: arquivo grande, formato não aceito e upload retomável', async ({ page }) => {
   await login(page, me)
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await stageRadio(page, 'Seco').click()
   await page.getByLabel('Sem finalizador').check()
   await continueToPhotos(page)
@@ -378,11 +386,11 @@ test('A9: arquivo grande, formato não aceito e upload retomável', async ({ pag
 
 test('A7: outra conta não vê os registros da conta pessoal', async ({ page }) => {
   await login(page, other)
-  await expect(page.getByText('Nenhum registro ainda')).toBeVisible()
+  await expect(page.getByText('Comece sua primeira finalização')).toBeVisible()
   await page.goto(`./#/etapa/${ids.wet}`)
-  await expect(page.getByText('Etapa não encontrada.')).toBeVisible()
+  await expect(page.getByText('Momento não encontrado.')).toBeVisible()
   await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)
-  await expect(page.getByText('Você ainda não tem etapas salvas.')).toBeVisible()
+  await expect(page.getByText('Você ainda não tem fotos salvas.')).toBeVisible()
   await page.goto('./')
   await page.getByRole('button', { name: 'Sair' }).click()
   await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible()

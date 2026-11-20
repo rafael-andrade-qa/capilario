@@ -1,26 +1,31 @@
-// Histórico: um produto por linha, recolhido. Tocar abre as etapas daquele produto.
-// O produto mais recente começa aberto; o que você abre/fecha é lembrado durante a sessão.
+// Histórico: um produto por linha, recolhido. Tocar abre as finalizações daquele produto,
+// cada uma com os três momentos lado a lado (Molhado, Seco, Dia seguinte) e um atalho para o
+// próximo. O produto mais recente começa aberto; o que você abre/fecha é lembrado na sessão.
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
-import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { TrashIcon } from '../components/TrashIcon'
 import { ImageIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
-import { SwipeRow, type SwipeOpen } from '../components/SwipeRow'
 import { setProductPhoto } from '../lib/api'
 import {
-  ANGLE_LABEL,
+  MOMENT_SLUG,
   STAGE_LABEL,
+  STAGE_TYPES,
   brandLabel,
+  canAddMoment,
+  finalizationWhen,
+  finalizationsOf,
   formatDateRange,
   formatDateTime,
-  formatShortDateTime,
+  formatTime,
+  nextMoment,
   productFullLabel,
   productLabel,
   publishedStages,
   sortHistory,
   type Experiment,
+  type Finalization,
   type Stage,
 } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
@@ -42,8 +47,6 @@ const normalize = (s: string) =>
 
 export function History({ saved, deleted, productPhotoFailed = false }: { saved: string | null; deleted: boolean; productPhotoFailed?: boolean }) {
   const { experiments, error, loading, reload } = useHistory()
-  const [swiped, setSwiped] = useState<{ id: string; dir: SwipeOpen } | null>(null)
-  const [toDelete, setToDelete] = useState<{ stage: Stage; experiment: Experiment } | null>(null)
   const [deletedHere, setDeletedHere] = useState<string | null>(null)
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
@@ -112,12 +115,16 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
 
       <div className="actions-bar">
         <a className="btn btn-primary" href={href('/novo')}>
-          + Novo registro
+          + Nova finalização
         </a>
         <CompareButton total={totalStages} />
       </div>
 
-      {saved && <p className="alert alert-success" role="status">Registro salvo.</p>}
+      {saved && (
+        <p className="alert alert-success" role="status">
+          {savedLabel(list, saved)}
+        </p>
+      )}
       {productPhotoFailed && (
         <p className="alert alert-error" role="alert">
           A foto do produto não foi enviada. Abra o produto e toque no ícone de imagem para tentar de novo.
@@ -125,7 +132,7 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
       )}
       {(deleted || deletedHere) && !saved && (
         <p className="alert alert-success" role="status">
-          {deletedHere ?? 'Etapa excluída.'}
+          {deletedHere ?? 'Momento excluído.'}
         </p>
       )}
       {error && (
@@ -140,10 +147,10 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
 
       {experiments !== null && list.length === 0 && (
         <section className="empty-state card">
-          <h2>Nenhum registro ainda</h2>
-          <p className="muted">Escolha de uma a quatro fotos da galeria para começar seu diário: frente, lados e costas.</p>
+          <h2>Comece sua primeira finalização</h2>
+          <p className="muted">Fotografe o cabelo logo depois de finalizar, depois seco e no dia seguinte. Assim dá para comparar os produtos.</p>
           <a className="btn btn-primary" href={href('/novo')}>
-            Novo registro
+            Nova finalização
           </a>
         </section>
       )}
@@ -164,10 +171,11 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
         <div className="card product-list">
           {visible.map((exp) => {
             const stages = publishedStages(exp)
+            const fins = finalizationsOf(exp)
             const isOpen = open.has(exp.id)
             const brand = brandLabel(exp)
             return (
-              <section key={exp.id} className={`experiment ${isOpen ? 'open' : ''}`} aria-label={`Experimento ${productFullLabel(exp)}`}>
+              <section key={exp.id} className={`experiment ${isOpen ? 'open' : ''}`} aria-label={`Produto ${productFullLabel(exp)}`}>
                 <h2 className="product-title">
                   <button
                     type="button"
@@ -182,8 +190,8 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
                       <span className="muted small experiment-sub">
                         {brand && <span className="brand-name">{brand}</span>}
                         <span className="dates">
-                          {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {stages.length}{' '}
-                          {stages.length === 1 ? 'etapa' : 'etapas'}
+                          {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {fins.length}{' '}
+                          {fins.length === 1 ? 'finalização' : 'finalizações'}
                         </span>
                       </span>
                     </span>
@@ -193,51 +201,24 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
 
                 {isOpen && (
                   <div id={`produto-${exp.id}`} className="product-body">
-                    <ol className="stage-list">
-                      {stages.map((s) => {
-                        const cover = coverPhoto(s)
-                        return (
-                          <li key={s.id}>
-                            <SwipeRow
-                              open={swiped?.id === s.id ? swiped.dir : 0}
-                              onOpenChange={(dir) => setSwiped(dir ? { id: s.id, dir } : null)}
-                              actionText="Excluir"
-                              actionLabel={`Excluir ${STAGE_LABEL[s.stage_type]} de ${formatDateTime(s.captured_at)}`}
-                              onAction={() => setToDelete({ stage: s, experiment: exp })}
-                            >
-                              <a className={`stage-row ${saved === s.id ? 'highlight' : ''}`} href={href(`/etapa/${s.id}`)}>
-                                <PhotoView className="thumb" url={cover ? urls[cover.storage_path] : undefined} alt={cover ? ANGLE_LABEL[cover.angle] : ''} />
-                                <div className="stage-row-text">
-                                  <div className="stage-row-top">
-                                    <strong>
-                                      {STAGE_LABEL[s.stage_type]}
-                                      {s.is_favorite && <span className="star" aria-label="favorita"> ★</span>}
-                                      {s.photos.length < 4 && (
-                                        <span className="count-pill" title="Fotos desta etapa (de 4 ângulos)">
-                                          {s.photos.length}/4
-                                        </span>
-                                      )}
-                                    </strong>
-                                    <time className="muted small" dateTime={s.captured_at} title={formatDateTime(s.captured_at)}>
-                                      {formatShortDateTime(s.captured_at)}
-                                    </time>
-                                  </div>
-                                  <span className={`muted small stage-note ${s.notes ? '' : 'empty'}`}>
-                                    {s.notes ?? <span aria-label="Sem observação">—</span>}
-                                  </span>
-                                </div>
-                              </a>
-                            </SwipeRow>
-                          </li>
-                        )
-                      })}
+                    <ol className="fin-list">
+                      {fins.map((f, i) => (
+                        <FinalizationRow
+                          key={f.id}
+                          finalization={f}
+                          urls={urls}
+                          saved={saved}
+                          latest={i === 0}
+                          withTime={fins.some((o) => o !== f && finalizationWhen(o) === finalizationWhen(f))}
+                        />
+                      ))}
                     </ol>
                     <div className="product-actions">
                       <a
                         className="icon-btn product-add"
-                        href={href(`/experimento/${exp.id}/nova-etapa`)}
-                        aria-label={`Adicionar etapa em ${productLabel(exp)}`}
-                        title="Adicionar etapa"
+                        href={href(`/produto/${exp.id}/nova-finalizacao`)}
+                        aria-label={`Nova finalização com ${productLabel(exp)}`}
+                        title="Nova finalização com este produto"
                       >
                         <PlusIcon />
                       </a>
@@ -258,22 +239,6 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
             )
           })}
         </div>
-      )}
-
-      {toDelete && (
-        <DeleteStageDialog
-          stage={toDelete.stage}
-          experiment={toDelete.experiment}
-          onCancel={() => {
-            setToDelete(null)
-            setSwiped(null)
-          }}
-          onDeleted={() => {
-            setToDelete(null)
-            setSwiped(null)
-            setDeletedHere('Etapa excluída.')
-          }}
-        />
       )}
 
       {productToDelete && (
@@ -360,8 +325,95 @@ function CompareButton({ total }: { total: number }) {
         Comparar
       </button>
       <span id="compare-hint" className="muted small">
-        {missing === 2 ? 'Registre duas etapas para comparar.' : 'Falta mais 1 etapa para comparar.'}
+        {missing === 2 ? 'Registre dois momentos para comparar.' : 'Falta mais 1 momento para comparar.'}
       </span>
     </div>
+  )
+}
+
+/** Aviso depois de salvar: "Seco salvo.", "Dia seguinte salvo." */
+function savedLabel(list: Experiment[], stageId: string): string {
+  for (const e of list) {
+    const st = e.stages.find((x) => x.id === stageId)
+    if (st) return `${STAGE_LABEL[st.stage_type]} salvo.`
+  }
+  return 'Salvo.'
+}
+
+/** Uma finalização: os três momentos lado a lado; o que falta vira atalho (nos primeiros dias). */
+function FinalizationRow({
+  finalization: f,
+  urls,
+  saved,
+  latest,
+  withTime,
+}: {
+  finalization: Finalization
+  urls: Record<string, string>
+  saved: string | null
+  latest: boolean
+  withTime: boolean
+}) {
+  const when = withTime ? `${finalizationWhen(f)}, ${formatTime(f.start)}` : finalizationWhen(f)
+  const next = nextMoment(f)
+  // Completar só a mais recente do produto, nos primeiros dias (refazer = finalização nova).
+  const addable = latest && canAddMoment(f)
+  const first = STAGE_TYPES.findIndex((t) => f.moments[t])
+  return (
+    <li className="fin" aria-label={`Finalização de ${when}`}>
+      <div className="fin-when muted small">{when}</div>
+      <div className="fin-strip">
+        {STAGE_TYPES.map((t, i) => {
+          const st = f.moments[t]
+          if (st) return <MomentTile key={t} stage={st} urls={urls} highlight={saved === st.id} />
+          if (addable && i > first) {
+            return (
+              <a
+                key={t}
+                className={`moment-add ${t === next ? 'next' : ''}`}
+                href={href(`/finalizacao/${f.id}/${MOMENT_SLUG[t]}`)}
+                aria-label={`Registrar ${STAGE_LABEL[t]} da finalização de ${when}`}
+              >
+                <span className="moment-frame" aria-hidden="true">
+                  +
+                </span>
+                <span className="moment-label">{STAGE_LABEL[t]}</span>
+              </a>
+            )
+          }
+          return (
+            <div key={t} className="moment-empty" aria-hidden="true">
+              <span className="moment-frame">—</span>
+              <span className="moment-label">{STAGE_LABEL[t]}</span>
+            </div>
+          )
+        })}
+      </div>
+    </li>
+  )
+}
+
+function MomentTile({ stage, urls, highlight }: { stage: Stage; urls: Record<string, string>; highlight: boolean }) {
+  const cover = coverPhoto(stage)
+  return (
+    <a className={`moment-tile ${highlight ? 'highlight' : ''}`} href={href(`/etapa/${stage.id}`)} title={formatDateTime(stage.captured_at)}>
+      <span className="moment-frame">
+        <PhotoView className="moment-photo" url={cover ? urls[cover.storage_path] : undefined} alt="" />
+        {stage.photos.length < 4 && (
+          <span className="count-pill" title="Fotos deste momento (de 4 ângulos)">
+            {stage.photos.length}/4
+          </span>
+        )}
+        {stage.is_favorite && (
+          <span className="star" aria-label="favorita">
+            ★
+          </span>
+        )}
+      </span>
+      <span className="moment-label">{STAGE_LABEL[stage.stage_type]}</span>
+      <time className="moment-time muted" dateTime={stage.captured_at}>
+        {formatTime(stage.captured_at)}
+      </time>
+    </a>
   )
 }

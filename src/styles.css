@@ -1646,3 +1646,130 @@ input[list]::-webkit-list-button {
 .dd.fixed .dd-trigger {
   cursor: default;
 }
+
+/* Finalizações: uma por linha, os três momentos lado a lado ------------------ */
+.fin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fin {
+  padding: 8px 0 10px;
+}
+.fin + .fin {
+  border-top: 1px solid var(--line);
+}
+.fin-when {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.fin-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 88px));
+  gap: 8px;
+}
+.moment-tile,
+.moment-add,
+.moment-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.moment-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.moment-frame .moment-photo {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+.moment-tile.highlight .moment-frame {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.moment-tile:focus-visible,
+.moment-add:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+.moment-frame .count-pill {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  margin: 0;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  color: var(--text);
+}
+.moment-frame .star {
+  position: absolute;
+  right: 6px;
+  top: 4px;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+.moment-label {
+  font-weight: 600;
+  font-size: 0.82rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.moment-time {
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+.moment-add .moment-frame {
+  border: 1.5px dashed var(--line);
+  color: var(--muted);
+  font-size: 1.5rem;
+  font-weight: 300;
+}
+.moment-add.next .moment-frame {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+.moment-add.next .moment-label {
+  color: var(--brand);
+}
+.moment-add:hover .moment-frame {
+  border-color: var(--brand);
+}
+.moment-empty {
+  opacity: 0.45;
+}
+.moment-empty .moment-frame {
+  border: 1px dashed var(--line);
+  color: var(--muted);
+}
+.moment-empty .moment-label {
+  font-weight: 500;
+  color: var(--muted);
+}
+/* Próximo momento: o produto e a finalização, numa linha. */
+.moment-context {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.moment-context > span {
+  color: var(--text);
+  font-weight: 600;
+}
+.product-known {
+  margin: calc(8px - var(--form-gap)) 0 0;
+}

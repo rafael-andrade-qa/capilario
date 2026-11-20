@@ -41,7 +41,7 @@ async function login(page: Page) {
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo registro' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 const toggle = (page: Page, name: string) => page.locator('.experiment', { hasText: name }).locator('.product-toggle')
@@ -51,7 +51,7 @@ test('produtos recolhidos: só o mais recente aberto, busca e abrir/fechar', asy
   await expect(page.locator('.experiment')).toHaveCount(7)
   await expect(page.locator('.experiment.open')).toHaveCount(1)
   await expect(toggle(page, 'Gelatina Supervolume')).toHaveAttribute('aria-expanded', 'true')
-  await expect(page.locator('.stage-row')).toHaveCount(1)
+  await expect(page.locator('.moment-tile')).toHaveCount(1)
 
   // Abrir outro não fecha o primeiro.
   await toggle(page, 'Óleo Finalizador').click()
@@ -71,7 +71,7 @@ test('produtos recolhidos: só o mais recente aberto, busca e abrir/fechar', asy
 
   // Abrir, entrar numa etapa e voltar mantém o que estava aberto.
   await toggle(page, 'Creme Leave-in').click()
-  await page.locator('.experiment', { hasText: 'Creme Leave-in' }).locator('.stage-row').click()
+  await page.locator('.experiment', { hasText: 'Creme Leave-in' }).locator('.moment-tile').click()
   await expect(page.getByRole('heading', { name: 'Seco' })).toBeVisible()
   await page.getByRole('link', { name: 'Voltar ao histórico' }).click()
   await expect(toggle(page, 'Creme Leave-in')).toHaveAttribute('aria-expanded', 'true')
@@ -102,7 +102,7 @@ test('excluir um produto inteiro pela lixeira', async ({ page }) => {
   await toggle(page, 'Óleo Finalizador').click()
   await page.getByRole('button', { name: 'Excluir produto Óleo Finalizador' }).click()
   const dialog = page.getByRole('alertdialog', { name: 'Excluir este produto?' })
-  await expect(dialog).toContainText('A etapa e a foto serão apagadas')
+  await expect(dialog).toContainText('A finalização e a foto serão apagadas')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Produto excluído.')).toBeVisible()
   await expect(page.locator('.experiment', { hasText: 'Óleo Finalizador' })).toHaveCount(0)
@@ -112,7 +112,7 @@ test('excluir um produto inteiro pela lixeira', async ({ page }) => {
 
 test('novo registro com foto do produto, em dois passos', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: '+ Novo registro' }).click()
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await page.locator('label.seg', { hasText: 'Molhado' }).click()
   await page.getByRole('combobox', { name: 'Produto', exact: true }).fill('Máscara Nova')
   await page.getByRole('combobox', { name: 'Marca', exact: true }).fill('Marca Nova')
@@ -136,4 +136,28 @@ test('novo registro com foto do produto, em dois passos', async ({ page }) => {
   const { data } = await admin.from('experiments').select('photo_path, brand').eq('product_name', 'Máscara Nova').eq('user_id', me.id).single()
   expect(data!.brand).toBe('Marca Nova')
   expect(data!.photo_path).toMatch(/\/produto-/)
+})
+
+test('nova finalização com um produto já usado entra no histórico dele', async ({ page }) => {
+  await login(page)
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  // Molhado já vem marcado: uma finalização nova quase sempre começa nele.
+  await expect(page.locator('label.seg', { hasText: 'Molhado' })).toHaveClass(/on/)
+  await page.getByRole('combobox', { name: 'Produto', exact: true }).fill('creme de pentear')
+  await page.getByRole('combobox', { name: 'Marca', exact: true }).fill('Widi Care')
+  await expect(page.getByText('Já está no seu histórico: a finalização entra nesse produto.')).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await page.getByTestId('gallery-input').setInputFiles([LEFT])
+  await expect(page.getByText('Verificando…')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  await page.waitForURL(/salvo=/)
+  await expect(page.getByText('Molhado salvo.')).toBeVisible()
+
+  const product = products.find((x) => x.name === 'Creme de Pentear')!
+  const { data } = await admin.from('experiments').select('id').eq('user_id', me.id).ilike('product_name', 'creme de pentear')
+  expect(data!.map((r) => r.id)).toEqual([product.id])
+  const card = page.locator('.experiment', { hasText: 'Creme de Pentear' })
+  await expect(card).toHaveClass(/open/)
+  await expect(card.locator('.fin')).toHaveCount(2)
+  await expect(card.locator('.experiment-sub')).toContainText('2 finalizações')
 })

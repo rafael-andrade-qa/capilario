@@ -1,17 +1,27 @@
 # Projeto Capilar
 
-Diário fotográfico capilar pessoal, em português, pensado para o celular. Registre o cabelo em
-**Molhado**, **Seco** e **Dia seguinte**, com até quatro ângulos (**Frente**, **Esquerdo**,
-**Direito**, **Costas**), e compare duas etapas lado a lado no mesmo ângulo.
+Diário fotográfico capilar pessoal, em português, pensado para o celular. Cada **finalização** é um
+dia de lavagem com um produto, fotografado em três **momentos**: **Molhado**, **Seco** e
+**Dia seguinte**, com até quatro ângulos (**Frente**, **Esquerdo**, **Direito**, **Costas**). O
+comparador põe dois momentos iguais lado a lado no mesmo ângulo.
 
-O histórico mostra um produto por linha (nome, marca, datas e foto da embalagem); tocar abre as etapas.
-O mais recente começa aberto, e a busca por produto ou marca aparece a partir de 6 produtos.
+Estrutura: produto (experimento) → finalização → momento (etapa) → fotos. Cada finalização tem no
+máximo um momento de cada tipo; refazer a finalização (lavar de novo) é uma finalização nova.
 
-O novo registro tem dois passos: detalhes (etapa, data, produto, marca, foto do produto e observação)
-e depois as fotos, com um único botão fixo no rodapé.
+O histórico mostra um produto por linha (nome, marca, datas e foto da embalagem); tocar abre as
+finalizações, cada uma com os três momentos lado a lado. Na finalização mais recente do produto, nos
+primeiros 3 dias, o que falta aparece como atalho (**+ Seco**, **+ Dia seguinte**): abre direto as
+fotos, sem perguntar produto de novo. O mais recente começa aberto, e a busca por produto ou marca
+aparece a partir de 6 produtos.
 
-No comparador você escolhe a etapa primeiro. Molhado só se compara com Molhado. Seco e Dia seguinte
-se comparam com o mesmo tipo e também entre si, para ver como o Seco amanheceu.
+**Nova finalização** tem dois passos: detalhes (momento, já marcado em Molhado, data, produto, marca e
+observação) e depois as fotos (e a foto da embalagem, se o produto for novo), com um único botão fixo
+no rodapé. Digitar um produto que já está no histórico (mesmo nome e marca, ou Sem finalizador) põe a
+finalização nele, sem criar produto repetido.
+
+No comparador você escolhe o momento primeiro e só compara iguais: Molhado com Molhado, Seco com Seco,
+Dia seguinte com Dia seguinte. Cada lista esconde o que está do outro lado, e só os ângulos que os dois
+registros têm ficam clicáveis.
 
 - **Frontend:** React + TypeScript + Vite, roteamento por hash, PWA instalável.
 - **Backend gerenciado:** Supabase (Auth com e-mail e senha, Postgres com RLS, Storage privado).
@@ -80,8 +90,8 @@ Variáveis de build: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `BAS
 - **Android (Chrome):** abra a URL, entre na conta, menu ⋮ → **Instalar app** (ou *Adicionar à tela inicial*).
 - **iPhone (Safari):** abra a URL, toque em **Compartilhar** → **Adicionar à Tela de Início** → *Adicionar*.
 
-O atalho abre o histórico, com **Novo registro** no topo. No Android, pressionar o ícone também mostra
-os atalhos *Novo registro* e *Comparar*.
+O atalho abre o histórico, com **Nova finalização** no topo. No Android, pressionar o ícone também mostra
+os atalhos *Nova finalização* e *Comparar*.
 
 ## Como o envio funciona
 
@@ -98,14 +108,14 @@ os atalhos *Novo registro* e *Comparar*.
 6. Arquivos descartados são apagados só depois de confirmar no banco que não foram associados; a política do
    Storage também impede apagar uma foto publicada.
 
-## Excluir uma etapa
+## Excluir um momento ou um produto
 
-- **No histórico:** deslize a linha da etapa para o lado (qualquer sentido) e toque em **Excluir**.
-  Tocar na linha aberta só a fecha.
-- **No detalhe da etapa:** botão **Excluir etapa**, no fim da tela.
+- **Momento:** no detalhe, ícone de lixeira no cabeçalho (**Excluir momento**).
+- **Produto inteiro:** no histórico, com o produto aberto, ícone de lixeira à direita.
 
-Os dois pedem confirmação. A função `delete_stage` (Postgres, `SECURITY INVOKER`) apaga a etapa e as fotos numa
-transação. Se era a última etapa do produto, o experimento também sai. Em seguida o app apaga os arquivos do Storage:
+Os dois pedem confirmação. A função `delete_stage` (Postgres, `SECURITY INVOKER`) apaga o momento e as fotos numa
+transação. Se era o último momento da finalização, a finalização sai; se era o último do produto, o experimento
+também sai. Em seguida o app apaga os arquivos do Storage:
 sem a linha em `photos`, a política de exclusão libera o objeto para o dono. Não tem como desfazer.
 
 ### Arquivos órfãos (aba fechada durante o envio)

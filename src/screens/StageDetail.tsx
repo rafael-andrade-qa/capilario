@@ -38,8 +38,8 @@ export function StageDetail({ stageId }: { stageId: string }) {
   if (!found || !stage) {
     return (
       <main className="page">
-        <PageHeader title="Etapa" back={{ label: 'Voltar ao histórico', href: href('/') }} />
-        <p className="muted">{experiments === null || loading ? 'Carregando…' : 'Etapa não encontrada.'}</p>
+        <PageHeader title="Momento" back={{ label: 'Voltar ao histórico', href: href('/') }} />
+        <p className="muted">{experiments === null || loading ? 'Carregando…' : 'Momento não encontrado.'}</p>
       </main>
     )
   }
@@ -89,7 +89,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
         back={{ label: 'Voltar ao histórico', href: href('/') }}
         right={
         <div className="detail-actions">
-          <a className="icon-btn" href={href(`/comparar?a=${stage.id}`)} aria-label="Comparar esta etapa" title="Comparar">
+          <a className="icon-btn" href={href(`/comparar?a=${stage.id}`)} aria-label="Comparar este momento" title="Comparar">
             <CompareIcon />
           </a>
           <button
@@ -102,7 +102,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
           >
             <span aria-hidden="true">{stage.is_favorite ? '★' : '☆'}</span>
           </button>
-          <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} aria-label="Excluir etapa" title="Excluir etapa">
+          <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} aria-label="Excluir momento" title="Excluir momento">
             <TrashIcon />
           </button>
         </div>

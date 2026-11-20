@@ -6,7 +6,7 @@ import { uploadPhoto } from './upload'
 import { uuid } from './uuid'
 
 const HISTORY_SELECT =
-  'id, product_mode, product_name, brand, photo_path, created_at, stages(id, experiment_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
+  'id, product_mode, product_name, brand, photo_path, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
 
 export async function fetchHistory(): Promise<Experiment[]> {
   const { data, error } = await supabase.from('experiments').select(HISTORY_SELECT).order('created_at', { ascending: false })
@@ -17,7 +17,7 @@ export async function fetchHistory(): Promise<Experiment[]> {
 export async function updateStage(stageId: string, patch: { notes?: string | null; is_favorite?: boolean }): Promise<void> {
   const { data, error } = await supabase.from('stages').update(patch).eq('id', stageId).select('id')
   if (error) throw new Error(`Não foi possível salvar: ${error.message}`)
-  if (!data?.length) throw new Error('Etapa não encontrada.')
+  if (!data?.length) throw new Error('Momento não encontrado.')
 }
 
 export interface FinalizePhoto {
@@ -33,7 +33,8 @@ export interface FinalizeArgs {
   stageId: string
   photos: FinalizePhoto[]
   newExperiment?: { product_mode: ProductMode; product_name: string | null; brand: string | null } | null
-  newStage?: { stage_type: StageType; captured_at: string; notes: string | null } | null
+  /** finalization_id: uma nova (começar finalização) ou a existente (registrar o próximo momento). */
+  newStage?: { stage_type: StageType; captured_at: string; notes: string | null; finalization_id: string } | null
 }
 
 export interface FinalizeResult {
@@ -46,11 +47,13 @@ export interface FinalizeResult {
 export class AmbiguousError extends Error {}
 
 const FRIENDLY: Record<string, string> = {
-  angle_taken: 'Esse ângulo já tem uma foto publicada nesta etapa.',
+  angle_taken: 'Esse ângulo já tem uma foto publicada neste momento.',
+  moment_taken: 'Essa finalização já tem esse momento registrado.',
+  finalization_not_found: 'Finalização não encontrada.',
   object_missing: 'Uma das imagens não chegou ao armazenamento. Tente enviar de novo.',
   photos_required: 'Escolha ao menos uma foto.',
-  experiment_not_found: 'Experimento não encontrado.',
-  stage_not_found: 'Etapa não encontrada.',
+  experiment_not_found: 'Produto não encontrado.',
+  stage_not_found: 'Momento não encontrado.',
   not_authenticated: 'Sua sessão expirou. Entre novamente.',
 }
 

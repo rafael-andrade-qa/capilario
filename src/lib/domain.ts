@@ -33,6 +33,8 @@ export interface Photo {
 export interface Stage {
   id: string
   experiment_id: string
+  /** Finalização (dia de lavagem) a que este momento pertence. */
+  finalization_id: string
   stage_type: StageType
   captured_at: string
   notes: string | null
@@ -169,10 +171,69 @@ export function stageOptionLabel(stage: Stage, experiment: Experiment, now = new
   return `${when} · ${productLabel(experiment)}`
 }
 
+// ---------------------------------------------------------------------------
+// Finalizações: um dia de lavagem com um produto, com até um momento de cada tipo.
+// ---------------------------------------------------------------------------
+export interface Finalization {
+  id: string
+  experimentId: string
+  moments: Partial<Record<StageType, Stage>>
+  /** Primeiro e último horário registrados. */
+  start: string
+  end: string
+}
+
+/** Finalizações do produto, da mais recente para a mais antiga. */
+export function finalizationsOf(e: Experiment): Finalization[] {
+  const map = new Map<string, Finalization>()
+  for (const s of publishedStages(e)) {
+    const f = map.get(s.finalization_id)
+    if (!f) map.set(s.finalization_id, { id: s.finalization_id, experimentId: e.id, moments: { [s.stage_type]: s }, start: s.captured_at, end: s.captured_at })
+    else {
+      f.moments[s.stage_type] ??= s
+      f.end = s.captured_at
+    }
+  }
+  return [...map.values()].sort((a, b) => ts(b.start) - ts(a.start))
+}
+
+/** Próximo momento a registrar: o primeiro que falta depois do primeiro já registrado. */
+export function nextMoment(f: Pick<Finalization, 'moments'>): StageType | null {
+  const first = STAGE_TYPES.findIndex((t) => f.moments[t])
+  return STAGE_TYPES.find((t, i) => i > first && !f.moments[t]) ?? null
+}
+
+/** Dá para completar a finalização? Só nos primeiros dias (depois não faz mais sentido). */
+export const ADD_MOMENT_WINDOW_MS = 3 * 24 * 60 * 60 * 1000
+export function canAddMoment(f: Pick<Finalization, 'start'>, now = new Date()): boolean {
+  return now.getTime() - ts(f.start) <= ADD_MOMENT_WINDOW_MS
+}
+
+export function findFinalization(experiments: Experiment[], id: string): { experiment: Experiment; finalization: Finalization } | null {
+  for (const experiment of experiments) {
+    const finalization = finalizationsOf(experiment).find((f) => f.id === id)
+    if (finalization) return { experiment, finalization }
+  }
+  return null
+}
+
+/** Dia em que a finalização começou: "Hoje", "Ontem" ou a data curta (18/11). */
+export function finalizationWhen(f: Pick<Finalization, 'start'>, now = new Date()): string {
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diff = Math.round((day(now) - day(new Date(f.start))) / 86400000)
+  return diff === 0 ? 'Hoje' : diff === 1 ? 'Ontem' : formatShortDate(f.start, now)
+}
+
 export function photoByAngle(stage: Pick<Stage, 'photos'>, angle: Angle): Photo | undefined {
   return stage.photos.find((p) => p.angle === angle)
 }
 
 export function missingAngles(stage: Pick<Stage, 'photos'>): Angle[] {
   return ANGLES.filter((a) => !photoByAngle(stage, a))
+}
+
+/** Momento no endereço: /finalizacao/<id>/seco */
+export const MOMENT_SLUG: Record<StageType, string> = { wet: 'molhado', dry: 'seco', next_day: 'dia-seguinte' }
+export function momentFromSlug(slug: string): StageType | null {
+  return STAGE_TYPES.find((t) => MOMENT_SLUG[t] === slug) ?? null
 }

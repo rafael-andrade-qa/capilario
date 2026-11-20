@@ -55,7 +55,12 @@ function Screens({ userId }: { userId: string }) {
   const { path, params } = useRoute()
   let m: Record<string, string> | null
   if (path === '/novo') return <StageFormRoute kind="new" userId={userId} />
-  if ((m = match('/experimento/:id/nova-etapa', path))) return <StageFormRoute kind="add" userId={userId} experimentId={m.id} />
+  // Nova finalização com um produto que já está no histórico (o caminho antigo continua valendo).
+  if ((m = match('/produto/:id/nova-finalizacao', path)) || (m = match('/experimento/:id/nova-etapa', path)))
+    return <StageFormRoute kind="add" userId={userId} experimentId={m.id} />
+  // Próximo momento de uma finalização: /finalizacao/<id>/seco
+  if ((m = match('/finalizacao/:id/:momento', path)))
+    return <StageFormRoute kind="moment" userId={userId} finalizationId={m.id} moment={m.momento} />
   if ((m = match('/etapa/:id/completar', path))) return <StageFormRoute kind="complete" userId={userId} stageId={m.id} />
   if ((m = match('/etapa/:id', path))) return <StageDetail stageId={m.id} />
   if (path === '/comparar') return <Compare params={params} />
