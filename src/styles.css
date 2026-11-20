@@ -1773,8 +1773,10 @@ input[list]::-webkit-list-button {
   color: var(--text);
   font-weight: 600;
 }
-.product-known {
-  margin: calc(8px - var(--form-gap)) 0 0;
+/* Logo abaixo da Marca, mais perto dela do que o próximo campo. */
+.form-fields > .product-known {
+  margin: 6px 0 0;
+  line-height: 1.35;
 }
 
 .edit-scope {

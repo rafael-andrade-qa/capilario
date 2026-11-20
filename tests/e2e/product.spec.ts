@@ -206,7 +206,7 @@ test('nova finalização com um produto já usado entra no histórico dele', asy
   await expect(page.locator('label.seg', { hasText: 'Molhado' })).toHaveClass(/on/)
   await page.getByRole('combobox', { name: 'Produto', exact: true }).fill('creme de pentear')
   await page.getByRole('combobox', { name: 'Marca', exact: true }).fill('Widi Care')
-  await expect(page.getByText('Já está no seu histórico: a finalização entra nesse produto.')).toBeVisible()
+  await expect(page.getByText('Já está no seu histórico: entra nesse produto.')).toBeVisible()
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByTestId('gallery-input').setInputFiles([LEFT])
   await expect(page.getByText('Verificando…')).toHaveCount(0)

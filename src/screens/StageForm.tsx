@@ -639,7 +639,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType }
               </div>
               {productMatch && (
                 <p className="muted small product-known" role="status">
-                  Já está no seu histórico: a finalização entra nesse produto.
+                  Já está no seu histórico: entra nesse produto.
                 </p>
               )}
 
