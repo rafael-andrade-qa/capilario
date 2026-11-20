@@ -50,24 +50,39 @@ export const CATEGORY_LABEL: Record<string, string> = {
   tratamento: 'Tratamento',
 }
 
-/** Produtos por página na busca (cabe na tela sem rolar). */
-export const PAGE_SIZE = 5
+/** Altura de cada linha da lista (fixa no CSS: .catalog-row + a linha divisória). */
+export const ROW_HEIGHT = 77
+/** Paginação (botões de 36 px, -4 em cima e 8 embaixo) e a moldura da lista (8 de folga,
+ * 2 de borda e 12 de margem). Valores do CSS (.pager, .catalog-list). */
+const PAGER_HEIGHT = 40
+const LIST_CHROME = 22
+
+/**
+ * Quantos produtos cabem na tela sem rolar: o espaço entre o começo da lista e o rodapé fixo,
+ * já descontada a paginação, dividido pela altura de uma linha (no mínimo 3, no máximo 12).
+ */
+export function pageSizeFor(viewportHeight: number, listTop: number, footerHeight: number): number {
+  const room = viewportHeight - listTop - footerHeight - PAGER_HEIGHT - LIST_CHROME
+  // n linhas ocupam n * 77 - 1 (a primeira não tem a linha divisória).
+  return Math.max(3, Math.min(12, Math.floor((room + 1) / ROW_HEIGHT)))
+}
 
 /** Uma página da busca; hasNext diz se existe a próxima (pede um item a mais para saber). */
 export async function searchCatalog(
   query: string,
-  opts: { brand?: string | null; audience?: 'masculino' | null; page?: number } = {},
+  opts: { brand?: string | null; page?: number; pageSize: number },
 ): Promise<{ items: CatalogItem[]; hasNext: boolean }> {
+  const size = opts.pageSize
   const { data, error } = await supabase.rpc('search_catalog', {
     p_query: query,
     p_brand: opts.brand ?? null,
-    p_audience: opts.audience ?? null,
-    p_limit: PAGE_SIZE + 1,
-    p_offset: (opts.page ?? 0) * PAGE_SIZE,
+    p_audience: null,
+    p_limit: size + 1,
+    p_offset: (opts.page ?? 0) * size,
   })
   if (error) throw new Error('Não foi possível buscar no catálogo agora.')
   const rows = (data ?? []) as CatalogItem[]
-  return { items: rows.slice(0, PAGE_SIZE), hasNext: rows.length > PAGE_SIZE }
+  return { items: rows.slice(0, size), hasNext: rows.length > size }
 }
 
 let brandsCache: Promise<CatalogBrand[]> | null = null

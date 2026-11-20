@@ -2051,13 +2051,7 @@ body:has(.save-bar) .toasts {
 }
 
 /* Catálogo (Novo produto) ---------------------------------------------- */
-/* Filtros: Marca (abre a folha com todas) e Público (Todos | Masculino), lado a lado. */
-.catalog-filters {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: stretch;
-}
+/* Filtro de marca (abre a folha com todas). */
 .brand-filter {
   position: relative;
   min-width: 0;
@@ -2106,11 +2100,6 @@ body:has(.save-bar) .toasts {
   font: inherit;
   cursor: pointer;
 }
-.audience-filter .seg {
-  min-height: 40px;
-  padding: 4px 12px;
-  font-size: 0.9rem;
-}
 .catalog-caption {
   margin: 10px 2px 8px;
 }
@@ -2119,7 +2108,7 @@ body:has(.save-bar) .toasts {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin: -4px 0 12px;
+  margin: -4px 0 8px;
 }
 .catalog-list {
   list-style: none;
@@ -2391,4 +2380,22 @@ body:has(.save-bar) .toasts {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Linha do catálogo com altura fixa: nome em até 2 linhas e marca · tipo numa linha. */
+.catalog-list .catalog-row {
+  height: 76px;
+  min-height: 0;
+  padding: 6px 0;
+}
+.catalog-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-thumb {
+  width: 40px;
+}
+.catalog-list .catalog-row {
+  overflow: hidden;
 }

@@ -41,7 +41,7 @@ test.beforeAll(async () => {
   const b = await admin.from('catalog_brands').insert([
     { id: brandA, name: `Crespa ${tag}`, audience: 'geral', product_count: 900000 },
     { id: brandM, name: `Barbearia ${tag}`, audience: 'masculino', product_count: 800000 },
-    { id: brandP, name: `Paginas ${tag}`, audience: 'geral', product_count: 7 },
+    { id: brandP, name: `Paginas ${tag}`, audience: 'geral', product_count: 25 },
   ])
   if (b.error) throw b.error
   const items = [
@@ -56,8 +56,11 @@ test.beforeAll(async () => {
   }
   const p = await admin.from('catalog_products').insert(items)
   if (p.error) throw p.error
-  // 7 produtos de uma marca, sem foto, para testar as páginas de 5.
-  const many = Array.from({ length: 7 }, (_, i) => ({ ...row(`p${i}`, brandP, `Paginas ${tag}`, `Shampoo Numero ${i + 1}`, 'shampoo', 'unissex', 100 - i), image_path: null }))
+  // 25 produtos de uma marca, sem foto, para testar as páginas (nomes longos: 2 linhas).
+  const many = Array.from({ length: 25 }, (_, i) => ({
+    ...row(`p${i}`, brandP, `Paginas ${tag}`, `Shampoo Numero ${String(i + 1).padStart(2, '0')} Hidratação Profunda com Óleo de Argan e Queratina`, 'shampoo', 'unissex', 100 - i),
+    image_path: null,
+  }))
   const m = await admin.from('catalog_products').insert(many)
   if (m.error) throw m.error
 })
@@ -110,19 +113,17 @@ async function chooseBrand(page: Page, name: string) {
   await expect(sheet).toHaveCount(0)
 }
 
-test('filtros: Público (Masculino) e Marca (lista com busca); o que já está no histórico aparece marcado', async ({ page }) => {
+test('filtro de marca (lista com busca); o que já está no histórico aparece marcado', async ({ page }) => {
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
-  // Masculino não é marca: é um filtro à parte.
-  await page.locator('label.seg', { hasText: 'Masculino' }).click()
-  await expect(page.getByRole('radio', { name: 'Masculino' })).toBeChecked()
+  // Só marca: nada de "Masculino" misturado.
+  await expect(page.getByText('Masculino', { exact: true })).toHaveCount(0)
   await chooseBrand(page, `Barbearia ${tag}`)
   await expect(page.getByRole('button', { name: `Marca: Barbearia ${tag}. Trocar marca` })).toBeVisible()
   await expect(results(page)).toHaveCount(1)
   await expect(results(page).first()).toContainText('Pomada Efeito Matte')
 
   await page.getByRole('button', { name: 'Limpar marca' }).click()
-  await page.locator('label.seg', { hasText: 'Todos' }).click()
   await chooseBrand(page, `Crespa ${tag}`)
   await expect(results(page)).toHaveCount(2)
   const owned = results(page).filter({ hasText: 'Creme de Pentear Cachos Leves' })
@@ -130,20 +131,37 @@ test('filtros: Público (Masculino) e Marca (lista com busca); o que já está n
   await expect(owned).toBeDisabled()
 })
 
-test('páginas de 5, com Anterior e Próxima', async ({ page }) => {
-  await login(page)
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
-  await chooseBrand(page, `Paginas ${tag}`)
-  await expect(results(page)).toHaveCount(5)
-  await expect(results(page).first()).toContainText('Shampoo Numero 1')
-  await expect(page.getByRole('button', { name: '‹ Anterior' })).toBeDisabled()
-  await page.getByRole('button', { name: 'Próxima ›' }).click()
-  await expect(results(page)).toHaveCount(2)
-  await expect(page.getByText('Página 2', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Próxima ›' })).toBeDisabled()
-  await page.getByRole('button', { name: '‹ Anterior' }).click()
-  await expect(results(page)).toHaveCount(5)
-})
+for (const size of [
+  { width: 390, height: 664 }, // iPhone com a barra do Safari
+  { width: 412, height: 839 }, // Android maior / app instalado
+]) {
+  test(`página cabe na tela sem rolar (${size.width}x${size.height}), com Anterior e Próxima`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await login(page)
+    await page.getByRole('link', { name: '+ Novo produto' }).click()
+    await chooseBrand(page, `Paginas ${tag}`)
+    await expect(page.getByRole('button', { name: 'Próxima ›' })).toBeEnabled()
+    const n = await results(page).count()
+    expect(n).toBeGreaterThanOrEqual(3)
+    // Nada para rolar: a lista, a paginação e o rodapé cabem na altura da tela.
+    expect(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(1)
+    // E não sobra espaço para mais uma linha (77 px).
+    const gap = await page.evaluate(() => {
+      const pager = document.querySelector('.pager')!.getBoundingClientRect()
+      const bar = document.querySelector('.save-bar')!.getBoundingClientRect()
+      return bar.top - pager.bottom - parseFloat(getComputedStyle(document.querySelector('.pager')!).marginBottom)
+    })
+    expect(gap).toBeGreaterThanOrEqual(0)
+    expect(gap).toBeLessThan(77)
+
+    await expect(results(page).first()).toContainText('Shampoo Numero 01')
+    await page.getByRole('button', { name: 'Próxima ›' }).click()
+    await expect(page.getByText('Página 2', { exact: true })).toBeVisible()
+    await expect(results(page).first()).toContainText(`Shampoo Numero ${String(n + 1).padStart(2, '0')}`)
+    await page.getByRole('button', { name: '‹ Anterior' }).click()
+    await expect(results(page)).toHaveCount(n)
+  })
+}
 
 test('pela foto: a função acha no catálogo e a foto pronta vem primeiro', async ({ page }) => {
   await page.route('**/functions/v1/identify-product', (route) =>
