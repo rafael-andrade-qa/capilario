@@ -114,7 +114,7 @@ test('atalhos: Masculino e marca; o que já está no histórico aparece marcado'
   await expect(owned).toBeDisabled()
 })
 
-test('pela foto: a IA casa com o catálogo e a foto pronta vem primeiro', async ({ page }) => {
+test('pela foto: a função acha no catálogo e a foto pronta vem primeiro', async ({ page }) => {
   await page.route('**/functions/v1/identify-product', (route) =>
     route.request().method() === 'OPTIONS'
       ? route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' } })
@@ -127,6 +127,8 @@ test('pela foto: a IA casa com o catálogo e a foto pronta vem primeiro', async 
             brand: `Crespa ${tag}`,
             name: 'Gelatina Super Definição',
             confidence: 'high',
+            // A função achou no catálogo (a foto pronta vem dele) e ainda trouxe uma de loja.
+            catalog: { id: `gelatina-${tag}`, name: 'Gelatina Super Definição', brand: `Crespa ${tag}`, image_path: `p/gelatina-${tag}.webp` },
             candidates: [{ image: packshotPng(10, 10, 10).toString('base64'), mime: 'image/png', source: 'loja.com.br' }],
           }),
         }),

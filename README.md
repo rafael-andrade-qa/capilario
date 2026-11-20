@@ -27,11 +27,11 @@ marca e foto prontos. O que já está no seu histórico aparece marcado. Se não
 abaixo) ou **Cadastrar à mão**. O produto do histórico guarda de qual item do catálogo veio, mas copia nome,
 marca e foto: mudar o catálogo não mexe no histórico.
 
-**Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta: a IA (Claude, pela
-função `identify-product`) lê marca e nome, busca as páginas do produto e o app mostra até 3 fotos
-oficiais já padronizadas (retrato 3:4, fundo branco, mesma margem). A foto tirada só serve para
-identificar e não é guardada. Limite de 20 identificações por pessoa por dia. Sem a chave configurada,
-o botão avisa e o cadastro à mão continua igual.
+**Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta. A IA (Claude Haiku 5.5, pela
+função `identify-product`, sem busca na web) só lê marca e nome no rótulo; a foto vem do catálogo do app e,
+se o produto não estiver lá, da busca pública das lojas (até 3 fotos, padronizadas: retrato 3:4, fundo
+branco). Custa frações de centavo por foto (o log da função registra os tokens de cada chamada). A foto
+tirada só serve para identificar e não é guardada. Limite de 20 identificações por pessoa por dia.
 
 **Nova finalização** fica dentro do produto (o **+**) e é uma tela só: momento (já marcado em Molhado),
 data, fotos e observação, com um único botão fixo no rodapé. **Sem finalizador** está sempre na lista,
@@ -94,7 +94,7 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
 6. **Identificar pela foto (opcional):** crie uma chave em https://platform.claude.com (com créditos) e
    guarde-a como segredo das Edge Functions: Dashboard → Edge Functions → Secrets → `ANTHROPIC_API_KEY`
    (ou `npx supabase secrets set ANTHROPIC_API_KEY=...`). Publique a função com
-   `npx supabase functions deploy identify-product`. Opcional: `IDENTIFY_MODEL` (padrão `claude-opus-5-5`).
+   `npx supabase functions deploy identify-product`. Opcional: `IDENTIFY_MODEL` (padrão `claude-haiku-5-5`).
    A chave fica só no Supabase; nunca vai para o app, o build ou o repositório.
 7. **Limite de upload:** o bucket `capilar-photos` aceita JPEG/PNG/WebP até 15 MiB. Confira em
    Storage → Settings que o limite global do projeto é ≥ 15 MiB (no plano Free o padrão é 50 MB).

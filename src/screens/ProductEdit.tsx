@@ -11,7 +11,6 @@ import { useToast } from '../components/Toasts'
 import { createProduct, removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
 import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
-import { catalogPhotoFile, searchCatalog } from '../lib/catalog'
 import { identifyFromPhoto, type Candidate } from '../lib/identify'
 import { CatalogPicker, type CatalogChoice } from './CatalogPicker'
 import { href, navigate } from '../lib/router'
@@ -77,22 +76,7 @@ export function ProductNewRoute() {
   )
 }
 
-const words = (v: string) =>
-  normalize(v)
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 4)
 
-/** O item do catálogo parece ser o mesmo produto que a IA leu? (marca igual, nome parecido) */
-export function sameProduct(a: { name: string; brand: string }, b: { name: string; brand: string }): boolean {
-  const ba = normalize(a.brand)
-  const bb = normalize(b.brand)
-  if (!ba || !bb || !(ba.includes(bb) || bb.includes(ba))) return false
-  const wa = new Set(words(a.name))
-  const wb = words(b.name)
-  if (!wa.size || !wb.length) return false
-  const hits = wb.filter((w) => wa.has(w)).length
-  return hits / Math.min(wa.size, wb.length) >= 0.6
-}
 
 /** owned: o preview é desta foto (escolhida na galeria); as fotos encontradas têm o seu. */
 type PhotoChange =
@@ -153,20 +137,6 @@ function ProductEdit({
     setPhoto({ kind: 'new', file: c.file, mime: c.file.type || 'image/jpeg', preview: c.preview, error: null, owned: false })
   }
 
-  /** Item do catálogo que bate com o que a IA leu: a foto pronta dele vira a primeira opção. */
-  async function catalogMatch(found: { name: string; brand: string }): Promise<{ id: string; candidate: Candidate | null } | null> {
-    try {
-      const hits = await searchCatalog(found.brand + ' ' + found.name)
-      const hit = hits.slice(0, 5).find((h) => sameProduct(found, h))
-      if (!hit) return null
-      if (!hit.image_path) return { id: hit.id, candidate: null }
-      const file = await catalogPhotoFile(hit.image_path)
-      return { id: hit.id, candidate: { file, preview: URL.createObjectURL(file), source: 'catálogo do app' } }
-    } catch {
-      return null
-    }
-  }
-
   async function onIdentifyPicked(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -201,9 +171,9 @@ function ProductEdit({
       setName(r.name)
       setBrand(r.brand)
       setCheckNote(r.confidence !== 'high')
-      const match = await catalogMatch(r)
-      if (match) setCatalogId(match.id)
-      const all = match?.candidate ? [match.candidate, ...r.candidates] : r.candidates
+      // A função já procurou no catálogo; achou: nome, marca e foto dele.
+      if (r.catalog) setCatalogId(r.catalog.id)
+      const all = r.candidates
       setCandidates(all)
       if (all.length) {
         // Só põe a foto encontrada se a pessoa ainda não escolheu uma da galeria.

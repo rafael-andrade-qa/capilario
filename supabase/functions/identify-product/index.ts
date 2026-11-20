@@ -1,9 +1,10 @@
 // Função "identify-product" (Supabase Edge Function, Deno).
-// Recebe { image: base64, mime } do app, com a sessão do usuário, e devolve nome, marca e
-// até 3 fotos oficiais. A chave da Anthropic fica só aqui, nos segredos do Supabase
-// (ANTHROPIC_API_KEY); nunca vai para o app.
+// Recebe { image: base64, mime } do app, com a sessão do usuário. A IA só lê o rótulo
+// (Claude Haiku 5.5, sem busca na web: frações de centavo por foto); a foto vem do catálogo do
+// app ou da busca pública das lojas. A chave da Anthropic fica só aqui, nos segredos do
+// Supabase (ANTHROPIC_API_KEY); nunca vai para o app.
 import Anthropic from '@anthropic-ai/sdk'
-import { IdentifyError, REPORT_TOOL, SYSTEM_PROMPT, identify, validateInput, type Sender } from './core.ts'
+import { IdentifyError, REPORT_SCHEMA, SYSTEM_PROMPT, identify, validateInput, type CatalogHit, type CatalogSearch, type Sender } from './core.ts'
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -15,16 +16,19 @@ function reply(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'content-type': 'application/json' } })
 }
 
-/** Consome uma identificação do dia em nome do usuário (o próprio RPC confere a sessão). */
-async function consumeQuota(req: Request): Promise<'ok' | 'unauthenticated' | 'limit'> {
+/** Cabeçalhos para falar com o banco como o próprio usuário (o RLS vale normalmente). */
+function userHeaders(req: Request): Record<string, string> | null {
   const auth = req.headers.get('authorization') ?? ''
   const apikey = req.headers.get('apikey') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-  if (!auth.startsWith('Bearer ') || !apikey) return 'unauthenticated'
-  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/consume_identify_quota`, {
-    method: 'POST',
-    headers: { authorization: auth, apikey, 'content-type': 'application/json' },
-    body: '{}',
-  })
+  if (!auth.startsWith('Bearer ') || !apikey) return null
+  return { authorization: auth, apikey, 'content-type': 'application/json' }
+}
+
+/** Consome uma identificação do dia em nome do usuário (o próprio RPC confere a sessão). */
+async function consumeQuota(req: Request): Promise<'ok' | 'unauthenticated' | 'limit'> {
+  const headers = userHeaders(req)
+  if (!headers) return 'unauthenticated'
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/consume_identify_quota`, { method: 'POST', headers, body: '{}' })
   if (res.ok) {
     await res.body?.cancel()
     return 'ok'
@@ -35,32 +39,43 @@ async function consumeQuota(req: Request): Promise<'ok' | 'unauthenticated' | 'l
   throw new Error(`quota_${res.status}`)
 }
 
-function makeSender(apiKey: string): Sender {
-  const client = new Anthropic({ apiKey, baseURL: Deno.env.get('ANTHROPIC_BASE_URL') || undefined, maxRetries: 1, timeout: 50_000 })
-  const model = Deno.env.get('IDENTIFY_MODEL') || 'claude-opus-5-5'
-  const haiku = model.startsWith('claude-haiku')
-  const webSearch = {
-    type: haiku ? 'web_search_20250305' : 'web_search_20260209',
-    name: 'web_search',
-    max_uses: 3,
-    user_location: { type: 'approximate', country: 'BR', timezone: 'America/Sao_Paulo' },
+/** Busca no catálogo do app (RPC search_catalog), como o usuário. */
+function catalogSearch(req: Request): CatalogSearch {
+  return async (query) => {
+    const headers = userHeaders(req)
+    if (!headers) return []
+    const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/search_catalog`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ p_query: query, p_limit: 8 }),
+    })
+    if (!res.ok) {
+      await res.body?.cancel()
+      return []
+    }
+    return (await res.json()) as CatalogHit[]
   }
+}
+
+function makeSender(apiKey: string): Sender {
+  const client = new Anthropic({ apiKey, baseURL: Deno.env.get('ANTHROPIC_BASE_URL') || undefined, maxRetries: 1, timeout: 30_000 })
+  const model = Deno.env.get('IDENTIFY_MODEL') || 'claude-haiku-5-5'
+  const haiku = model.startsWith('claude-haiku')
   return async (messages) => {
     // deno-lint-ignore no-explicit-any
     const params: any = {
       model,
-      max_tokens: 4096,
-      output_config: { effort: 'low' },
+      max_tokens: 1024,
       system: SYSTEM_PROMPT,
-      tools: [webSearch, REPORT_TOOL],
-      tool_choice: { type: 'auto' },
       messages,
-      // Se a IA recusar por engano, a própria API tenta outro modelo (não existe para o Haiku).
-      ...(haiku ? {} : { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }),
+      // Ler um rótulo é tarefa simples: esforço baixo e (no Haiku) sem raciocínio estendido.
+      ...(haiku ? { thinking: { type: 'disabled' } } : {}),
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: REPORT_SCHEMA } },
     }
-    const res = haiku ? await client.messages.create(params) : await client.beta.messages.create(params)
     // deno-lint-ignore no-explicit-any
-    return res as any
+    const res: any = await client.messages.create(params)
+    console.log('identify', `model=${model} in=${res.usage?.input_tokens ?? 0} out=${res.usage?.output_tokens ?? 0}`)
+    return res
   }
 }
 
@@ -91,6 +106,7 @@ Deno.serve(async (req) => {
     const result = await identify(input, {
       send: makeSender(apiKey),
       fetch: (url, init) => fetch(url, init),
+      catalog: catalogSearch(req),
       log: (m) => console.log('identify', m),
     })
     return reply(200, result)

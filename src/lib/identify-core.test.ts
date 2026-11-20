@@ -1,19 +1,17 @@
-// Núcleo da função identify-product, sem rede: IA e fetch falsos.
+// Núcleo da função identify-product, sem rede: IA, catálogo e lojas falsos.
 import { describe, expect, it } from 'vitest'
 import {
   askClaude,
-  extractImageUrls,
   identify,
   isSafeUrl,
-  looksLikeProductUrl,
-  pagesToTry,
   safeFetch,
+  sameProduct,
   sniffImage,
+  storeMatches,
   validateInput,
-  vtexCatalogUrl,
-  vtexImages,
+  vtexSized,
+  type CatalogSearch,
   type FetchFn,
-  type Sender,
   type Turn,
 } from '../../supabase/functions/identify-product/core.ts'
 
@@ -23,227 +21,162 @@ const jpeg = (size = 4000) => {
   return b
 }
 
-const report = (input: Record<string, unknown>): Turn => ({
-  stop_reason: 'tool_use',
-  content: [{ type: 'tool_use', name: 'report_product', input }],
+const answer = (r: Record<string, unknown>): Turn => ({
+  stop_reason: 'end_turn',
+  content: [{ type: 'text', text: JSON.stringify(r) }],
+  usage: { input_tokens: 1700, output_tokens: 40 },
 })
 
-const okReport = {
-  found: true,
-  brand: ' Salon Line ',
-  product_name: 'Todecacho   Gelatina Super Definição',
-  confidence: 'high',
-  page_urls: ['https://loja.example.com/gelatina', 'https://marca.example.com/p/gelatina', 'http://inseguro.example.com/x', 'https://10.0.0.1/x'],
-}
-
-describe('isSafeUrl', () => {
-  it('aceita https público e recusa o resto', () => {
-    expect(isSafeUrl('https://www.salonline.com.br/produto')).toBe(true)
-    expect(isSafeUrl('http://www.salonline.com.br/produto')).toBe(false)
-    expect(isSafeUrl('https://127.0.0.1/a')).toBe(false)
-    expect(isSafeUrl('https://[::1]/a')).toBe(false)
-    expect(isSafeUrl('https://localhost/a')).toBe(false)
-    expect(isSafeUrl('https://kong/a')).toBe(false)
-    expect(isSafeUrl('https://db.internal/a')).toBe(false)
-    expect(isSafeUrl('https://user:pw@site.com/a')).toBe(false)
-    expect(isSafeUrl('https://site.com:8443/a')).toBe(false)
-    expect(isSafeUrl('nada')).toBe(false)
-  })
-})
-
-describe('extractImageUrls', () => {
-  it('prefere a imagem do JSON-LD de produto, depois og:image; resolve caminhos relativos', () => {
-    const html = `<html><head>
-      <meta property="og:image" content="/img/og.jpg?a=1&amp;b=2">
-      <meta name="twitter:image" content="https://cdn.example.com/tw.jpg">
-      <script type="application/ld+json">{"@graph":[{"@type":"Organization","logo":"https://x.com/logo.png"},{"@type":"Product","name":"Gelatina","image":["https://cdn.example.com/pack.jpg",{"url":"https://cdn.example.com/pack2.jpg"}]}]}</script>
-      <script type="application/ld+json">{ quebrado </script>
-      <meta property="og:image" content="http://inseguro.com/a.jpg">
-    </head></html>`
-    expect(extractImageUrls(html, 'https://loja.example.com/p/gelatina')).toEqual([
-      'https://cdn.example.com/pack.jpg',
-      'https://cdn.example.com/pack2.jpg',
-      'https://loja.example.com/img/og.jpg?a=1&b=2',
-      'https://cdn.example.com/tw.jpg',
-    ])
-  })
-
-  it('aceita atributos fora de ordem e aspas simples', () => {
-    const html = `<meta content='https://cdn.example.com/a.webp' property='og:image' />`
-    expect(extractImageUrls(html, 'https://loja.example.com/')).toEqual(['https://cdn.example.com/a.webp'])
-  })
-})
-
-describe('sniffImage', () => {
-  it('reconhece pelo conteúdo', () => {
-    expect(sniffImage(jpeg())).toBe('image/jpeg')
-    expect(sniffImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toBe('image/png')
-    expect(sniffImage(new TextEncoder().encode('RIFF1234WEBPVP8 '))).toBe('image/webp')
-    expect(sniffImage(new TextEncoder().encode('<html>'))).toBeNull()
-  })
-})
-
-describe('validateInput', () => {
-  it('só aceita base64 de JPEG, PNG ou WebP', () => {
-    expect(validateInput({ image: 'QUJD', mime: 'image/jpeg' })).toEqual({ image: 'QUJD', mime: 'image/jpeg' })
-    expect(() => validateInput({ image: 'QUJD', mime: 'image/gif' })).toThrow('invalid_image')
-    expect(() => validateInput({ image: 'não é base64', mime: 'image/png' })).toThrow('invalid_image')
-    expect(() => validateInput({ image: '', mime: 'image/png' })).toThrow('invalid_image')
-    expect(() => validateInput({ image: 'A'.repeat(8 * 1024 * 1024), mime: 'image/png' })).toThrow('invalid_image')
-  })
-})
+const juba = { found: true, brand: ' Widi Care ', product_name: 'Modelando a Juba   Geleia Seladora', confidence: 'high' }
 
 describe('askClaude', () => {
-  it('continua depois de pause_turn e limpa a resposta', async () => {
-    const calls: number[] = []
-    const send: Sender = async (messages) => {
-      calls.push(messages.length)
-      if (calls.length === 1) return { stop_reason: 'pause_turn', content: [{ type: 'server_tool_use', name: 'web_search' }] }
-      return report(okReport)
-    }
-    const r = await askClaude(send, 'QUJD', 'image/jpeg')
-    expect(calls).toEqual([1, 2])
-    expect(r).toEqual({
-      found: true,
-      brand: 'Salon Line',
-      product_name: 'Todecacho Gelatina Super Definição',
-      confidence: 'high',
-      page_urls: ['https://loja.example.com/gelatina', 'https://marca.example.com/p/gelatina'],
-      search_urls: [],
-    })
+  it('uma chamada só: lê a resposta estruturada e limpa os textos', async () => {
+    const calls: unknown[] = []
+    const logs: string[] = []
+    const r = await askClaude(
+      async (m) => {
+        calls.push(m)
+        return answer(juba)
+      },
+      'QUJD',
+      'image/jpeg',
+      (l) => logs.push(l),
+    )
+    expect(calls).toHaveLength(1)
+    expect(r).toEqual({ found: true, brand: 'Widi Care', product_name: 'Modelando a Juba Geleia Seladora', confidence: 'high' })
+    expect(logs).toContain('usage in=1700 out=40')
   })
 
-  it('guarda os resultados da busca de todas as rodadas', async () => {
-    const results = (urls: string[]) => ({
-      type: 'web_search_tool_result',
-      content: urls.map((url) => ({ type: 'web_search_result', url, title: 'x' })),
-    })
-    let n = 0
-    const send: Sender = async () =>
-      n++ === 0
-        ? { stop_reason: 'pause_turn', content: [results(['https://a.example.com/p1', 'http://inseguro.example.com/x'])] }
-        : { stop_reason: 'tool_use', content: [results(['https://b.example.com/p2', 'https://a.example.com/p1']), ...report(okReport).content] }
-    const r = await askClaude(send, 'QUJD', 'image/jpeg')
-    expect(r.search_urls).toEqual(['https://a.example.com/p1', 'https://b.example.com/p2'])
-  })
-
-  it('sem chamar report_product: não identificado', async () => {
-    const send: Sender = async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Não sei.' }] })
-    await expect(askClaude(send, 'QUJD', 'image/jpeg')).rejects.toThrow('no_report')
+  it('recusa, sem texto ou JSON quebrado: não identificado', async () => {
+    await expect(askClaude(async () => ({ stop_reason: 'refusal', content: [] }), 'QUJD', 'image/jpeg')).rejects.toThrow('refusal')
+    await expect(askClaude(async () => ({ stop_reason: 'end_turn', content: [] }), 'QUJD', 'image/jpeg')).rejects.toThrow('no_report')
+    await expect(askClaude(async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{oi' }] }), 'QUJD', 'image/jpeg')).rejects.toThrow('bad_json')
   })
 
   it('found sem nome vira não encontrado', async () => {
-    const r = await askClaude(async () => report({ ...okReport, product_name: '  ' }), 'QUJD', 'image/jpeg')
+    const r = await askClaude(async () => answer({ ...juba, product_name: ' ' }), 'QUJD', 'image/jpeg')
     expect(r.found).toBe(false)
   })
 })
 
-describe('identify', () => {
-  const pages: Record<string, () => Response> = {
-    'https://loja.example.com/gelatina': () =>
-      new Response(`<meta property="og:image" content="https://cdn.example.com/a.jpg"><meta name="twitter:image" content="https://cdn.example.com/a2.jpg">`),
-    'https://marca.example.com/p/gelatina': () => new Response(null, { status: 302, headers: { location: '/p/gelatina-nova' } }),
-    'https://marca.example.com/p/gelatina-nova': () =>
-      new Response(`<script type="application/ld+json">{"@type":"Product","image":"https://cdn.example.com/b.jpg"}</script>`),
-    'https://cdn.example.com/a.jpg': () => new Response(jpeg()),
-    'https://cdn.example.com/a2.jpg': () => new Response(jpeg(100)), // pequena demais (ícone): fica de fora
-    'https://cdn.example.com/b.jpg': () => new Response(jpeg()),
-  }
-  const fakeFetch: FetchFn = async (url) => (pages[url] ?? (() => new Response('nada', { status: 404 })))()
+describe('sameProduct', () => {
+  const read = { name: 'Modelando a Juba Geleia Seladora', brand: 'Widi Care' }
+  it('nome de loja com marca e tamanho no meio', () => {
+    expect(sameProduct(read, { name: 'Geleia Seladora Widi Care Modelando a Juba 300g', brand: 'WIDI CARE' })).toBe(true)
+    expect(sameProduct(read, { name: 'Geleia Seladora Modelando a Juba', brand: 'Widi Care' })).toBe(true)
+  })
+  it('outro produto da mesma linha ou outra marca: não', () => {
+    expect(sameProduct(read, { name: 'Encrespando a Juba Geleia Modeladora', brand: 'Widi Care' })).toBe(false)
+    expect(sameProduct(read, { name: 'Modelando a Juba Geleia Seladora', brand: 'Salon Line' })).toBe(false)
+  })
+  it('marca que a loja escreve diferente, mas aparece no nome', () => {
+    expect(sameProduct({ name: 'Todecacho Gelatina Super Definição', brand: 'Salon Line' }, { name: 'Gelatina Salon Line Todecacho Super Definição 300g', brand: 'Salonline' })).toBe(true)
+  })
+})
 
-  it('devolve nome, marca e uma foto por página, já em base64', async () => {
-    const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => report(okReport), fetch: fakeFetch })
-    expect(r.found).toBe(true)
-    if (!r.found) return
-    expect(r.brand).toBe('Salon Line')
-    expect(r.name).toBe('Todecacho Gelatina Super Definição')
-    expect(r.candidates.map((c) => [c.source, c.mime])).toEqual([
-      ['loja.example.com', 'image/jpeg'],
-      ['marca.example.com', 'image/jpeg'],
+describe('lojas (busca VTEX)', () => {
+  const read = { name: 'Modelando a Juba Geleia Seladora', brand: 'Widi Care' }
+  const product = (productName: string, img: string, linkText = 'geleia') => ({
+    productName,
+    brand: 'Widi Care',
+    linkText,
+    items: [{ images: [{ imageUrl: img }] }],
+  })
+  it('só produtos que batem, sem kits, foto em 800px', () => {
+    const json = [
+      product('Geleia Seladora Widi Care Modelando a Juba 300g', 'https://loja.vteximg.com.br/arquivos/ids/123-55-55/a.jpg?v=1', 'geleia-seladora'),
+      product('Kit Widi Care Modelando a Juba Geleia Seladora 2 unidades', 'https://loja.vteximg.com.br/arquivos/ids/124/k.jpg'),
+      product('Encrespando a Juba Geleia', 'https://loja.vteximg.com.br/arquivos/ids/125/e.jpg'),
+      product('Geleia Seladora Modelando a Juba', 'http://inseguro.example.com/x.jpg'),
+    ]
+    expect(storeMatches(json, 'www.loja.com.br', read)).toEqual([
+      { url: 'https://loja.vteximg.com.br/arquivos/ids/123-800-800/a.jpg?v=1', page: 'https://www.loja.com.br/geleia-seladora/p' },
     ])
-    expect(r.candidates[0].image.startsWith('/9j/')).toBe(true)
+    expect(storeMatches({ erro: 1 }, 'www.loja.com.br', read)).toEqual([])
+  })
+  it('vtexSized', () => {
+    expect(vtexSized('https://x.vteximg.com.br/arquivos/ids/9/a.png')).toBe('https://x.vteximg.com.br/arquivos/ids/9-800-800/a.png')
+  })
+})
+
+describe('identify', () => {
+  const vtex = (host: string) =>
+    JSON.stringify([
+      {
+        productName: 'Geleia Seladora Widi Care Modelando a Juba 300g',
+        brand: 'Widi Care',
+        linkText: 'geleia',
+        items: [{ images: [{ imageUrl: `https://${host}.vteximg.com.br/arquivos/ids/1/a.jpg` }] }],
+      },
+    ])
+  const storeFetch: FetchFn = async (url) => {
+    const u = new URL(url)
+    if (u.pathname.startsWith('/api/catalog_system')) return new Response(vtex(u.hostname.split('.')[1]))
+    if (u.hostname.endsWith('vteximg.com.br')) return new Response(jpeg())
+    return new Response('nada', { status: 404 })
+  }
+
+  it('produto no catálogo: usa o catálogo e nem consulta as lojas', async () => {
+    let storeCalls = 0
+    const catalog: CatalogSearch = async () => [
+      { id: 'outro', name: 'Encrespando a Juba Geleia', brand: 'Widi Care', image_path: 'p/outro.webp' },
+      { id: 'widi-care-geleia', name: 'Geleia Seladora Modelando a Juba', brand: 'Widi Care', image_path: 'p/widi.webp' },
+    ]
+    const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, {
+      send: async () => answer(juba),
+      catalog,
+      fetch: async (u, i) => {
+        storeCalls++
+        return storeFetch(u, i)
+      },
+    })
+    expect(r).toEqual({
+      found: true,
+      brand: 'Widi Care',
+      name: 'Geleia Seladora Modelando a Juba',
+      confidence: 'high',
+      catalog: { id: 'widi-care-geleia', name: 'Geleia Seladora Modelando a Juba', brand: 'Widi Care', image_path: 'p/widi.webp' },
+      candidates: [],
+    })
+    expect(storeCalls).toBe(0)
   })
 
-  it('não segue redirecionamento para endereço interno', async () => {
-    const evil: FetchFn = async (url) =>
-      url === 'https://loja.example.com/gelatina'
-        ? new Response(null, { status: 302, headers: { location: 'http://169.254.169.254/latest' } })
-        : new Response('nada', { status: 404 })
-    const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => report(okReport), fetch: evil })
-    expect(r.found && r.candidates).toEqual([])
+  it('fora do catálogo: uma foto por loja, até 3', async () => {
+    const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => answer(juba), catalog: async () => [], fetch: storeFetch })
+    expect(r.found).toBe(true)
+    if (!r.found) return
+    expect(r.catalog).toBeNull()
+    expect(r.candidates.map((c) => c.source)).toEqual(['epocacosmeticos.com.br', 'drogariasaopaulo.com.br', 'paguemenos.com.br'])
+    expect(r.candidates[0].image.startsWith('/9j/')).toBe(true)
   })
 
   it('erro da IA vira ai_failed; não identificado vira found=false', async () => {
     await expect(
-      identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => Promise.reject(new Error('overloaded')), fetch: fakeFetch }),
+      identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => Promise.reject(new Error('overloaded')), fetch: storeFetch }),
     ).rejects.toMatchObject({ code: 'ai_failed' })
-    const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => ({ stop_reason: 'end_turn', content: [] }), fetch: fakeFetch })
+    const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => answer({ found: false, brand: '', product_name: '', confidence: 'low' }), fetch: storeFetch })
     expect(r).toEqual({ found: false })
   })
 })
 
-describe('páginas a abrir', () => {
-  const name = 'Modelando a Juba Geleia Seladora'
-  it('aceita a página do produto e recusa kit, busca e produto parecido da mesma linha', () => {
-    expect(looksLikeProductUrl('https://www.drogasil.com.br/widi-care-geleia-seladora-modelando-a-juba-300g.html', name)).toBe(true)
-    expect(looksLikeProductUrl('https://www.drogariaspacheco.com.br/geleia-capilar-seladora-widi-care-modelando-a-juba-300g/p', name)).toBe(true)
-    expect(looksLikeProductUrl('https://www.drogasil.com.br/widi-care-modelando-a-juba-kit-2-geleia-seladora-300g-1448126.html', name)).toBe(false)
-    expect(looksLikeProductUrl('https://m.magazineluiza.com.br/busca/geleia+modeladora+juba+seladora/', name)).toBe(false)
-    expect(looksLikeProductUrl('https://www.casasbahia.com.br/encrespando-a-juba-geleia-modeladora-widi-care/p/1558116025', name)).toBe(false)
+describe('segurança e entrada', () => {
+  it('isSafeUrl', () => {
+    expect(isSafeUrl('https://www.salonline.com.br/produto')).toBe(true)
+    expect(isSafeUrl('http://www.salonline.com.br/produto')).toBe(false)
+    expect(isSafeUrl('https://127.0.0.1/a')).toBe(false)
+    expect(isSafeUrl('https://localhost/a')).toBe(false)
+    expect(isSafeUrl('https://kong/a')).toBe(false)
   })
-
-  it('primeiro as indicadas pela IA, depois os resultados que parecem do produto; no máximo 8', () => {
-    const search = Array.from({ length: 12 }, (_, i) => `https://loja${i}.example.com/geleia-seladora-modelando-juba`)
-    const pages = pagesToTry({
-      found: true,
-      brand: 'Widi Care',
-      product_name: name,
-      confidence: 'high',
-      page_urls: ['https://marca.example.com/produto'],
-      search_urls: ['https://outra.example.com/shampoo-qualquer', ...search],
-    })
-    expect(pages[0]).toBe('https://marca.example.com/produto')
-    expect(pages).toHaveLength(8)
-    expect(pages).not.toContain('https://outra.example.com/shampoo-qualquer')
+  it('não segue redirecionamento para endereço interno; imagem grande demais', async () => {
+    const evil: FetchFn = async () => new Response(null, { status: 302, headers: { location: 'http://169.254.169.254/latest' } })
+    await expect(safeFetch(evil, 'https://loja.example.com/x', { timeoutMs: 1000, maxBytes: 1000, accept: '*/*' })).rejects.toThrow('unsafe_url')
+    await expect(safeFetch(async () => new Response(new Uint8Array(5000)), 'https://loja.example.com/i.jpg', { timeoutMs: 1000, maxBytes: 1000, accept: '*/*' })).rejects.toThrow('too_big')
   })
-})
-
-describe('VTEX', () => {
-  it('monta o endereço do catálogo só para páginas /p', () => {
-    expect(vtexCatalogUrl('https://www.drogariaspacheco.com.br/geleia-capilar-seladora/p')).toBe(
-      'https://www.drogariaspacheco.com.br/api/catalog_system/pub/products/search/geleia-capilar-seladora/p',
-    )
-    expect(vtexCatalogUrl('https://www.drogasil.com.br/geleia.html')).toBeNull()
-  })
-
-  it('lê as imagens do primeiro item, sem repetir tamanho', () => {
-    const json = [
-      {
-        items: [
-          {
-            images: [
-              { imageUrl: 'https://cdn.example.com/arquivos/ids/1/frente.png?v=1' },
-              { imageUrl: 'https://cdn.example.com/arquivos/ids/1/frente.png?v=2' },
-              { imageUrl: 'https://cdn.example.com/arquivos/ids/2/verso.png' },
-              { imageUrl: 'https://cdn.example.com/logo.png' },
-            ],
-          },
-        ],
-      },
-    ]
-    expect(vtexImages(json, 'https://loja.example.com/api')).toEqual([
-      'https://cdn.example.com/arquivos/ids/1/frente.png?v=1',
-      'https://cdn.example.com/arquivos/ids/2/verso.png',
-    ])
-    expect(vtexImages({ erro: true }, 'https://loja.example.com/api')).toEqual([])
-  })
-})
-
-describe('safeFetch', () => {
-  it('página grande: lê só o começo (truncate); imagem grande: recusa', async () => {
-    const big = () => new Response(new Uint8Array(5000))
-    const page = await safeFetch(async () => big(), 'https://loja.example.com/p', { timeoutMs: 1000, maxBytes: 1000, accept: '*/*', truncate: true })
-    expect(page.bytes.byteLength).toBe(1000)
-    await expect(safeFetch(async () => big(), 'https://loja.example.com/i.jpg', { timeoutMs: 1000, maxBytes: 1000, accept: '*/*' })).rejects.toThrow('too_big')
+  it('sniffImage e validateInput', () => {
+    expect(sniffImage(jpeg())).toBe('image/jpeg')
+    expect(sniffImage(new TextEncoder().encode('<html>'))).toBeNull()
+    expect(validateInput({ image: 'QUJD', mime: 'image/jpeg' })).toEqual({ image: 'QUJD', mime: 'image/jpeg' })
+    expect(() => validateInput({ image: 'QUJD', mime: 'image/gif' })).toThrow('invalid_image')
+    expect(() => validateInput({ image: 'A'.repeat(8 * 1024 * 1024), mime: 'image/png' })).toThrow('invalid_image')
   })
 })

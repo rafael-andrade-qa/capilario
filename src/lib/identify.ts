@@ -1,6 +1,7 @@
 // "Identificar pela foto": manda a foto (reduzida) à função identify-product e prepara as
 // fotos oficiais encontradas já padronizadas (fundo branco, retrato 3:4).
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
+import { catalogPhotoFile } from './catalog'
 import { downscaleToBase64, toPackshot } from './packshot'
 import { supabase } from './supabase'
 
@@ -8,11 +9,21 @@ export interface Candidate {
   file: File
   preview: string
   source: string
+  /** Veio do catálogo do app (o produto fica ligado a este item). */
+  catalogId?: string
+}
+
+/** Item do catálogo que a função reconheceu como o produto da foto. */
+export interface CatalogMatch {
+  id: string
+  name: string
+  brand: string
+  image_path: string | null
 }
 
 export type IdentifyOutcome =
   | { found: false }
-  | { found: true; brand: string; name: string; confidence: 'high' | 'medium' | 'low'; candidates: Candidate[] }
+  | { found: true; brand: string; name: string; confidence: 'high' | 'medium' | 'low'; catalog: CatalogMatch | null; candidates: Candidate[] }
 
 type Wire =
   | { found: false }
@@ -21,6 +32,7 @@ type Wire =
       brand: string
       name: string
       confidence: 'high' | 'medium' | 'low'
+      catalog?: CatalogMatch | null
       candidates: { image: string; mime: string; source: string }[]
     }
 
@@ -62,6 +74,12 @@ export async function identifyFromPhoto(photo: Blob): Promise<IdentifyOutcome> {
       return { file, preview: URL.createObjectURL(file), source: c.source }
     }),
   )
-  const candidates = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []))
-  return { found: true, brand: data.brand, name: data.name, confidence: data.confidence, candidates }
+  const candidates: Candidate[] = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []))
+  // No catálogo: a foto pronta (já padronizada) vem primeiro.
+  const catalog = data.catalog ?? null
+  if (catalog?.image_path) {
+    const file = await catalogPhotoFile(catalog.image_path).catch(() => null)
+    if (file) candidates.unshift({ file, preview: URL.createObjectURL(file), source: 'catálogo do app', catalogId: catalog.id })
+  }
+  return { found: true, brand: data.brand, name: data.name, confidence: data.confidence, catalog, candidates }
 }
