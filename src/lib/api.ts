@@ -1,12 +1,13 @@
 // Acesso a dados. Toda chamada usa a sessão do usuário; o RLS do banco é a proteção real.
 import { BUCKET, supabase } from './supabase'
 import type { Angle, Experiment, ProductMode, StageType } from './domain'
+import type { Crop } from './framing'
 import { EXT_BY_MIME, type AcceptedMime } from './files'
 import { uploadPhoto } from './upload'
 import { uuid } from './uuid'
 
 const HISTORY_SELECT =
-  'id, product_mode, product_name, brand, photo_path, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at))'
+  'id, product_mode, product_name, brand, photo_path, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
 
 export async function fetchHistory(): Promise<Experiment[]> {
   const { data, error } = await supabase.from('experiments').select(HISTORY_SELECT).order('created_at', { ascending: false })
@@ -14,7 +15,7 @@ export async function fetchHistory(): Promise<Experiment[]> {
   return (data ?? []) as unknown as Experiment[]
 }
 
-export async function updateStage(stageId: string, patch: { notes?: string | null; is_favorite?: boolean }): Promise<void> {
+export async function updateStage(stageId: string, patch: { notes?: string | null; is_favorite?: boolean; captured_at?: string }): Promise<void> {
   const { data, error } = await supabase.from('stages').update(patch).eq('id', stageId).select('id')
   if (error) throw new Error(`Não foi possível salvar: ${error.message}`)
   if (!data?.length) throw new Error('Momento não encontrado.')
@@ -130,6 +131,15 @@ export async function setProductPhoto(userId: string, experimentId: string, file
     await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
   }
   return path
+}
+
+/** Guarda o enquadramento (recorte 3:4) de fotos já salvas. */
+export async function setPhotoCrops(crops: { photoId: string; crop: Crop | null }[]): Promise<void> {
+  for (const { photoId, crop } of crops) {
+    const { data, error } = await supabase.from('photos').update({ crop }).eq('id', photoId).select('id')
+    if (error) throw new Error(`Não foi possível salvar o enquadramento: ${error.message}`)
+    if (!data?.length) throw new Error('Foto não encontrada.')
+  }
 }
 
 /** Cadastra um produto (nome e marca), sem fotos. Repetir com o mesmo id não duplica. */

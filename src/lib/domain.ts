@@ -1,3 +1,4 @@
+import type { Crop } from './framing'
 // Tipos e rótulos do domínio. Valores em inglês no banco, rótulos em pt-BR na interface.
 
 export const ANGLES = ['front', 'left', 'right', 'back'] as const
@@ -28,6 +29,8 @@ export interface Photo {
   storage_path: string
   mime_type: string
   created_at: string
+  /** Enquadramento 3:4 (frações da imagem original); null = sem ajuste. */
+  crop?: Crop | null
 }
 
 export interface Stage {

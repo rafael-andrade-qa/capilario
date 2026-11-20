@@ -81,3 +81,13 @@ export const FRONT: TestFile = { name: 'frente.png', mimeType: 'image/png', buff
 export const LEFT: TestFile = { name: 'esquerdo.png', mimeType: 'image/png', buffer: colorPng(40, 160, 60) }
 export const RIGHT: TestFile = { name: 'direito.png', mimeType: 'image/png', buffer: colorPng(40, 80, 200) }
 export const BACK: TestFile = { name: 'costas.png', mimeType: 'image/png', buffer: colorPng(220, 180, 30) }
+
+/** JPEG em pé (1:2) com data no EXIF, como foto de celular (sem rosto: enquadra preenchendo). */
+export async function jpegWithDate(exifDate: string, name = 'frente.jpg'): Promise<TestFile> {
+  const { default: sharp } = await import('sharp')
+  const buffer = await sharp({ create: { width: 300, height: 600, channels: 3, background: '#c86428' } })
+    .withExif({ IFD0: { DateTime: exifDate }, IFD2: { DateTimeOriginal: exifDate } })
+    .jpeg()
+    .toBuffer()
+  return { name, mimeType: 'image/jpeg', buffer }
+}

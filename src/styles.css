@@ -649,8 +649,17 @@ input[type='datetime-local']::-webkit-datetime-edit-fields-wrapper {
 .photo-frame img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* preserva proporção e enquadramento */
+  object-fit: cover; /* sem enquadramento salvo: preenche o quadro, centralizado */
   display: block;
+}
+.photo-frame.fit-contain img {
+  object-fit: contain;
+}
+/* Enquadramento salvo: a imagem fica maior que o quadro e só o recorte aparece. */
+.photo-frame.cropped img {
+  position: absolute;
+  max-width: none;
+  object-fit: fill;
 }
 .photo-frame.loading {
   animation: pulse 1.2s ease-in-out infinite;
@@ -2148,4 +2157,102 @@ body:has(.save-bar) .toasts {
 }
 .catalog-fallback-actions .btn + .btn {
   margin-top: 0;
+}
+
+/* Enquadramento e horário (modo de edição do momento) -------------------- */
+.date-from-photo {
+  display: block;
+  margin-top: 4px;
+}
+.edit-moment {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+.edit-moment .edit-hint {
+  margin: 0;
+}
+.adjust-photo {
+  display: block;
+  margin: 2px auto 0;
+}
+.framing-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+.framing-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 18px 18px 0 0;
+  background: var(--surface);
+  animation: sheet-up 0.2s ease-out;
+}
+.framing-title {
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+.framing-frame {
+  position: relative;
+  width: min(100%, 46dvh * 0.75);
+  margin: 0 auto;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #111;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.framing-frame:active {
+  cursor: grabbing;
+}
+.framing-frame:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+.framing-frame img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+.framing-guide {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 2px dashed rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+.framing-help {
+  margin: 8px 0 4px;
+  text-align: center;
+}
+.framing-note {
+  margin: 4px 0;
+  text-align: center;
+  color: var(--brand);
+}
+.framing-tools {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.framing-tools .btn {
+  min-width: 44px;
+}
+.framing-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }

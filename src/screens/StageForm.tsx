@@ -13,7 +13,10 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { DateTimeField } from '../components/DateTimeField'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
-import { AmbiguousError, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, type FinalizePhoto } from '../lib/api'
+import { AmbiguousError, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, setPhotoCrops, type FinalizePhoto } from '../lib/api'
+import { medianDate, photoTakenAt } from '../lib/exif'
+import { analyzePhoto, type Analysis } from '../lib/faces'
+import { cropStyle, momentCrops, type Crop } from '../lib/framing'
 import {
   ANGLES,
   ANGLE_LABEL,
@@ -106,6 +109,10 @@ interface Item {
   status: UploadStatus
   progress: number
   uploadError: string | null
+  /** Quando a foto foi tirada (metadados do arquivo); undefined = ainda lendo. */
+  takenAt?: Date | null
+  /** Tamanho e rosto, para o enquadramento automático; undefined = ainda analisando. */
+  analysis?: Analysis | null
 }
 
 type Phase = 'editing' | 'uploading' | 'partial' | 'finalizing' | 'error'
@@ -153,6 +160,10 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
   // Uma finalização nova quase sempre começa no Molhado.
   const [stageType, setStageType] = useState<StageType | null>(kind === 'moment' ? momentType! : kind === 'complete' ? null : 'wet')
   const [capturedAt, setCapturedAt] = useState(() => toLocalInputValue(new Date()))
+  // Data e horário vêm das fotos até a pessoa mexer no campo.
+  const [dateTouched, setDateTouched] = useState(false)
+  const [dateFromPhotos, setDateFromPhotos] = useState(false)
+  const analysisRef = useRef<Record<string, Promise<void>>>({})
   const [notes, setNotes] = useState('')
   const [phase, setPhase] = useState<Phase>('editing')
   const [busy, setBusy] = useState(false)
@@ -241,7 +252,17 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
     }
   }
 
+  // Lê o horário e procura o rosto de cada foto nova, em segundo plano.
+  function analyze(list: Item[]) {
+    for (const it of list) {
+      if (it.invalid) continue
+      void photoTakenAt(it.file).then((takenAt) => updateItem(it.key, { takenAt }))
+      analysisRef.current[it.key] = analyzePhoto(it.file).then((analysis) => updateItem(it.key, { analysis }))
+    }
+  }
+
   function checkDisplayable(list: Item[]) {
+    analyze(list)
     for (const it of list) {
       if (it.invalid) continue
       void canDisplay(it.file).then((ok) => {
@@ -322,6 +343,22 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
 
   const filled = filledAngles(slots)
   const filledItems = filled.map((a) => items[slots[a]!]).filter(Boolean)
+
+  const photoTimes = filledItems.map((i) => i.takenAt).filter((d): d is Date => d instanceof Date)
+  const photoTime = medianDate(photoTimes)
+  const photoTimeValue = photoTime ? toLocalInputValue(photoTime) : null
+  useEffect(() => {
+    if (kind === 'complete' || dateTouched || !photoTimeValue) return
+    setCapturedAt(photoTimeValue)
+    setDateFromPhotos(true)
+  }, [kind, dateTouched, photoTimeValue])
+
+  // Enquadramento automático (rosto; sem rosto, a referência da frente ou preencher).
+  const analyzed = filled
+    .map((angle) => ({ angle, it: items[slots[angle]!] }))
+    .filter(({ it }) => it?.analysis)
+    .map(({ angle, it }) => ({ key: it.key, W: it.analysis!.W, H: it.analysis!.H, face: it.analysis!.face, front: angle === 'front' }))
+  const autoCrops: Record<string, Crop> = momentCrops(analyzed)
   const invalidCount = filledItems.filter((i) => i.invalid).length
   const checkingCount = filledItems.filter((i) => i.checking).length
   const doneCount = filledItems.filter((i) => i.status === 'done').length
@@ -338,6 +375,22 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
     if (invalidCount) return 'Troque ou remova os arquivos marcados com problema.'
     if (checkingCount) return 'Aguarde a verificação das fotos.'
     return null
+  }
+
+  /** Guarda o enquadramento automático das fotos salvas (espera a análise, até 10 s). */
+  async function saveAutoCrops(done: { angle: Angle; key: string }[]) {
+    try {
+      const pending = done.map(({ key }) => analysisRef.current[key]).filter(Boolean)
+      await Promise.race([Promise.all(pending), new Promise((r) => setTimeout(r, 10000))])
+      const list = done
+        .map(({ angle, key }) => ({ angle, it: itemsRef.current[key] }))
+        .filter(({ it }) => it?.analysis)
+        .map(({ angle, it }) => ({ key: it.key, W: it.analysis!.W, H: it.analysis!.H, face: it.analysis!.face, front: angle === 'front' }))
+      const crops = momentCrops(list)
+      await setPhotoCrops(Object.entries(crops).map(([photoId, crop]) => ({ photoId, crop })))
+    } catch {
+      // O enquadramento é um extra: se falhar, a foto aparece preenchendo o quadro.
+    }
   }
 
   async function save(onlyCompleted = false) {
@@ -407,6 +460,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
       }
 
       finalizedRef.current = true
+      await saveAutoCrops(done)
       // Fotos que falharam e foram deixadas de fora: entram na limpeza.
       for (const { key } of failed) discardItem(key)
       const toClean = [...discardedRef.current]
@@ -472,8 +526,19 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
                 <span id="f-data-label" className="visually-hidden">
                   Data e horário
                 </span>
-                <DateTimeField id="f-data" labelledBy="f-data-label" value={capturedAt} onChange={setCapturedAt} disabled={busy} />
+                <DateTimeField
+                  id="f-data"
+                  labelledBy="f-data-label"
+                  value={capturedAt}
+                  onChange={(v) => {
+                    setDateTouched(true)
+                    setDateFromPhotos(false)
+                    setCapturedAt(v)
+                  }}
+                  disabled={busy}
+                />
                 {!capturedIso && <small className="slot-error">Data inválida</small>}
+                {capturedIso && dateFromPhotos && <small className="muted small date-from-photo">Horário tirado das fotos.</small>}
               </div>
             </>
           )}
@@ -515,11 +580,15 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
                     aria-pressed={selected === angle}
                   >
                     {lockedPhoto ? (
-                      <PhotoView url={lockedUrls[lockedPhoto.storage_path]} alt={ANGLE_LABEL[angle]} />
+                      <PhotoView url={lockedUrls[lockedPhoto.storage_path]} crop={lockedPhoto.crop} alt={ANGLE_LABEL[angle]} />
                     ) : it ? (
                       it.preview && !it.invalid ? (
-                        <div className="photo-frame">
-                          <img src={it.preview} alt={`Pré-visualização ${ANGLE_LABEL[angle]}`} />
+                        <div className={`photo-frame ${autoCrops[it.key] ? 'cropped' : 'fit-cover'}`}>
+                          <img
+                            src={it.preview}
+                            alt={`Pré-visualização ${ANGLE_LABEL[angle]}`}
+                            style={autoCrops[it.key] ? cropStyle(autoCrops[it.key]) : undefined}
+                          />
                         </div>
                       ) : (
                         <div className="photo-frame empty invalid">{it.file.name}</div>

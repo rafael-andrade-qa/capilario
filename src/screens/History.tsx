@@ -387,7 +387,7 @@ function MomentTile({ stage, urls, highlight }: { stage: Stage; urls: Record<str
   return (
     <a className={`moment-tile ${highlight ? 'highlight' : ''}`} href={href(`/etapa/${stage.id}`)} title={formatDateTime(stage.captured_at)}>
       <span className="moment-frame">
-        <PhotoView className="moment-photo" url={cover ? urls[cover.storage_path] : undefined} alt="" />
+        <PhotoView className="moment-photo" url={cover ? urls[cover.storage_path] : undefined} crop={cover?.crop} alt="" />
         {stage.photos.length < 4 && (
           <span className="count-pill" title="Fotos deste momento (de 4 ângulos)">
             {stage.photos.length}/4

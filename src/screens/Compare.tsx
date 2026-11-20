@@ -242,7 +242,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
               return (
                 <figure key={label} className="compare-side" data-testid={`side-${label}`}>
                   {p ? (
-                    <PhotoView className="compare-frame" url={urls[p.storage_path]} alt={`Registro ${label}: ${ANGLE_LABEL[angle]}`} />
+                    <PhotoView className="compare-frame" url={urls[p.storage_path]} crop={p.crop} alt={`Registro ${label}: ${ANGLE_LABEL[angle]}`} />
                   ) : (
                     <div className="photo-frame compare-frame empty">Sem foto deste ângulo</div>
                   )}
