@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { TrashIcon } from '../components/TrashIcon'
+import { ImageIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import { SwipeRow, type SwipeOpen } from '../components/SwipeRow'
@@ -119,7 +120,7 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
       {saved && <p className="alert alert-success" role="status">Registro salvo.</p>}
       {productPhotoFailed && (
         <p className="alert alert-error" role="alert">
-          A foto do produto não foi enviada. Abra o produto e toque em “+ Foto do produto” para tentar de novo.
+          A foto do produto não foi enviada. Abra o produto e toque no ícone de imagem para tentar de novo.
         </p>
       )}
       {(deleted || deletedHere) && !saved && (
@@ -232,8 +233,13 @@ export function History({ saved, deleted, productPhotoFailed = false }: { saved:
                       })}
                     </ol>
                     <div className="product-actions">
-                      <a className="text-action" href={href(`/experimento/${exp.id}/nova-etapa`)} aria-label={`Adicionar etapa em ${productLabel(exp)}`}>
-                        + Adicionar etapa
+                      <a
+                        className="icon-btn product-add"
+                        href={href(`/experimento/${exp.id}/nova-etapa`)}
+                        aria-label={`Adicionar etapa em ${productLabel(exp)}`}
+                        title="Adicionar etapa"
+                      >
+                        <PlusIcon />
                       </a>
                       {exp.product_mode === 'named' && <ProductPhotoButton experiment={exp} onDone={reload} />}
                       <button
@@ -314,8 +320,16 @@ function ProductPhotoButton({ experiment, onDone }: { experiment: Experiment; on
 
   return (
     <>
-      <button type="button" className="text-action" onClick={() => input.current?.click()} disabled={busy}>
-        {busy ? 'Enviando foto…' : experiment.photo_path ? 'Trocar foto do produto' : '+ Foto do produto'}
+      <button
+        type="button"
+        className={`icon-btn ${busy ? 'busy' : ''}`}
+        onClick={() => input.current?.click()}
+        disabled={busy}
+        aria-busy={busy}
+        aria-label={busy ? 'Enviando foto do produto' : experiment.photo_path ? 'Trocar foto do produto' : 'Adicionar foto do produto'}
+        title={busy ? 'Enviando foto…' : experiment.photo_path ? 'Trocar foto do produto' : 'Adicionar foto do produto'}
+      >
+        <ImageIcon />
       </button>
       <input ref={input} type="file" accept={INPUT_ACCEPT} hidden onChange={onPicked} data-testid={`product-photo-${experiment.id}`} />
       {message && <p className="slot-error product-photo-error">{message}</p>}

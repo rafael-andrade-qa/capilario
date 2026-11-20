@@ -29,12 +29,12 @@ export function missingSide(a: readonly Angle[], b: readonly Angle[], angle: Ang
 // ---------------------------------------------------------------------------
 // Quais etapas faz sentido comparar
 // ---------------------------------------------------------------------------
-// Molhado só com Molhado. Seco e Dia seguinte com o mesmo tipo e também entre si
-// (ver como o Seco amanheceu). O tipo escolhido manda no lado A; o lado B oferece
-// primeiro o mesmo tipo e, depois, o tipo vizinho.
-export function compatibleTypes(type: StageType): StageType[] {
-  if (type === 'wet') return ['wet']
-  return type === 'dry' ? ['dry', 'next_day'] : ['next_day', 'dry']
+// Só a mesma etapa: Molhado com Molhado, Seco com Seco, Dia seguinte com Dia seguinte.
+// Misturar etapas mistura duas variáveis (o produto e o tempo/noite de sono).
+
+/** Ângulos que os dois registros têm: só esses dão para comparar. */
+export function commonAngles(a: readonly Angle[], b: readonly Angle[]): Angle[] {
+  return ANGLES.filter((x) => a.includes(x) && b.includes(x))
 }
 
 export interface CompareItem {
@@ -45,16 +45,10 @@ export interface CompareItem {
 
 const byRecent = (x: CompareItem, y: CompareItem) => Date.parse(y.capturedAt) - Date.parse(x.capturedAt)
 
-/** Sugestão para um tipo: A = mais recente desse tipo; B = o anterior do mesmo tipo, senão o mais recente compatível. */
+/** Sugestão para um tipo: A = mais recente desse tipo; B = o anterior do mesmo tipo. */
 export function defaultPair(items: CompareItem[], type: StageType): { a: string; b: string } | null {
-  const sorted = [...items].sort(byRecent)
-  const a = sorted.find((i) => i.type === type)
-  if (!a) return null
-  for (const t of compatibleTypes(type)) {
-    const b = sorted.find((i) => i.type === t && i.id !== a.id)
-    if (b) return { a: a.id, b: b.id }
-  }
-  return null
+  const same = items.filter((i) => i.type === type).sort(byRecent)
+  return same.length >= 2 ? { a: same[0].id, b: same[1].id } : null
 }
 
 /** Tipo inicial: o da etapa mais recente que tenha com quem comparar. */
@@ -63,7 +57,7 @@ export function initialType(items: CompareItem[]): StageType | null {
   return null
 }
 
-/** B continua válido se for outra etapa, de tipo compatível com A. */
+/** B continua válido se for outra etapa, do mesmo tipo de A. */
 export function isCompatible(a: CompareItem, b: CompareItem): boolean {
-  return a.id !== b.id && compatibleTypes(a.type).includes(b.type)
+  return a.id !== b.id && a.type === b.type
 }

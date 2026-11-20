@@ -1,11 +1,12 @@
 // Comparador: primeiro a etapa (Molhado, Seco, Dia seguinte), depois os dois registros.
-// Molhado só compara com Molhado; Seco e Dia seguinte também entre si (ver lib/compare.ts).
+// Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
+// os dois registros têm ficam clicáveis (ver lib/compare.ts).
 import { useEffect, useMemo } from 'react'
 import { Dropdown, type DropdownOption } from '../components/Dropdown'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, productThumbPath } from '../components/ProductThumb'
-import { compatibleTypes, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
+import { commonAngles, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
 import {
   ANGLES,
   ANGLE_LABEL,
@@ -84,7 +85,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
   if (a && (!b || !isCompatible(toItem(a), toItem(b)))) {
     b = recent.find((e) => isCompatible(toItem(a!), toItem(e)))
   }
-  const angle: Angle = isAngle(angleParam) ? angleParam : initialAngle(anglesOf(a), anglesOf(b)).angle
+  const common = commonAngles(anglesOf(a), anglesOf(b))
+  // Ângulo da URL só vale se os dois tiverem a foto; senão, o primeiro em comum.
+  const angle: Angle = isAngle(angleParam) && common.includes(angleParam) ? angleParam : initialAngle(anglesOf(a), anglesOf(b)).angle
 
   // Mantém a URL igual ao que está na tela (recarregar preserva a comparação).
   const target = type ? compareUrl(type, a?.stage.id, b?.stage.id, a && b ? angle : undefined) : null
@@ -127,10 +130,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
   function choose(side: 'a' | 'b', id: string) {
     if (!type) return
-    let na = side === 'a' ? id : a?.stage.id
-    let nb = side === 'b' ? id : b?.stage.id
-    // Escolher no A o registro que está no B troca os lados.
-    if (na && na === nb) nb = side === 'a' ? a?.stage.id : nb
+    const na = side === 'a' ? id : a?.stage.id
+    const nb = side === 'b' ? id : b?.stage.id
     const ea = na ? entries.get(na) : undefined
     const eb = nb ? entries.get(nb) : undefined
     navigate(compareUrl(type, na, nb, initialAngle(anglesOf(ea), anglesOf(eb)).angle), { replace: true })
@@ -141,15 +142,14 @@ export function Compare({ params }: { params: URLSearchParams }) {
   }
 
   const optionsOf = (t: StageType) => recent.filter((e) => e.stage.stage_type === t)
-  const toOption = (e: Entry, hint?: string): DropdownOption => ({
+  const toOption = (e: Entry): DropdownOption => ({
     value: e.stage.id,
     label: productLabel(e.experiment),
     sublabel: [optionWhen(e), brandLabel(e.experiment)].filter(Boolean).join(' · '),
-    hint,
     thumb: <ProductThumb experiment={e.experiment} stage={e.stage} urls={urls} className="dd-thumb" />,
   })
-  const missing = a && b ? missingSide(anglesOf(a), anglesOf(b), angle) : null
-  const crossType = !!a && !!b && a.stage.stage_type !== b.stage.stage_type
+  // Aviso só quando não há nenhum ângulo em comum (os outros nem dá para escolher).
+  const missing = a && b && !common.length ? missingSide(anglesOf(a), anglesOf(b), angle) : null
 
   return (
     <main className="page compare-page">
@@ -164,7 +164,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
             aria-checked={type === t}
             className={`seg ${type === t ? 'on' : ''}`}
             onClick={() => chooseType(t)}
-            disabled={countOf(t) === 0}
+            disabled={countOf(t) < 2}
+            title={countOf(t) < 2 ? `Precisa de 2 registros ${STAGE_LABEL[t]} para comparar` : undefined}
           >
             {STAGE_LABEL[t]}
           </button>
@@ -173,14 +174,12 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
       {type && a && !b && (
         <p className="alert alert-info" role="status">
-          {type === 'wet'
-            ? 'Só há 1 registro Molhado. Molhado se compara com Molhado: registre outro para comparar.'
-            : `Só há 1 registro ${STAGE_LABEL[type]} e nenhum ${STAGE_LABEL[compatibleTypes(type)[1]]}. Registre outro para comparar.`}
+          Só há 1 registro {STAGE_LABEL[type]}. Cada etapa se compara com a mesma etapa: registre outro {STAGE_LABEL[type]} para comparar.
         </p>
       )}
       {!type && (
         <p className="alert alert-info" role="status">
-          Compare etapas iguais (Molhado com Molhado) ou Seco com Dia seguinte. Registre mais uma etapa para comparar.
+          Compare etapas iguais: Molhado com Molhado, Seco com Seco, Dia seguinte com Dia seguinte. Registre mais uma etapa para comparar.
         </p>
       )}
 
@@ -193,7 +192,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
               prefix={<span className="pick-tag" aria-hidden="true">A</span>}
               value={a.stage.id}
               onChange={(v) => choose('a', v)}
-              options={optionsOf(type).map((e) => toOption(e, e.stage.id === b.stage.id ? 'em B' : undefined))}
+              options={optionsOf(type)
+                .filter((e) => e.stage.id !== b.stage.id)
+                .map(toOption)}
             />
             <Dropdown
               label="Registro B"
@@ -201,11 +202,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
               prefix={<span className="pick-tag" aria-hidden="true">B</span>}
               value={b.stage.id}
               onChange={(v) => choose('b', v)}
-              options={compatibleTypes(type).flatMap((t) =>
-                optionsOf(t)
-                  .filter((e) => e.stage.id !== a.stage.id)
-                  .map((e) => ({ ...toOption(e), group: compatibleTypes(type).length > 1 ? STAGE_LABEL[t] : undefined })),
-              )}
+              options={optionsOf(type)
+                .filter((e) => e.stage.id !== a.stage.id)
+                .map(toOption)}
             />
           </div>
 
@@ -213,13 +212,16 @@ export function Compare({ params }: { params: URLSearchParams }) {
             {ANGLES.map((x) => {
               const inA = !!photoByAngle(a.stage, x)
               const inB = !!photoByAngle(b.stage, x)
+              const both = inA && inB
               return (
                 <button
                   key={x}
                   role="tab"
                   aria-selected={angle === x}
-                  className={`seg ${angle === x ? 'on' : ''} ${!inA && !inB ? 'dim' : !inA || !inB ? 'half' : ''}`}
+                  className={`seg ${angle === x && both ? 'on' : ''}`}
                   onClick={() => setAngle(x)}
+                  disabled={!both}
+                  title={both ? undefined : inA || inB ? `Só o registro ${inA ? 'A' : 'B'} tem foto de ${ANGLE_LABEL[x]}` : `Nenhum dos dois tem foto de ${ANGLE_LABEL[x]}`}
                 >
                   {ANGLE_LABEL[x]}
                 </button>
@@ -229,9 +231,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
           {missing && (
             <p className="alert alert-info" role="status">
-              {missing === 'both'
-                ? `Nenhum dos registros tem foto de ${ANGLE_LABEL[angle]}.`
-                : `O registro ${missing === 'a' ? 'A' : 'B'} não tem foto de ${ANGLE_LABEL[angle]}.`}
+              Esses dois registros não têm foto do mesmo ângulo.
             </p>
           )}
           {error && <p className="alert alert-error">{error}</p>}
@@ -248,8 +248,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
                   )}
                   <figcaption className="compare-meta">
                     <strong>
-                      {label} · {crossType ? `${STAGE_LABEL[e.stage.stage_type]} · ` : ''}
-                      {formatShortDateTime(e.stage.captured_at)} {e.stage.is_favorite && <span className="star">★</span>}
+                      {label} · {formatShortDateTime(e.stage.captured_at)} {e.stage.is_favorite && <span className="star">★</span>}
                     </strong>
                     <span className="clamp-2">{productLabel(e.experiment)}</span>
                     {brandLabel(e.experiment) && <span className="muted one-line">{brandLabel(e.experiment)}</span>}

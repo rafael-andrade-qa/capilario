@@ -82,7 +82,7 @@ test('foto do produto: enviar e trocar pelo produto aberto', async ({ page }) =>
   await login(page)
   const card = page.locator('.experiment', { hasText: 'Gelatina Supervolume' })
   const product = products.find((p) => p.name === 'Gelatina Supervolume')!
-  await card.getByRole('button', { name: '+ Foto do produto' }).click()
+  await card.getByRole('button', { name: 'Adicionar foto do produto' }).click()
   await page.getByTestId(`product-photo-${product.id}`).setInputFiles([FRONT])
   await expect(card.getByRole('button', { name: 'Trocar foto do produto' })).toBeVisible()
   await expect(card.locator('.product-thumb img')).toHaveAttribute('src', new RegExp(`produto-${product.id}`))

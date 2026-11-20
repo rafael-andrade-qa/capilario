@@ -1,6 +1,7 @@
 // Seletor próprio (padrão "select-only combobox" do WAI-ARIA): a lista abre logo abaixo do
 // campo, com a mesma largura, e mostra a foto do produto em cada opção. Se não couber
 // embaixo, abre para cima. Teclado: setas, Home/End, Enter/Espaço, Esc.
+// Com uma opção só, não há o que escolher: o campo fica fixo, sem seta e sem lista.
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
 export interface DropdownOption {
@@ -32,8 +33,10 @@ export function Dropdown({ label, value, options, onChange, testId, prefix }: Pr
   const optId = (i: number) => `${listId}-o${i}`
   const selectedIndex = Math.max(0, options.findIndex((o) => o.value === value))
   const selected = options[selectedIndex]
+  const fixed = options.length <= 1
 
   function openList() {
+    if (fixed) return
     setActive(selectedIndex)
     setOpen(true)
   }
@@ -92,7 +95,7 @@ export function Dropdown({ label, value, options, onChange, testId, prefix }: Pr
 
   let lastGroup: string | undefined
   return (
-    <div ref={wrap} className={`dd ${open ? 'open' : ''}`}>
+    <div ref={wrap} className={`dd ${open ? 'open' : ''} ${fixed ? 'fixed' : ''}`}>
       <button
         ref={trigger}
         type="button"
@@ -101,6 +104,7 @@ export function Dropdown({ label, value, options, onChange, testId, prefix }: Pr
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-disabled={fixed || undefined}
         aria-controls={listId}
         aria-activedescendant={open ? optId(active) : undefined}
         onClick={() => (open ? setOpen(false) : openList())}
@@ -114,9 +118,11 @@ export function Dropdown({ label, value, options, onChange, testId, prefix }: Pr
           <span className="dd-label">{selected?.label ?? 'Escolha'}</span>
           {selected?.sublabel && <span className="dd-sub">{selected.sublabel}</span>}
         </span>
-        <svg className="dd-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        </svg>
+        {!fixed && (
+          <svg className="dd-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+        )}
       </button>
       {open && (
         <ul

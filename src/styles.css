@@ -1583,10 +1583,36 @@ button.back {
 .icon-btn.danger-icon:focus-visible {
   background: var(--err-soft);
 }
+/* Ações do produto só com ícones: adicionar etapa, foto do produto e, à direita, excluir. */
+.product-actions {
+  gap: 8px 10px;
+}
+.product-actions .icon-btn {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+}
+.product-actions .product-add {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.product-actions .product-add:hover,
+.product-actions .product-add:focus-visible {
+  background: var(--brand);
+  filter: brightness(1.08);
+}
+.product-actions .icon-btn.busy {
+  opacity: 0.55;
+  animation: busy-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes busy-pulse {
+  to {
+    opacity: 0.25;
+  }
+}
 .product-actions .product-delete {
-  width: 34px;
-  height: 34px;
-  margin: 0 0 0 auto;
+  margin-left: auto;
 }
 .page-header .detail-actions {
   gap: 6px;
@@ -1614,4 +1640,9 @@ button.back {
 input[list]::-webkit-calendar-picker-indicator,
 input[list]::-webkit-list-button {
   display: none !important;
+}
+
+/* Seletor com uma opção só: mostra o registro, sem parecer clicável. */
+.dd.fixed .dd-trigger {
+  cursor: default;
 }

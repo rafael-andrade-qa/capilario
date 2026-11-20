@@ -167,38 +167,26 @@ test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ pag
   expect(c).toEqual({ experiments: 2, stages: 3, photos: 12 })
 })
 
-test('A4: compara só etapas compatíveis; Seco × Seco entre experimentos', async ({ page }) => {
+test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ page }) => {
   await login(page, me)
   await page.getByRole('button', { name: 'Comparar' }).click()
   await noHorizontalScroll(page)
 
-  // Há um só Molhado: Molhado não se compara com Seco, então não há par.
-  await page.getByRole('radio', { name: 'Molhado' }).click()
-  await expect(page.getByText(/Só há 1 registro Molhado/)).toBeVisible()
-  await expect(page.getByTestId('select-a')).toHaveCount(0)
+  // Um só Molhado e nenhum Dia seguinte: não há par, então essas etapas nem ficam clicáveis.
+  await expect(page.getByRole('radio', { name: 'Molhado' })).toBeDisabled()
   await expect(page.getByRole('radio', { name: 'Dia seguinte' })).toBeDisabled()
-
-  await page.getByRole('radio', { name: 'Seco' }).click()
   await expect(page.getByRole('radio', { name: 'Seco' })).toHaveAttribute('aria-checked', 'true')
-  // Os seletores oferecem só Seco: A tem os dois, B o que não está em A.
-  // Lista própria: abre logo abaixo do campo, com a mesma largura.
-  await page.getByTestId('select-a').click()
-  const listA = page.getByRole('listbox', { name: 'Registro A' })
-  await expect(listA.getByRole('option')).toHaveCount(2)
-  const tb = (await page.getByTestId('select-a').boundingBox())!
-  const lb = (await listA.boundingBox())!
-  expect(lb.y).toBeGreaterThanOrEqual(tb.y + tb.height)
-  expect(Math.abs(lb.width - tb.width)).toBeLessThanOrEqual(1)
-  await page.keyboard.press('Escape')
-  await expect(listA).toHaveCount(0)
-  await page.getByTestId('select-b').click()
-  await expect(page.getByRole('listbox', { name: 'Registro B' }).getByRole('option')).toHaveCount(1)
-  await page.getByTestId('select-b').click()
-  // Escolher em A o que está em B troca os lados.
-  await page.getByTestId('select-a').click()
-  await listA.locator(`[role=option][data-value="${ids.dry}"]`).click()
+
+  // Dois registros Seco: cada lista esconde o que está do outro lado, então sobra uma
+  // opção só e o campo fica fixo, sem abrir lista.
+  await page.goto(`./#/comparar?a=${ids.dry}&b=${ids.dryNone}`)
   await expect(page.getByTestId('select-a')).toHaveAttribute('data-value', ids.dry)
   await expect(page.getByTestId('select-b')).toHaveAttribute('data-value', ids.dryNone)
+  await expect(page.getByTestId('select-a')).toHaveAttribute('aria-disabled', 'true')
+  await expect(page.getByTestId('select-b')).toHaveAttribute('aria-disabled', 'true')
+  await expect(page.locator('.dd-chev')).toHaveCount(0)
+  await page.getByTestId('select-a').click({ force: true })
+  await expect(page.getByRole('listbox')).toHaveCount(0)
   await expect(page.getByRole('tab', { name: 'Frente' })).toHaveAttribute('aria-selected', 'true')
 
   const dry = await photosOf(ids.dry)
@@ -219,16 +207,17 @@ test('A4: compara só etapas compatíveis; Seco × Seco entre experimentos', asy
   await expect(page.getByRole('tab', { name: 'Costas' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none.back.storage_path))
 
-  // Pedir Molhado × Seco pela URL não vale: B é trocado por um registro compatível.
+  // Pedir Molhado × Seco pela URL não vale: sem outro Molhado, não há B.
   await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)
   await expect(page.getByRole('radio', { name: 'Molhado' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByText(/Só há 1 registro Molhado/)).toBeVisible()
   await expect(page.getByTestId('side-B')).toHaveCount(0)
 })
 
-test('A5: ângulo ausente aparece como ausência, sem trocar de ângulo', async ({ page }) => {
+test('A5: só os ângulos que os dois registros têm ficam clicáveis', async ({ page }) => {
   await login(page, me)
   await page.getByRole('link', { name: '+ Novo registro' }).click()
-  await stageRadio(page, 'Dia seguinte').click()
+  await stageRadio(page, 'Seco').click()
   await productInput(page).fill('Gelatina A5')
   await brandInput(page).fill('Marca Teste')
   await continueToPhotos(page)
@@ -245,15 +234,29 @@ test('A5: ângulo ausente aparece como ausência, sem trocar de ângulo', async 
   // A etapa com 1 de 4 fotos mostra o contador ao lado do nome.
   await expect(card.locator('.count-pill')).toHaveText('1/4')
 
-  // Dia seguinte × Seco é permitido (como o Seco amanheceu).
+  // Três registros Seco: a lista de A abre logo abaixo do campo, com a mesma largura,
+  // e não oferece o registro que já está em B.
   await page.goto(`./#/comparar?a=${ids.backOnly}&b=${ids.dry}`)
-  await expect(page.getByRole('radio', { name: 'Dia seguinte' })).toHaveAttribute('aria-checked', 'true')
-  await expect(page.getByTestId('side-B').locator('figcaption')).toContainText('Seco')
+  await expect(page.getByRole('radio', { name: 'Seco' })).toHaveAttribute('aria-checked', 'true')
+  await page.getByTestId('select-a').click()
+  const listA = page.getByRole('listbox', { name: 'Registro A' })
+  await expect(listA.getByRole('option')).toHaveCount(2)
+  await expect(listA.locator(`[data-value="${ids.dry}"]`)).toHaveCount(0)
+  const tb = (await page.getByTestId('select-a').boundingBox())!
+  const lb = (await listA.boundingBox())!
+  expect(lb.y).toBeGreaterThanOrEqual(tb.y + tb.height)
+  expect(Math.abs(lb.width - tb.width)).toBeLessThanOrEqual(1)
+  await page.keyboard.press('Escape')
+  await expect(listA).toHaveCount(0)
+
+  // Só Costas está nos dois: os outros ângulos ficam desativados.
   await expect(page.getByRole('tab', { name: 'Costas' })).toHaveAttribute('aria-selected', 'true')
-  await page.getByRole('tab', { name: 'Frente' }).click()
-  await expect(page.getByTestId('side-A')).toContainText('Sem foto deste ângulo')
-  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp((await photosOf(ids.dry)).front.storage_path))
-  await expect(page.getByText('O registro A não tem foto de Frente.')).toBeVisible()
+  for (const label of ['Frente', 'Esquerdo', 'Direito']) await expect(page.getByRole('tab', { name: label })).toBeDisabled()
+  await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp((await photosOf(ids.backOnly)).back.storage_path))
+  // Um ângulo pedido pela URL que só um lado tem volta para o ângulo em comum.
+  await page.goto(`./#/comparar?a=${ids.backOnly}&b=${ids.dry}&angulo=front`)
+  await expect(page.getByRole('tab', { name: 'Costas' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('Sem foto deste ângulo')).toHaveCount(0)
 })
 
 test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async ({ page }) => {

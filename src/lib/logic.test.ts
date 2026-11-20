@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assignInOrder, clearSlot, emptySlots, filledAngles, swapSlots } from './slots'
-import { compatibleTypes, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from './compare'
+import { commonAngles, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from './compare'
 import {
   formatDateRange,
   formatShortDate,
@@ -153,20 +153,23 @@ describe('etapas comparáveis', () => {
   })
   const items = [item('w1', 'wet', 10), item('d1', 'dry', 11), item('w2', 'wet', 12), item('n1', 'next_day', 13), item('d2', 'dry', 14)]
 
-  it('Molhado só com Molhado; Seco e Dia seguinte entre si', () => {
-    expect(compatibleTypes('wet')).toEqual(['wet'])
-    expect(compatibleTypes('dry')).toEqual(['dry', 'next_day'])
-    expect(compatibleTypes('next_day')).toEqual(['next_day', 'dry'])
+  it('só a mesma etapa: Seco não compara com Dia seguinte', () => {
+    expect(isCompatible(items[0], items[2])).toBe(true)
     expect(isCompatible(items[0], items[1])).toBe(false)
-    expect(isCompatible(items[1], items[3])).toBe(true)
+    expect(isCompatible(items[1], items[3])).toBe(false)
     expect(isCompatible(items[1], items[1])).toBe(false)
   })
 
-  it('sugere as duas mais recentes do mesmo tipo, senão o tipo vizinho', () => {
+  it('sugere as duas mais recentes do mesmo tipo', () => {
     expect(defaultPair(items, 'wet')).toEqual({ a: 'w2', b: 'w1' })
     expect(defaultPair(items, 'dry')).toEqual({ a: 'd2', b: 'd1' })
-    expect(defaultPair(items, 'next_day')).toEqual({ a: 'n1', b: 'd2' })
+    expect(defaultPair(items, 'next_day')).toBeNull()
     expect(defaultPair([items[0]], 'wet')).toBeNull()
+  })
+
+  it('ângulos comparáveis: só os que os dois têm', () => {
+    expect(commonAngles(['front', 'left', 'back'], ['left', 'front'])).toEqual(['front', 'left'])
+    expect(commonAngles(['back'], ['front'])).toEqual([])
   })
 
   it('começa pelo tipo da etapa mais recente que tem par', () => {
