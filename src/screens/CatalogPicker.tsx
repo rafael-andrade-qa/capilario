@@ -1,12 +1,16 @@
 // Novo produto, primeiro passo: achar o produto no catálogo (com foto pronta).
-// Busca por nome ou marca (sem acento, aguenta erro de digitação), atalhos das marcas mais
-// comuns e o filtro Masculino (pomadas, ceras e marcas masculinas). Se não achar: identificar
-// pela foto ou cadastrar à mão.
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+//  - Busca por nome ou marca (sem acento, aguenta erro de digitação), com lupa.
+//  - Filtros separados e coerentes: Marca (todas as marcas, numa folha com busca) e Público
+//    (Todos | Masculino: linhas masculinas, pomadas, ceras e pastas).
+//  - Resultados em páginas de 5 (cabe na tela, sem rolar), com Anterior e Próxima.
+//  - Não achou: Pela foto ou Cadastrar à mão, sempre no rodapé.
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { CameraIcon } from '../components/ActionIcons'
+import { BrandSheet } from '../components/BrandSheet'
 import { PageHeader } from '../components/PageHeader'
+import { SearchField } from '../components/SearchField'
 import { useToast } from '../components/Toasts'
-import { CATEGORY_LABEL, PAGE_SIZE, catalogImageUrl, catalogPhotoFile, searchCatalog, topBrands, type CatalogBrand, type CatalogItem } from '../lib/catalog'
+import { CATEGORY_LABEL, catalogImageUrl, catalogPhotoFile, searchCatalog, type CatalogBrand, type CatalogItem } from '../lib/catalog'
 import type { Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, validateFile } from '../lib/files'
 import { href } from '../lib/router'
@@ -25,6 +29,14 @@ const plain = (v: string | null | undefined) =>
     .trim()
     .toLowerCase()
 
+function Chevron() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function CatalogPicker({
   others,
   onPick,
@@ -40,62 +52,40 @@ export function CatalogPicker({
   const [query, setQuery] = useState('')
   const [brand, setBrand] = useState<CatalogBrand | null>(null)
   const [male, setMale] = useState(false)
-  const [brands, setBrands] = useState<CatalogBrand[]>([])
-  const [items, setItems] = useState<CatalogItem[] | null>(null)
-  const [more, setMore] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(0)
+  const [result, setResult] = useState<{ items: CatalogItem[]; hasNext: boolean } | null>(null)
   const [failed, setFailed] = useState(false)
   const [picking, setPicking] = useState<string | null>(null)
+  const [brandsOpen, setBrandsOpen] = useState(false)
   const idInput = useRef<HTMLInputElement>(null)
   const seq = useRef(0)
+  const closeBrands = useCallback(() => setBrandsOpen(false), [])
 
   const owned = new Set(others.filter((e) => e.product_mode === 'named').map((e) => `${plain(e.brand)}|${plain(e.product_name)}`))
 
-  useEffect(() => {
-    let alive = true
-    void topBrands(14, male ? 'masculino' : undefined).then((b) => alive && setBrands(b))
-    return () => {
-      alive = false
-    }
-  }, [male])
+  // Mudou busca ou filtro: volta para a primeira página.
+  useEffect(() => setPage(0), [query, brand, male])
 
   useEffect(() => {
     const my = ++seq.current
     const t = setTimeout(
       () => {
-        searchCatalog(query, { brand: brand?.id, audience: male ? 'masculino' : null })
+        searchCatalog(query, { brand: brand?.id, audience: male ? 'masculino' : null, page })
           .then((r) => {
             if (my !== seq.current) return
-            setItems(r)
-            setMore(r.length === PAGE_SIZE)
+            setResult(r)
             setFailed(false)
           })
           .catch(() => {
             if (my !== seq.current) return
-            setItems([])
+            setResult({ items: [], hasNext: false })
             setFailed(true)
           })
       },
       query ? 250 : 0,
     )
     return () => clearTimeout(t)
-  }, [query, brand, male])
-
-  async function loadMore() {
-    if (!items || loadingMore) return
-    setLoadingMore(true)
-    const my = seq.current
-    try {
-      const r = await searchCatalog(query, { brand: brand?.id, audience: male ? 'masculino' : null, offset: items.length })
-      if (my !== seq.current) return
-      setItems([...items, ...r])
-      setMore(r.length === PAGE_SIZE)
-    } catch {
-      notify('Não foi possível carregar mais agora.', 'error')
-    } finally {
-      setLoadingMore(false)
-    }
-  }
+  }, [query, brand, male, page])
 
   async function pick(item: CatalogItem) {
     if (picking) return
@@ -115,52 +105,49 @@ export function CatalogPicker({
     else onIdentify(file)
   }
 
-  const caption = brand
-    ? `${brand.name}${male ? ' · masculino' : ''}`
-    : query.trim()
-      ? `Resultados para “${query.trim()}”${male ? ' · masculino' : ''}`
-      : male
-        ? 'Mais usados · masculino'
-        : 'Mais usados'
+  const items = result?.items ?? null
+  const searching = !!query.trim()
+  const caption = searching ? `Resultados para “${query.trim()}”` : brand ? `Mais usados de ${brand.name}` : 'Mais usados'
 
   return (
     <main className="page form-page catalog-page">
       <PageHeader title="Novo produto" back={{ label: 'Voltar ao histórico', href: href('/') }} />
-      <input
-        type="search"
-        className="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Buscar produto ou marca"
-        aria-label="Buscar no catálogo"
-        enterKeyHint="search"
-      />
-      <div className="catalog-chips" role="group" aria-label="Filtros">
-        <button
-          type="button"
-          className={`chip-btn${male ? ' on' : ''}`}
-          aria-pressed={male}
-          onClick={() => {
-            setMale(!male)
-            setBrand(null)
-          }}
-        >
-          Masculino
-        </button>
-        {brand && !brands.some((b) => b.id === brand.id) && (
-          <button type="button" className="chip-btn on" aria-pressed="true" onClick={() => setBrand(null)}>
-            {brand.name}
+      <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar no catálogo" />
+
+      <div className="catalog-filters">
+        <div className="brand-filter">
+          <button
+            type="button"
+            className={`filter-btn ${brand ? 'on' : ''}`}
+            onClick={() => setBrandsOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={brand ? `Marca: ${brand.name}. Trocar marca` : 'Filtrar por marca'}
+          >
+            <span className="filter-text">{brand ? brand.name : 'Marca'}</span>
+            <Chevron />
           </button>
-        )}
-        {brands.map((b) => (
-          <button key={b.id} type="button" className={`chip-btn${brand?.id === b.id ? ' on' : ''}`} aria-pressed={brand?.id === b.id} onClick={() => setBrand(brand?.id === b.id ? null : b)}>
-            {b.name}
-          </button>
-        ))}
+          {brand && (
+            <button type="button" className="filter-clear" onClick={() => setBrand(null)} aria-label="Limpar marca">
+              ✕
+            </button>
+          )}
+        </div>
+        <div className="segmented audience-filter" role="radiogroup" aria-label="Público">
+          {[
+            ['Todos', false],
+            ['Masculino', true],
+          ].map(([label, value]) => (
+            <label key={String(label)} className={`seg ${male === value ? 'on' : ''}`}>
+              <input type="radio" name="publico" checked={male === value} onChange={() => setMale(value as boolean)} />
+              {label}
+            </label>
+          ))}
+        </div>
       </div>
 
       <p className="muted small catalog-caption" aria-live="polite">
         {items === null ? 'Carregando…' : caption}
+        {items && page > 0 && ` · página ${page + 1}`}
       </p>
 
       {items && items.length > 0 && (
@@ -190,24 +177,41 @@ export function CatalogPicker({
           {failed ? 'Não foi possível buscar no catálogo agora.' : 'Nada no catálogo com essa busca. Tente pela foto ou cadastre à mão.'}
         </p>
       )}
-      {more && (
-        <button type="button" className="btn btn-ghost btn-block" onClick={() => void loadMore()} disabled={loadingMore}>
-          {loadingMore ? 'Carregando…' : 'Ver mais'}
-        </button>
+      {items && (page > 0 || result?.hasNext) && (
+        <nav className="pager" aria-label="Páginas">
+          <button type="button" className="btn btn-small" onClick={() => setPage(page - 1)} disabled={page === 0}>
+            ‹ Anterior
+          </button>
+          <span className="muted small">Página {page + 1}</span>
+          <button type="button" className="btn btn-small" onClick={() => setPage(page + 1)} disabled={!result?.hasNext}>
+            Próxima ›
+          </button>
+        </nav>
       )}
 
-      <section className="save-bar catalog-fallback" aria-label="Não achou?">
-        <span className="muted small">Não achou?</span>
+      <section className="save-bar catalog-fallback" aria-label="Não achou o produto?">
+        <p className="muted small catalog-fallback-title">Não achou o produto?</p>
         <div className="catalog-fallback-actions">
           <button type="button" className="btn btn-outline-brand" onClick={() => idInput.current?.click()}>
             <CameraIcon size={18} /> Pela foto
           </button>
-          <button type="button" className="btn btn-ghost" onClick={onManual}>
+          <button type="button" className="btn" onClick={onManual}>
             Cadastrar à mão
           </button>
         </div>
         <input ref={idInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onIdentifyPicked} data-testid="catalog-identify-input" />
       </section>
+
+      {brandsOpen && (
+        <BrandSheet
+          selected={brand}
+          onClose={closeBrands}
+          onPick={(b) => {
+            setBrand(b)
+            setBrandsOpen(false)
+          }}
+        />
+      )}
     </main>
   )
 }

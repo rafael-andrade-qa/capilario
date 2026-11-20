@@ -10,6 +10,7 @@ const admin = adminClient()
 const tag = randomUUID().slice(0, 6).replace(/[0-9]/g, 'q')
 const brandA = `e2e-crespa-${tag}`
 const brandM = `e2e-barbearia-${tag}`
+const brandP = `e2e-paginas-${tag}`
 
 test.describe.configure({ mode: 'serial' })
 
@@ -40,6 +41,7 @@ test.beforeAll(async () => {
   const b = await admin.from('catalog_brands').insert([
     { id: brandA, name: `Crespa ${tag}`, audience: 'geral', product_count: 900000 },
     { id: brandM, name: `Barbearia ${tag}`, audience: 'masculino', product_count: 800000 },
+    { id: brandP, name: `Paginas ${tag}`, audience: 'geral', product_count: 7 },
   ])
   if (b.error) throw b.error
   const items = [
@@ -54,10 +56,14 @@ test.beforeAll(async () => {
   }
   const p = await admin.from('catalog_products').insert(items)
   if (p.error) throw p.error
+  // 7 produtos de uma marca, sem foto, para testar as páginas de 5.
+  const many = Array.from({ length: 7 }, (_, i) => ({ ...row(`p${i}`, brandP, `Paginas ${tag}`, `Shampoo Numero ${i + 1}`, 'shampoo', 'unissex', 100 - i), image_path: null }))
+  const m = await admin.from('catalog_products').insert(many)
+  if (m.error) throw m.error
 })
 
 test.afterAll(async () => {
-  await admin.from('catalog_brands').delete().in('id', [brandA, brandM])
+  await admin.from('catalog_brands').delete().in('id', [brandA, brandM, brandP])
   await admin.storage.from('catalog').remove(['gelatina', 'creme', 'pomada'].map((x) => `p/${x}-${tag}.webp`))
 })
 
@@ -96,22 +102,47 @@ test('busca no catálogo, escolhe e cadastra com a foto pronta', async ({ page }
   expect(data?.photo_path).toMatch(/\.webp$/)
 })
 
-test('atalhos: Masculino e marca; o que já está no histórico aparece marcado', async ({ page }) => {
+async function chooseBrand(page: Page, name: string) {
+  await page.getByRole('button', { name: /Filtrar por marca|Trocar marca/ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Escolher marca' })
+  await sheet.getByRole('searchbox', { name: 'Buscar marca' }).fill(name)
+  await sheet.getByRole('button', { name: new RegExp(`^${name}`) }).click()
+  await expect(sheet).toHaveCount(0)
+}
+
+test('filtros: Público (Masculino) e Marca (lista com busca); o que já está no histórico aparece marcado', async ({ page }) => {
   await login(page)
   await page.getByRole('link', { name: '+ Novo produto' }).click()
-  await page.getByRole('button', { name: 'Masculino', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Masculino', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: `Barbearia ${tag}`, exact: true }).click()
+  // Masculino não é marca: é um filtro à parte.
+  await page.locator('label.seg', { hasText: 'Masculino' }).click()
+  await expect(page.getByRole('radio', { name: 'Masculino' })).toBeChecked()
+  await chooseBrand(page, `Barbearia ${tag}`)
+  await expect(page.getByRole('button', { name: `Marca: Barbearia ${tag}. Trocar marca` })).toBeVisible()
   await expect(results(page)).toHaveCount(1)
   await expect(results(page).first()).toContainText('Pomada Efeito Matte')
-  await expect(results(page).first()).toContainText('Pomada')
 
-  await page.getByRole('button', { name: 'Masculino', exact: true }).click()
-  await page.getByRole('button', { name: `Crespa ${tag}`, exact: true }).click()
+  await page.getByRole('button', { name: 'Limpar marca' }).click()
+  await page.locator('label.seg', { hasText: 'Todos' }).click()
+  await chooseBrand(page, `Crespa ${tag}`)
   await expect(results(page)).toHaveCount(2)
   const owned = results(page).filter({ hasText: 'Creme de Pentear Cachos Leves' })
   await expect(owned).toContainText('Já está no seu histórico')
   await expect(owned).toBeDisabled()
+})
+
+test('páginas de 5, com Anterior e Próxima', async ({ page }) => {
+  await login(page)
+  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await chooseBrand(page, `Paginas ${tag}`)
+  await expect(results(page)).toHaveCount(5)
+  await expect(results(page).first()).toContainText('Shampoo Numero 1')
+  await expect(page.getByRole('button', { name: '‹ Anterior' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Próxima ›' }).click()
+  await expect(results(page)).toHaveCount(2)
+  await expect(page.getByText('Página 2', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Próxima ›' })).toBeDisabled()
+  await page.getByRole('button', { name: '‹ Anterior' }).click()
+  await expect(results(page)).toHaveCount(5)
 })
 
 test('pela foto: a função acha no catálogo e a foto pronta vem primeiro', async ({ page }) => {

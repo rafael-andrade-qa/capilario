@@ -8,6 +8,7 @@ import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
 import { EditIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
+import { SearchField } from '../components/SearchField'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import {
   MOMENT_SLUG,
@@ -64,7 +65,9 @@ export function History({
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
-  const list = useMemo(() => sortHistory(experiments ?? []), [experiments])
+  // Mais recente primeiro; "Sem finalizador" fica sempre fixo no topo.
+  const recent = useMemo(() => sortHistory(experiments ?? []), [experiments])
+  const list = useMemo(() => [...recent.filter((e) => e.product_mode === 'none'), ...recent.filter((e) => e.product_mode !== 'none')], [recent])
   const notify = useToast()
   // Avisos que chegam pelo endereço (depois de salvar, excluir ou editar): uma vez só.
   const savedText = saved && experiments ? savedLabel(list, saved) : null
@@ -80,7 +83,7 @@ export function History({
     if (!list.length) return
     setOpen((prev) => {
       const next = new Set(prev)
-      if (!openRemembered) next.add(list[0].id)
+      if (!openRemembered) next.add(recent[0].id) // o mais recente (pode não ser o primeiro da lista)
       if (saved) {
         const exp = list.find((e) => e.stages.some((s) => s.id === saved))
         if (exp) next.add(exp.id)
@@ -89,7 +92,7 @@ export function History({
       openRemembered = true
       return next.size === prev.size && [...next].every((id) => prev.has(id)) ? prev : next
     })
-  }, [list, saved, created])
+  }, [list, recent, saved, created])
 
   useEffect(() => {
     openMemory.clear()
@@ -168,19 +171,13 @@ export function History({
       )}
 
       {list.length >= SEARCH_FROM && (
-        <input
-          type="search"
-          className="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar produto ou marca"
-          aria-label="Buscar produto ou marca"
-        />
+        <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar produto ou marca" />
       )}
       {query && visible.length === 0 && <p className="muted center small">Nenhum produto com “{query.trim()}”.</p>}
 
       {visible.length > 0 && (
         <div className="card product-list">
+          {!query && !list.some((e) => e.product_mode === 'none') && <NoFinisherRow open={open.has(NO_FINISHER_ID)} onToggle={() => toggle(NO_FINISHER_ID)} />}
           {visible.map((exp) => {
             const stages = publishedStages(exp)
             const fins = finalizationsOf(exp)
@@ -273,7 +270,6 @@ export function History({
               </section>
             )
           })}
-          {!query && !list.some((e) => e.product_mode === 'none') && <NoFinisherRow open={open.has(NO_FINISHER_ID)} onToggle={() => toggle(NO_FINISHER_ID)} />}
         </div>
       )}
 

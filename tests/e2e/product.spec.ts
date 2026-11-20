@@ -216,6 +216,8 @@ test('novo produto com foto da embalagem; registrar a finalização depois', asy
 
 test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async ({ page }) => {
   await login(page)
+  // Sempre o primeiro da lista, antes dos produtos (mesmo dos mais recentes).
+  await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
   const row = page.locator('.experiment', { hasText: 'Sem finalizador' })
   await expect(row.locator('.experiment-sub')).toContainText('Para quando você não usou produto')
   await row.locator('.product-toggle').click()
@@ -229,4 +231,6 @@ test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async
   const { data } = await admin.from('experiments').select('id').eq('user_id', me.id).eq('product_mode', 'none')
   expect(data).toHaveLength(1)
   await expect(page.locator('.experiment', { hasText: 'Sem finalizador' }).locator('.experiment-sub')).toContainText('1 finalização')
+  // Depois de usado, continua fixo no topo.
+  await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
 })

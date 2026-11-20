@@ -50,30 +50,39 @@ export const CATEGORY_LABEL: Record<string, string> = {
   tratamento: 'Tratamento',
 }
 
-export const PAGE_SIZE = 30
+/** Produtos por página na busca (cabe na tela sem rolar). */
+export const PAGE_SIZE = 5
 
+/** Uma página da busca; hasNext diz se existe a próxima (pede um item a mais para saber). */
 export async function searchCatalog(
   query: string,
-  opts: { brand?: string | null; audience?: 'masculino' | null; offset?: number } = {},
-): Promise<CatalogItem[]> {
+  opts: { brand?: string | null; audience?: 'masculino' | null; page?: number } = {},
+): Promise<{ items: CatalogItem[]; hasNext: boolean }> {
   const { data, error } = await supabase.rpc('search_catalog', {
     p_query: query,
     p_brand: opts.brand ?? null,
     p_audience: opts.audience ?? null,
-    p_limit: PAGE_SIZE,
-    p_offset: opts.offset ?? 0,
+    p_limit: PAGE_SIZE + 1,
+    p_offset: (opts.page ?? 0) * PAGE_SIZE,
   })
   if (error) throw new Error('Não foi possível buscar no catálogo agora.')
-  return (data ?? []) as CatalogItem[]
+  const rows = (data ?? []) as CatalogItem[]
+  return { items: rows.slice(0, PAGE_SIZE), hasNext: rows.length > PAGE_SIZE }
 }
 
-/** Marcas com mais produtos (para os atalhos). Masculinas também, se pedido. */
-export async function topBrands(limit = 14, audience?: 'masculino'): Promise<CatalogBrand[]> {
-  let q = supabase.from('catalog_brands').select('id, name, audience, product_count').order('product_count', { ascending: false }).limit(limit)
-  if (audience) q = q.eq('audience', audience)
-  const { data, error } = await q
-  if (error) return []
-  return (data ?? []) as CatalogBrand[]
+let brandsCache: Promise<CatalogBrand[]> | null = null
+
+/** Todas as marcas do catálogo (algumas centenas; carrega uma vez por sessão). */
+export function allBrands(): Promise<CatalogBrand[]> {
+  brandsCache ??= (async () => {
+    const { data, error } = await supabase.from('catalog_brands').select('id, name, audience, product_count').order('name').range(0, 4999)
+    if (error) {
+      brandsCache = null
+      return []
+    }
+    return (data ?? []) as CatalogBrand[]
+  })()
+  return brandsCache
 }
 
 export function catalogImageUrl(path: string | null): string | null {
