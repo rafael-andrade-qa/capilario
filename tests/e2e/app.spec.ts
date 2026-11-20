@@ -92,7 +92,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await brandInput(page).fill('Gema Labs')
   await noHorizontalScroll(page)
   await continueToPhotos(page)
-  await expect(page.locator('.details-summary')).toContainText('Molhado · Ondulando a Gema')
+  await expect(page.locator('.details-summary')).toContainText(/^Molhado · .+ · Ondulando a Gema/)
 
   // Passo 2: fotos. Troca Frente <-> Esquerdo por toque.
   await pick(page, [FRONT, LEFT, RIGHT, BACK])

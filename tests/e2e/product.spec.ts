@@ -116,9 +116,15 @@ test('novo registro com foto do produto, em dois passos', async ({ page }) => {
   await page.locator('label.seg', { hasText: 'Molhado' }).click()
   await page.getByRole('combobox', { name: 'Produto', exact: true }).fill('Máscara Nova')
   await page.getByRole('combobox', { name: 'Marca', exact: true }).fill('Marca Nova')
+  // A foto do produto fica no passo 2, junto com as outras fotos.
+  await expect(page.getByTestId('product-photo-input')).toHaveCount(0)
+  const continuar = await page.getByRole('button', { name: 'Continuar' }).boundingBox()
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  // O botão principal fica no mesmo lugar nos dois passos.
+  const salvar = await page.getByRole('button', { name: 'Salvar', exact: true }).boundingBox()
+  expect(Math.abs(salvar!.y - continuar!.y)).toBeLessThan(2)
   await page.getByTestId('product-photo-input').setInputFiles([BACK])
   await expect(page.locator('.product-photo-pick img')).toBeVisible()
-  await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByTestId('gallery-input').setInputFiles([FRONT])
   await expect(page.getByText('Verificando…')).toHaveCount(0)
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()

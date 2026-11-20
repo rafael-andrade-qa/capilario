@@ -31,7 +31,7 @@ import {
   type Stage,
   type StageType,
 } from '../lib/domain'
-import { EXT_BY_MIME, INPUT_ACCEPT, MAX_PHOTOS, canDisplay, detectMime, validateFile, type AcceptedMime } from '../lib/files'
+import { EXT_BY_MIME, INPUT_ACCEPT, canDisplay, detectMime, validateFile, type AcceptedMime } from '../lib/files'
 import { href, navigate } from '../lib/router'
 import { assignInOrder, clearSlot, emptySlots, filledAngles, setSlot, swapSlots, type Slots } from '../lib/slots'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
@@ -330,7 +330,6 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
     if (startNewExperiment && !noFinisher) {
       if (!productName.trim()) return 'Informe o produto ou marque Sem finalizador.'
       if (!brand.trim()) return 'Informe a marca do produto.'
-      if (productPhoto?.error) return 'Troque ou remova a foto do produto.'
     }
     return null
   }
@@ -344,6 +343,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
     if (!filled.length) return 'Escolha ao menos uma foto.'
     if (invalidCount) return 'Troque ou remova os arquivos marcados com problema.'
     if (checkingCount) return 'Aguarde a verificação das fotos.'
+    if (wantsProductPhoto && productPhoto?.error) return 'Troque ou remova a foto do produto.'
     return null
   }
 
@@ -462,8 +462,9 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
     twoSteps && stageType
       ? [
           STAGE_LABEL[stageType],
-          startNewExperiment ? productLabel(productFromForm(noFinisher, productName, brand)) : productLabel(experiment!),
           capturedIso ? formatShortDateTime(capturedIso) : null,
+          // Por último: se não couber, o nome do produto é que fica com reticências.
+          startNewExperiment ? productLabel(productFromForm(noFinisher, productName, brand)) : productLabel(experiment!),
         ]
           .filter(Boolean)
           .join(' · ')
@@ -531,7 +532,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
             </div>
           ) : (
             <>
-              <div className={`product-block ${noFinisher ? 'no-finisher' : ''}`}>
+              <div className="product-block">
                 <div className="field">
                   <div className="label-row">
                     <label htmlFor="f-produto" className="field-label">
@@ -588,36 +589,7 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
                     </datalist>
                   </div>
                 )}
-
-                {!noFinisher && (
-                  <div className="product-photo-col">
-                    <button
-                      type="button"
-                      className="product-photo-pick"
-                      onClick={() => productPhotoInput.current?.click()}
-                      disabled={busy}
-                      aria-label={productPhoto ? 'Trocar foto do produto' : 'Escolher foto do produto'}
-                      title="Foto da embalagem (opcional)"
-                    >
-                      {productPhoto && !productPhoto.error ? (
-                        <img src={productPhoto.preview} alt="" />
-                      ) : (
-                        <span className="product-photo-empty" aria-hidden="true">
-                          <span className="plus">+</span>
-                          <span>Foto</span>
-                        </span>
-                      )}
-                    </button>
-                    {productPhoto && (
-                      <button type="button" className="link danger small-link" onClick={() => setProductPhotoFile(null)} disabled={busy} aria-label="Remover foto do produto">
-                        Remover
-                      </button>
-                    )}
-                    <input ref={productPhotoInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onProductPhotoPicked} data-testid="product-photo-input" />
-                  </div>
-                )}
               </div>
-              {productPhoto?.error && !noFinisher && <p className="slot-error">{productPhoto.error}</p>}
 
               {kind === 'add' && (
                 <button type="button" className="link" onClick={() => setStartNewExperiment(false)} disabled={busy || finalizeAttemptedRef.current}>
@@ -722,8 +694,41 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           <p className="muted small hint">
             {selected
               ? `Toque em outro espaço para trocar com ${ANGLE_LABEL[selected]}.`
-              : `Toque em duas fotos para trocá-las de lugar. Esquerdo e direito: lado da pessoa na foto. Até ${MAX_PHOTOS} fotos JPEG, PNG ou WebP, de até 15 MB.`}
+              : `Toque em duas fotos para trocá-las de lugar. Esquerdo e direito: lado da pessoa na foto.`}
           </p>
+
+          {wantsProductPhoto && (
+            <div className="field">
+              <span className="field-label">Foto do produto</span>
+              <div className="product-photo-field">
+                <button
+                  type="button"
+                  className="product-photo-pick"
+                  onClick={() => productPhotoInput.current?.click()}
+                  disabled={busy}
+                  aria-label={productPhoto ? 'Trocar foto do produto' : 'Escolher foto do produto'}
+                >
+                  {productPhoto && !productPhoto.error ? (
+                    <img src={productPhoto.preview} alt="" />
+                  ) : (
+                    <span className="product-photo-empty" aria-hidden="true">
+                      <span className="plus">+</span>
+                    </span>
+                  )}
+                </button>
+                <div className="product-photo-text">
+                  <span className="muted small">A embalagem vira a miniatura do produto no histórico.</span>
+                  {productPhoto && (
+                    <button type="button" className="link danger small-link" onClick={() => setProductPhotoFile(null)} disabled={busy} aria-label="Remover foto do produto">
+                      Remover
+                    </button>
+                  )}
+                </div>
+              </div>
+              {productPhoto?.error && <p className="slot-error">{productPhoto.error}</p>}
+              <input ref={productPhotoInput} type="file" accept={INPUT_ACCEPT} hidden onChange={onProductPhotoPicked} data-testid="product-photo-input" />
+            </div>
+          )}
         </section>
       )}
 
@@ -762,12 +767,12 @@ function StageForm({ kind, userId, experiment, stage }: FormProps) {
           </p>
         )}
         {step === 1 ? (
-          <button type="button" className="btn btn-primary btn-block btn-large" onClick={goToPhotos}>
+          <button key="continuar" type="button" className="btn btn-primary btn-block btn-large" onClick={goToPhotos}>
             Continuar
           </button>
         ) : (
           phase !== 'partial' && (
-            <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save(false)} disabled={busy}>
+            <button key="salvar" type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save(false)} disabled={busy}>
               {busy ? 'Salvando…' : 'Salvar'}
             </button>
           )

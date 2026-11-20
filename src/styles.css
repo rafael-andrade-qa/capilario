@@ -52,7 +52,12 @@ html,
 body {
   margin: 0;
   background: var(--bg);
+}
+html {
   overflow-x: hidden;
+}
+body {
+  overflow-x: clip;
 }
 
 img {
@@ -855,6 +860,12 @@ input[type='datetime-local']::-webkit-datetime-edit-fields-wrapper {
   border-radius: 10px;
   background: var(--brand-soft);
 }
+.details-summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .details-summary .link {
   flex-shrink: 0;
   padding: 0;
@@ -871,7 +882,8 @@ button.back {
   position: sticky;
   bottom: 0;
   z-index: 4;
-  margin: 16px -16px 0;
+  /* Empurra a barra para o fim da tela: o botão fica no mesmo lugar nos dois passos. */
+  margin: auto -16px 0;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: 1px solid var(--line);
@@ -1506,8 +1518,16 @@ button.back {
 .form-fields.card {
   padding: 12px;
 }
+.form-page {
+  /* Mais folga em telas altas; no iPhone com as barras do Safari fica ~20px. */
+  --form-gap: clamp(16px, 3vh, 28px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
 .form-fields > * + * {
-  margin-top: 16px;
+  margin-top: var(--form-gap);
 }
 .form-fields .field {
   gap: 6px;
@@ -1515,33 +1535,27 @@ button.back {
 .form-fields .field-label {
   font-size: 0.9rem;
 }
-/* Produto e marca empilhados, foto da embalagem numa coluna ao lado. */
+/* Produto e marca empilhados. */
 .product-block {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  column-gap: 10px;
-  row-gap: 16px;
-  align-items: end;
+  row-gap: var(--form-gap);
 }
-.product-block > .field {
-  grid-column: 1;
+/* Passo 2: foto da embalagem com uma explicação ao lado. */
+.product-photo-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.product-block.no-finisher {
-  grid-template-columns: minmax(0, 1fr);
+.product-photo-field .product-photo-pick {
+  width: 48px;
+  height: 64px;
 }
-.product-photo-col {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: stretch;
+.product-photo-text {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
   gap: 4px;
-}
-.product-photo-col .product-photo-pick {
-  width: 72px;
-  height: 96px;
+  min-width: 0;
 }
 .product-photo-empty {
   display: flex;
