@@ -88,7 +88,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const result = await identify(input, { send: makeSender(apiKey), fetch: (url, init) => fetch(url, init) })
+    const result = await identify(input, {
+      send: makeSender(apiKey),
+      fetch: (url, init) => fetch(url, init),
+      log: (m) => console.log('identify', m),
+    })
     return reply(200, result)
   } catch (e) {
     const code = e instanceof IdentifyError ? e.code : 'ai_failed'

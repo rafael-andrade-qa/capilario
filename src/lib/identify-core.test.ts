@@ -5,8 +5,13 @@ import {
   extractImageUrls,
   identify,
   isSafeUrl,
+  looksLikeProductUrl,
+  pagesToTry,
+  safeFetch,
   sniffImage,
   validateInput,
+  vtexCatalogUrl,
+  vtexImages,
   type FetchFn,
   type Sender,
   type Turn,
@@ -104,7 +109,22 @@ describe('askClaude', () => {
       product_name: 'Todecacho Gelatina Super Definição',
       confidence: 'high',
       page_urls: ['https://loja.example.com/gelatina', 'https://marca.example.com/p/gelatina'],
+      search_urls: [],
     })
+  })
+
+  it('guarda os resultados da busca de todas as rodadas', async () => {
+    const results = (urls: string[]) => ({
+      type: 'web_search_tool_result',
+      content: urls.map((url) => ({ type: 'web_search_result', url, title: 'x' })),
+    })
+    let n = 0
+    const send: Sender = async () =>
+      n++ === 0
+        ? { stop_reason: 'pause_turn', content: [results(['https://a.example.com/p1', 'http://inseguro.example.com/x'])] }
+        : { stop_reason: 'tool_use', content: [results(['https://b.example.com/p2', 'https://a.example.com/p1']), ...report(okReport).content] }
+    const r = await askClaude(send, 'QUJD', 'image/jpeg')
+    expect(r.search_urls).toEqual(['https://a.example.com/p1', 'https://b.example.com/p2'])
   })
 
   it('sem chamar report_product: não identificado', async () => {
@@ -159,5 +179,71 @@ describe('identify', () => {
     ).rejects.toMatchObject({ code: 'ai_failed' })
     const r = await identify({ image: 'QUJD', mime: 'image/jpeg' }, { send: async () => ({ stop_reason: 'end_turn', content: [] }), fetch: fakeFetch })
     expect(r).toEqual({ found: false })
+  })
+})
+
+describe('páginas a abrir', () => {
+  const name = 'Modelando a Juba Geleia Seladora'
+  it('aceita a página do produto e recusa kit, busca e produto parecido da mesma linha', () => {
+    expect(looksLikeProductUrl('https://www.drogasil.com.br/widi-care-geleia-seladora-modelando-a-juba-300g.html', name)).toBe(true)
+    expect(looksLikeProductUrl('https://www.drogariaspacheco.com.br/geleia-capilar-seladora-widi-care-modelando-a-juba-300g/p', name)).toBe(true)
+    expect(looksLikeProductUrl('https://www.drogasil.com.br/widi-care-modelando-a-juba-kit-2-geleia-seladora-300g-1448126.html', name)).toBe(false)
+    expect(looksLikeProductUrl('https://m.magazineluiza.com.br/busca/geleia+modeladora+juba+seladora/', name)).toBe(false)
+    expect(looksLikeProductUrl('https://www.casasbahia.com.br/encrespando-a-juba-geleia-modeladora-widi-care/p/1558116025', name)).toBe(false)
+  })
+
+  it('primeiro as indicadas pela IA, depois os resultados que parecem do produto; no máximo 8', () => {
+    const search = Array.from({ length: 12 }, (_, i) => `https://loja${i}.example.com/geleia-seladora-modelando-juba`)
+    const pages = pagesToTry({
+      found: true,
+      brand: 'Widi Care',
+      product_name: name,
+      confidence: 'high',
+      page_urls: ['https://marca.example.com/produto'],
+      search_urls: ['https://outra.example.com/shampoo-qualquer', ...search],
+    })
+    expect(pages[0]).toBe('https://marca.example.com/produto')
+    expect(pages).toHaveLength(8)
+    expect(pages).not.toContain('https://outra.example.com/shampoo-qualquer')
+  })
+})
+
+describe('VTEX', () => {
+  it('monta o endereço do catálogo só para páginas /p', () => {
+    expect(vtexCatalogUrl('https://www.drogariaspacheco.com.br/geleia-capilar-seladora/p')).toBe(
+      'https://www.drogariaspacheco.com.br/api/catalog_system/pub/products/search/geleia-capilar-seladora/p',
+    )
+    expect(vtexCatalogUrl('https://www.drogasil.com.br/geleia.html')).toBeNull()
+  })
+
+  it('lê as imagens do primeiro item, sem repetir tamanho', () => {
+    const json = [
+      {
+        items: [
+          {
+            images: [
+              { imageUrl: 'https://cdn.example.com/arquivos/ids/1/frente.png?v=1' },
+              { imageUrl: 'https://cdn.example.com/arquivos/ids/1/frente.png?v=2' },
+              { imageUrl: 'https://cdn.example.com/arquivos/ids/2/verso.png' },
+              { imageUrl: 'https://cdn.example.com/logo.png' },
+            ],
+          },
+        ],
+      },
+    ]
+    expect(vtexImages(json, 'https://loja.example.com/api')).toEqual([
+      'https://cdn.example.com/arquivos/ids/1/frente.png?v=1',
+      'https://cdn.example.com/arquivos/ids/2/verso.png',
+    ])
+    expect(vtexImages({ erro: true }, 'https://loja.example.com/api')).toEqual([])
+  })
+})
+
+describe('safeFetch', () => {
+  it('página grande: lê só o começo (truncate); imagem grande: recusa', async () => {
+    const big = () => new Response(new Uint8Array(5000))
+    const page = await safeFetch(async () => big(), 'https://loja.example.com/p', { timeoutMs: 1000, maxBytes: 1000, accept: '*/*', truncate: true })
+    expect(page.bytes.byteLength).toBe(1000)
+    await expect(safeFetch(async () => big(), 'https://loja.example.com/i.jpg', { timeoutMs: 1000, maxBytes: 1000, accept: '*/*' })).rejects.toThrow('too_big')
   })
 })
