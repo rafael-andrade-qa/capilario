@@ -39,15 +39,15 @@ async function consumeQuota(req: Request): Promise<'ok' | 'unauthenticated' | 'l
   throw new Error(`quota_${res.status}`)
 }
 
-/** Busca no catálogo do app (RPC search_catalog), como o usuário. */
+/** Itens do catálogo da mesma marca, mais parecidos primeiro (RPC match_catalog), como o usuário. */
 function catalogSearch(req: Request): CatalogSearch {
-  return async (query) => {
+  return async (read) => {
     const headers = userHeaders(req)
     if (!headers) return []
-    const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/search_catalog`, {
+    const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/match_catalog`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ p_query: query, p_limit: 8 }),
+      body: JSON.stringify({ p_brand: read.brand, p_name: read.name, p_limit: 10 }),
     })
     if (!res.ok) {
       await res.body?.cancel()

@@ -70,6 +70,14 @@ describe('catálogo', () => {
     expect(men.data?.map((x: { id: string }) => x.id).sort()).toEqual([`cera-${tag}`, `pomada-${tag}`])
   })
 
+  it('match_catalog: mesma marca, nome lido com frases a mais, mais parecido primeiro', async () => {
+    const r = await me.client.rpc('match_catalog', { p_brand: `Marca A ${tag}`, p_name: 'Todecacho Gelatina Super Definição Fixação Forte e Brilho' })
+    expect(r.error).toBeNull()
+    expect(r.data?.[0]?.id).toBe(`gelatina-${tag}`)
+    const anon = await anonClient().rpc('match_catalog', { p_brand: 'x', p_name: 'y' })
+    expect(anon.error).not.toBeNull()
+  })
+
   it('quem entrou só lê; sem login nem lê', async () => {
     const ins = await me.client.from('catalog_products').insert(product('invasor', brandA, 'Invasor'))
     expect(ins.error?.code).toBe('42501')

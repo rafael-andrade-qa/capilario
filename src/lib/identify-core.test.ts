@@ -180,3 +180,12 @@ describe('segurança e entrada', () => {
     expect(() => validateInput({ image: 'A'.repeat(8 * 1024 * 1024), mime: 'image/png' })).toThrow('invalid_image')
   })
 })
+
+describe('rótulo com frases de embalagem a mais', () => {
+  it('casa com o catálogo mesmo com "Definição e Muito Brilho" no nome lido', () => {
+    const read = { name: 'Modelando a Juba Geleia Seladora Definição e Muito Brilho Sem Ressecar', brand: 'Widi Care' }
+    expect(sameProduct(read, { name: 'Modelando a Juba Geléia Seladora', brand: 'Widi Care' })).toBe(true)
+    expect(sameProduct(read, { name: 'Encrespando a Juba Geleia Modeladora', brand: 'Widi Care' })).toBe(false)
+    expect(sameProduct(read, { name: 'Juba Modelador - Creme de Cachos', brand: 'Widi Care' })).toBe(false)
+  })
+})

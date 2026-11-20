@@ -118,12 +118,17 @@ const plain = (s: string) =>
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
 
-const words = (s: string) => [...new Set(plain(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 4))]
+/** Palavras que contam no nome: 4+ letras, sem números (tamanhos) e sem as da marca. */
+function words(s: string, brandWords: Set<string>): string[] {
+  return [...new Set(plain(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !/\d/.test(w) && !brandWords.has(w)))]
+}
 
 /**
- * O item (do catálogo ou de uma loja) é o produto lido no rótulo? Marca compatível e a maior
- * parte das palavras do nome lido aparecendo no nome do item (o item pode trazer a marca e o
- * tamanho no nome, como nas lojas).
+ * O item (do catálogo ou de uma loja) é o produto lido no rótulo? Marca compatível e:
+ *  - quase todas as palavras do item (3/4) aparecem no que foi lido: "Encrespando a Juba
+ *    Geleia" não é "Modelando a Juba Geleia Seladora";
+ *  - pelo menos metade do que foi lido está no item: o rótulo pode trazer frases a mais
+ *    ("Definição e Muito Brilho") e a loja pode trazer marca e tamanho no nome.
  */
 export function sameProduct(read: { name: string; brand: string }, item: { name: string; brand: string }): boolean {
   const rb = plain(read.brand).replace(/[^a-z0-9]/g, '')
@@ -131,13 +136,14 @@ export function sameProduct(read: { name: string; brand: string }, item: { name:
   const itemText = plain(`${item.brand} ${item.name}`)
   const brandOk = !!rb && (rb.includes(ib) || ib.includes(rb) || itemText.replace(/[^a-z0-9]/g, '').includes(rb))
   if (!brandOk) return false
-  const rw = words(read.name)
-  const iw = new Set(words(item.name))
-  if (!rw.length || !iw.size) return false
-  // A maioria das palavras lidas precisa estar no item ("Encrespando a Juba Geleia" não é
-  // "Modelando a Juba Geleia Seladora"); o item pode ter palavras a mais (marca, tamanho).
-  const hits = rw.filter((w) => iw.has(w)).length
-  return hits >= Math.min(2, rw.length) && hits / rw.length >= 0.6
+  const brandWords = new Set(plain(`${read.brand} ${item.brand}`).split(/[^a-z0-9]+/).filter(Boolean))
+  brandWords.add(rb)
+  brandWords.add(ib)
+  const rw = new Set(words(read.name, brandWords))
+  const iw = words(item.name, brandWords)
+  if (!rw.size || !iw.length) return false
+  const hits = iw.filter((w) => rw.has(w)).length
+  return hits >= Math.min(2, iw.length) && hits / iw.length >= 0.75 && hits / rw.size >= 0.5
 }
 
 // ---------- Catálogo do app ----------
@@ -148,16 +154,13 @@ export interface CatalogHit {
   brand: string
   image_path: string | null
 }
-/** Busca no catálogo (a função usa o RPC search_catalog com a sessão do usuário). */
-export type CatalogSearch = (query: string) => Promise<CatalogHit[]>
+/** Itens do catálogo da mesma marca, mais parecidos primeiro (RPC match_catalog, como o usuário). */
+export type CatalogSearch = (read: { name: string; brand: string }) => Promise<CatalogHit[]>
 
-export async function findInCatalog(search: CatalogSearch, read: { name: string; brand: string }): Promise<CatalogHit | null> {
-  for (const q of [`${read.brand} ${read.name}`, read.name]) {
-    const hits = await search(q).catch(() => [])
-    const hit = hits.slice(0, 8).find((h) => sameProduct(read, h))
-    if (hit) return hit
-  }
-  return null
+export async function findInCatalog(search: CatalogSearch, read: { name: string; brand: string }, log: Log = silent): Promise<CatalogHit | null> {
+  const hits = await search(read).catch(() => [])
+  log(`catalog candidates=${hits.length}`)
+  return hits.find((h) => sameProduct(read, h)) ?? null
 }
 
 // ---------- Lojas (busca pública VTEX) ----------
@@ -383,7 +386,7 @@ export async function identify(
   if (!report.found) return { found: false }
   const read = { name: report.product_name, brand: report.brand }
 
-  const hit = deps.catalog ? await findInCatalog(deps.catalog, read) : null
+  const hit = deps.catalog ? await findInCatalog(deps.catalog, read, log) : null
   if (hit) {
     log(`catalog hit ${hit.id}`)
     return { found: true, brand: hit.brand, name: hit.name, confidence: report.confidence, catalog: hit, candidates: [] }
