@@ -62,7 +62,6 @@ const tile = (page: Page, label: string) => page.locator('.moment-tile', { hasTe
 async function deleteFromDetail(page: Page, label: string) {
   await tile(page, label).click()
   await expect(page.getByRole('heading', { name: label })).toBeVisible()
-  await page.getByRole('button', { name: 'Editar fotos' }).click()
   await page.getByRole('button', { name: 'Excluir momento' }).click()
   return page.getByRole('alertdialog', { name: 'Excluir este momento?' })
 }
@@ -81,7 +80,7 @@ test('excluir pelo botão no detalhe do momento, com opção de cancelar', async
   await expect(dialog).toHaveCount(0)
   expect(await stageExists(stages[1].id)).toBe(true)
 
-  // Ainda no modo de edição: o botão de excluir continua ali.
+  // A lixeira continua no topo, ao lado do lápis.
   await page.getByRole('button', { name: 'Excluir momento' }).click()
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Momento excluído.')).toBeVisible()

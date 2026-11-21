@@ -284,6 +284,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
           >
             {editing ? <CheckIcon /> : <EditIcon />}
           </button>
+          <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} disabled={!!working} aria-label="Excluir momento" title="Excluir momento">
+            <TrashIcon />
+          </button>
         </div>
         }
       />
@@ -467,12 +470,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
           },
           ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin)] : [])]}
         />
-      )}
-
-      {editing && (
-        <button type="button" className="btn btn-block delete-moment" onClick={() => setConfirmDelete(true)} disabled={!!working} aria-label="Excluir momento">
-          <TrashIcon /> Excluir momento
-        </button>
       )}
 
       {viewer && viewerPhoto && present.includes(viewer) && (
