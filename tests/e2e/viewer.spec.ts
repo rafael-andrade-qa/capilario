@@ -1,4 +1,5 @@
-// Visualizador em tela cheia: deslizar, setas, teclado, ângulos embaixo e puxar para baixo fecha.
+// Visualizador em tela cheia (deslizar, setas, teclado, puxar para baixo fecha) e trocar o
+// ângulo de uma foto cadastrada no lugar errado.
 import { randomUUID } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { photoPath, testUser, type TestUser } from '../integration/helpers'
@@ -89,4 +90,25 @@ test('puxar para baixo fecha', async ({ page }) => {
   await page.getByRole('button', { name: 'Ampliar Frente' }).click()
   await page.getByRole('button', { name: 'Fechar' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('foto no ângulo errado: move para o vazio ou troca com a outra', async ({ page }) => {
+  await open(page)
+  await page.keyboard.press('Escape')
+  const before = (await me.client.from('photos').select('id, angle').eq('stage_id', stageId)).data!
+  const id = (a: string) => before.find((p) => p.angle === a)!.id
+  await page.getByRole('button', { name: 'Editar fotos' }).click()
+
+  await page.getByRole('button', { name: 'Trocar ângulo: Esquerdo' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Trocar ângulo: Esquerdo' })
+  await expect(sheet.getByRole('button', { name: 'Frente: troca com a foto que está lá' })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Direito: ângulo vazio' }).click()
+  await expect(page.getByText('Foto movida para Direito.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Trocar ângulo: Direito' }).click()
+  await page.getByRole('button', { name: 'Frente: troca com a foto que está lá' }).click()
+  await expect(page.getByText('Direito e Frente trocados.')).toBeVisible()
+
+  const after = Object.fromEntries((await me.client.from('photos').select('id, angle').eq('stage_id', stageId)).data!.map((p) => [p.angle, p.id]))
+  expect(after).toEqual({ front: id('left'), right: id('front') })
 })

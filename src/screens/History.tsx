@@ -8,7 +8,7 @@ import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
 import { EditIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
-import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
+import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
 import { finalizationOption } from '../lib/finalizationShare'
 import { SearchField } from '../components/SearchField'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
@@ -76,6 +76,7 @@ export function History({
 }) {
   const { experiments, error, loading, reload } = useHistory()
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
+  const [pdfFor, setPdfFor] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
@@ -247,7 +248,6 @@ export function History({
                       {fins.map((f, i) => (
                         <FinalizationRow
                           key={f.id}
-                          experiment={exp}
                           finalization={f}
                           urls={urls}
                           saved={saved}
@@ -265,6 +265,17 @@ export function History({
                       >
                         <PlusIcon />
                       </a>
+                      {fins.length > 0 && (
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          onClick={() => setPdfFor(exp)}
+                          aria-label={`Enviar PDF de uma finalização de ${productLabel(exp)}`}
+                          title="Enviar PDF de uma finalização"
+                        >
+                          <PdfIcon />
+                        </button>
+                      )}
                       {exp.product_mode === 'named' && (
                         <a
                           className="icon-btn"
@@ -291,6 +302,16 @@ export function History({
             )
           })}
         </div>
+      )}
+
+      {pdfFor && (
+        <PdfShareSheet
+          heading="Enviar PDF da finalização"
+          intro={`Escolha a finalização de ${productLabel(pdfFor)}:`}
+          pick="list"
+          options={finalizationChoices(pdfFor, urls)}
+          onClose={() => setPdfFor(null)}
+        />
       )}
 
       {productToDelete && (
@@ -345,16 +366,31 @@ function savedLabel(list: Experiment[], stageId: string): string {
   return 'Salvo.'
 }
 
+/** Opções do PDF: uma por finalização (a mais recente primeiro), com data, momentos e miniaturas. */
+function finalizationChoices(exp: Experiment, urls: Record<string, string>): PdfOption[] {
+  const fins = finalizationsOf(exp)
+  return fins.map((f) => {
+    const when = fins.some((o) => o !== f && finalizationWhen(o) === finalizationWhen(f)) ? `${finalizationWhen(f)}, ${formatTime(f.start)}` : finalizationWhen(f)
+    const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
+    return {
+      ...finalizationOption(exp, f, when),
+      detail: stages.map((st) => STAGE_LABEL[st.stage_type]).join(' · '),
+      thumbs: stages.map((st) => {
+        const c = coverPhoto(st)
+        return { url: c ? urls[c.storage_path] : undefined, crop: c?.crop }
+      }),
+    }
+  })
+}
+
 /** Uma finalização: os três momentos lado a lado; o que falta vira atalho (nos primeiros dias). */
 function FinalizationRow({
-  experiment,
   finalization: f,
   urls,
   saved,
   latest,
   withTime,
 }: {
-  experiment: Experiment
   finalization: Finalization
   urls: Record<string, string>
   saved: string | null
@@ -366,16 +402,9 @@ function FinalizationRow({
   // Completar só a mais recente do produto, nos primeiros dias (refazer = finalização nova).
   const addable = latest && canAddMoment(f)
   const first = STAGE_TYPES.findIndex((t) => f.moments[t])
-  const [pdfOpen, setPdfOpen] = useState(false)
   return (
     <li className="fin" aria-label={`Finalização de ${when}`}>
-      <div className="fin-when muted small">
-        <span>{when}</span>
-        <button type="button" className="fin-pdf" onClick={() => setPdfOpen(true)} aria-label={`Enviar PDF da finalização de ${when}`} title="Enviar PDF da finalização">
-          <PdfIcon size={16} />
-        </button>
-      </div>
-      {pdfOpen && <PdfShareSheet heading="Enviar PDF da finalização" options={[finalizationOption(experiment, f)]} onClose={() => setPdfOpen(false)} />}
+      <div className="fin-when muted small">{when}</div>
       <div className="fin-strip">
         {STAGE_TYPES.map((t, i) => {
           const st = f.moments[t]

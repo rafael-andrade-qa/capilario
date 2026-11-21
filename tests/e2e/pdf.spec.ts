@@ -114,11 +114,15 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   const dry = await seed(null, 'Secou com volume.', 21, { experimentId, finalizationId, stageType: 'dry', hour: '12:30' })
 
   await login(page)
-  // Histórico: ícone ao lado da data da finalização.
+  // Histórico: ícone junto das ações do produto; escolhe a finalização numa lista.
   const card = page.locator('.experiment', { hasText: 'Creme Evolução' })
   await card.locator('.product-toggle').click()
-  await card.getByRole('button', { name: /Enviar PDF da finalização de/ }).click()
+  await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Creme Evolução' }).click()
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF da finalização' })
+  const choices = dialog.getByRole('radio')
+  await expect(choices).toHaveCount(1)
+  await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
+  await expect(choices.first()).toContainText('Molhado · Seco')
   await expect(dialog.getByRole('textbox')).toHaveValue(
     'Olha como meu cabelo evoluiu com Creme Evolução (Marca E), na finalização de 21/11:\n• molhado às 09:00;\n• seco às 12:30.\n\nAs fotos estão lado a lado no PDF, com as minhas observações.',
   )

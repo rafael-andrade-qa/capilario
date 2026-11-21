@@ -2,9 +2,12 @@
 // "Enviar" abre o compartilhamento do aparelho (WhatsApp, e-mail…) na hora do toque; por isso o
 // PDF é gerado antes (o iPhone só deixa compartilhar dentro do toque).
 // Com mais de uma opção (ex.: "Este momento" / "Finalização inteira"), um seletor troca o PDF e
-// a mensagem; cada PDF é montado uma vez só.
+// a mensagem; cada PDF é montado uma vez só. Em lista (pick="list"), cada opção é um cartão com
+// data, detalhe e miniaturas (ex.: escolher a finalização).
 import { useEffect, useRef, useState } from 'react'
 import { shareFile } from '../lib/share'
+import type { Crop } from '../lib/framing'
+import { PhotoView } from './PhotoView'
 import { useToast } from './Toasts'
 
 /** Ícone do envio em PDF: folha com a seta de compartilhar. */
@@ -27,16 +30,23 @@ export interface PdfOption {
   summary: string
   message: string
   build: () => Promise<{ blob: Blob; fileName: string }>
+  /** Só na lista: linha de baixo e miniaturas. */
+  detail?: string
+  thumbs?: { url?: string; crop?: Crop | null }[]
 }
 
 type Built = { file: File | null; failed: boolean }
 
 export function PdfShareSheet({
   heading,
+  intro,
+  pick = 'segmented',
   options,
   onClose,
 }: {
   heading: string
+  intro?: string
+  pick?: 'segmented' | 'list'
   options: PdfOption[]
   onClose: () => void
 }) {
@@ -89,7 +99,28 @@ export function PdfShareSheet({
       <div ref={sheet} className="sheet pdf-sheet" role="dialog" aria-modal="true" aria-label={heading} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" aria-hidden="true" />
         <h2 className="sheet-title">{heading}</h2>
-        {options.length > 1 && (
+        {intro && <p className="muted small pdf-intro">{intro}</p>}
+        {pick === 'list' && (
+          <div className="pdf-list" role="radiogroup" aria-label="Finalização">
+            {options.map((o, i) => (
+              <button key={i} type="button" role="radio" aria-checked={i === index} className="pdf-item" onClick={() => setIndex(i)}>
+                <span className="pdf-radio" aria-hidden="true" />
+                <span className="pdf-item-text">
+                  <strong>{o.label}</strong>
+                  {o.detail && <span className="muted">{o.detail}</span>}
+                </span>
+                {o.thumbs && (
+                  <span className="pdf-thumbs" aria-hidden="true">
+                    {o.thumbs.map((t, j) => (
+                      <PhotoView key={j} url={t.url} crop={t.crop} alt="" />
+                    ))}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {pick === 'segmented' && options.length > 1 && (
           <div className="segmented pdf-choice" role="group" aria-label="O que enviar">
             {options.map((o, i) => (
               <button key={o.label} type="button" className={`seg ${i === index ? 'on' : ''}`} aria-pressed={i === index} onClick={() => setIndex(i)}>

@@ -15,7 +15,8 @@ import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
 import { momentPdf } from '../lib/pdf'
 import { finalizationOption } from '../lib/finalizationShare'
 import { momentFileName, momentInfo, momentMessage, productTitle } from '../lib/share'
-import { deletePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
+import { deletePhoto, movePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
+import { MoveAngleSheet, SwapIcon } from '../components/MoveAngleSheet'
 import { analyzeUrl } from '../lib/faces'
 import { momentCrops, type Crop } from '../lib/framing'
 import { INPUT_ACCEPT, canDisplay, detectMime, validateFile } from '../lib/files'
@@ -69,6 +70,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
   const [framing, setFraming] = useState(false)
   const [savingTime, setSavingTime] = useState(false)
   const [pdfOpen, setPdfOpen] = useState(false)
+  const [moving, setMoving] = useState<Angle | null>(null)
 
   useEffect(() => {
     setNotes(stage?.notes ?? '')
@@ -171,6 +173,23 @@ export function StageDetail({ stageId }: { stageId: string }) {
   }
 
   const present = ANGLES.filter((a) => photoByAngle(stage, a))
+
+  /** Foto no ângulo errado: leva para o certo (troca com a que estiver lá). */
+  async function moveTo(from: Angle, to: Angle) {
+    const p = stage ? photoByAngle(stage, from) : undefined
+    setMoving(null)
+    if (!p || working) return
+    setWorking(from)
+    try {
+      const { swappedWith } = await movePhoto(p.id, to)
+      await reload()
+      notify(swappedWith ? `${ANGLE_LABEL[from]} e ${ANGLE_LABEL[to]} trocados.` : `Foto movida para ${ANGLE_LABEL[to]}.`)
+    } catch (err) {
+      notify((err as Error).message, 'error')
+    } finally {
+      setWorking(null)
+    }
+  }
 
   async function saveTime(value: string) {
     const iso = localInputToIso(value)
@@ -286,7 +305,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
           <button type="button" className="btn btn-outline-brand btn-block" onClick={() => void frameAll()} disabled={framing || !!working}>
             {framing ? 'Enquadrando…' : 'Enquadrar todas automaticamente'}
           </button>
-          <p className="muted small edit-hint">Toque numa foto para trocar, ou num ângulo vazio para adicionar.</p>
+          <p className="muted small edit-hint">Toque numa foto para trocar, ou num ângulo vazio para adicionar. Ângulo errado? Toque no nome dele.</p>
         </section>
       )}
       <input ref={fileInput} type="file" accept={INPUT_ACCEPT} hidden onChange={(e) => void onPicked(e)} data-testid="detail-photo-input" />
@@ -313,7 +332,21 @@ export function StageDetail({ stageId }: { stageId: string }) {
                   {working === a && <span className="badge">Enviando…</span>}
                 </button>
                 <figcaption className={`cell-bar ${p ? '' : 'solo'}`}>
-                  <span className={`cell-label ${confirmRemove === a ? 'danger' : ''}`}>{confirmRemove === a ? 'Remover?' : ANGLE_LABEL[a]}</span>
+                  {p && confirmRemove !== a ? (
+                    <button
+                      type="button"
+                      className="cell-label cell-move"
+                      onClick={() => setMoving(a)}
+                      disabled={!!working || framing}
+                      aria-label={`Trocar ângulo: ${ANGLE_LABEL[a]}`}
+                      title="Foto no ângulo errado? Toque para trocar"
+                    >
+                      <span>{ANGLE_LABEL[a]}</span>
+                      <SwapIcon />
+                    </button>
+                  ) : (
+                    <span className={`cell-label ${confirmRemove === a ? 'danger' : ''}`}>{confirmRemove === a ? 'Remover?' : ANGLE_LABEL[a]}</span>
+                  )}
                   {p && confirmRemove !== a && (
                     <button
                       type="button"
@@ -389,6 +422,10 @@ export function StageDetail({ stageId }: { stageId: string }) {
           onCancel={() => setConfirmDelete(false)}
           onDeleted={() => navigate(`/?excluida=${stage.id}`, { replace: true })}
         />
+      )}
+
+      {moving && photoByAngle(stage, moving) && (
+        <MoveAngleSheet stage={stage} angle={moving} urls={urls} onPick={(to) => void moveTo(moving, to)} onClose={() => setMoving(null)} />
       )}
 
       {adjusting && photoByAngle(stage, adjusting) && urls[photoByAngle(stage, adjusting)!.storage_path] && (

@@ -1783,33 +1783,8 @@ input[list]::-webkit-list-button {
   border-top: 1px solid var(--line);
 }
 .fin-when {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  max-width: calc(3 * 88px + 16px);
   margin: 0 0 6px;
   font-weight: 600;
-}
-/* Enviar PDF da finalização: ícone discreto ao lado da data */
-.fin-pdf {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  margin: -6px -4px -6px 0;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.fin-pdf:hover,
-.fin-pdf:focus-visible {
-  background: var(--brand-soft);
-  color: var(--brand);
 }
 .fin-strip {
   display: grid;
@@ -1976,6 +1951,94 @@ input[list]::-webkit-list-button {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.cell-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.cell-move span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell-move svg {
+  flex: none;
+  color: var(--brand);
+}
+.cell-move:disabled {
+  opacity: 0.5;
+}
+/* Trocar ângulo */
+.move-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.move-head .sheet-title {
+  margin: 0 0 2px;
+}
+.move-head p {
+  margin: 0;
+}
+.move-me {
+  flex: none;
+  width: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.move-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.move-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.move-option:hover,
+.move-option:focus-visible {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.move-thumb {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.move-thumb.empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  border: 1.5px dashed var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.move-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.move-hint {
+  font-size: 0.75rem;
 }
 .cell-bar.solo .cell-label {
   flex: none;
@@ -2597,6 +2660,77 @@ body:has(.save-bar) .toasts {
 /* Enviar PDF ------------------------------------------------------------ */
 .pdf-choice {
   margin: 0 0 12px;
+}
+.pdf-intro {
+  margin: -4px 0 10px;
+}
+/* Lista de finalizações para o PDF */
+.pdf-list {
+  display: grid;
+  gap: 8px;
+  max-height: 42vh;
+  overflow-y: auto;
+  margin: 0 0 12px;
+  padding: 2px;
+}
+.pdf-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pdf-item[aria-checked='true'] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.pdf-radio {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  display: grid;
+  place-items: center;
+}
+.pdf-item[aria-checked='true'] .pdf-radio {
+  border-color: var(--brand);
+}
+.pdf-item[aria-checked='true'] .pdf-radio::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.pdf-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pdf-item-text strong {
+  font-size: 0.95rem;
+}
+.pdf-item-text span {
+  font-size: 0.8rem;
+}
+.pdf-thumbs {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+.pdf-thumbs .photo-frame {
+  width: 30px;
+  border-radius: 6px;
+  overflow: hidden;
 }
 .pdf-summary {
   display: flex;

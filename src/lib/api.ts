@@ -60,6 +60,8 @@ const FRIENDLY: Record<string, string> = {
   product_name_required: 'Informe o nome do produto.',
   product_not_editable: 'Este produto não tem nome para editar.',
   last_photo: 'Esta é a única foto do momento. Para apagar tudo, exclua o momento.',
+  photo_not_found: 'Foto não encontrada.',
+  invalid_angle: 'Ângulo inválido.',
   invalid_storage_path: 'Não foi possível salvar a foto. Tente de novo.',
 }
 
@@ -194,6 +196,13 @@ export async function replacePhoto(userId: string, stageId: string, angle: Angle
     signedCache.delete(old)
     await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
   }
+}
+
+/** Leva a foto para outro ângulo; se ele tiver foto, as duas trocam de lugar. */
+export async function movePhoto(photoId: string, angle: Angle): Promise<{ swappedWith: string | null }> {
+  const { data, error } = await supabase.rpc('move_photo', { p_photo_id: photoId, p_angle: angle })
+  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível trocar o ângulo: ${error.message}`)
+  return { swappedWith: (data as { swapped_with?: string | null } | null)?.swapped_with ?? null }
 }
 
 /** Remove uma foto do momento (a última não sai) e apaga o arquivo. */

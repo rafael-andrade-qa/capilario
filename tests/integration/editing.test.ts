@@ -139,3 +139,54 @@ describe('cadastrar produto', () => {
     expect((await b.client.rpc('create_product', { p_experiment_id: id, p_name: 'Gel', p_brand: 'Y' })).error?.message).toBe('experiment_not_found')
   })
 })
+
+describe('trocar o ângulo de uma foto', () => {
+  let a: TestUser
+  let b: TestUser
+  beforeAll(async () => {
+    a = await testUser('mover-foto-a')
+    b = await testUser('mover-foto-b')
+  })
+  const angles = async (user: TestUser, stageId: string) => {
+    const { data } = await user.client.from('photos').select('id, angle, storage_path, crop').eq('stage_id', stageId)
+    return Object.fromEntries((data ?? []).map((p) => [p.angle, p]))
+  }
+
+  it('ângulo ocupado: as duas fotos trocam de lugar, com arquivo e enquadramento', async () => {
+    const { stageId, photos } = await seed(a, { product_mode: 'named', product_name: 'Troca', brand: null }, ['front', 'left', 'right'])
+    const left = photos.find((p) => p.angle === 'left')!
+    const right = photos.find((p) => p.angle === 'right')!
+    const crop = { x: 0.1, y: 0.1, w: 0.5, h: 0.5 }
+    expect((await a.client.from('photos').update({ crop }).eq('id', left.id)).error).toBeNull()
+
+    const r = await a.client.rpc('move_photo', { p_photo_id: left.id, p_angle: 'right' })
+    expect(r.error).toBeNull()
+    expect(r.data).toEqual({ moved: true, swapped_with: right.id })
+    const now = await angles(a, stageId)
+    expect(now.right.id).toBe(left.id)
+    expect(now.right.storage_path).toBe(left.storage_path)
+    expect(now.right.crop).toEqual(crop)
+    expect(now.left.id).toBe(right.id)
+    expect(now.front.id).toBe(photos[0].id)
+
+    // repetir não muda nada
+    expect((await a.client.rpc('move_photo', { p_photo_id: left.id, p_angle: 'right' })).data).toEqual({ moved: false, swapped_with: null })
+  })
+
+  it('ângulo vazio: a foto só muda de lugar', async () => {
+    const { stageId, photos } = await seed(a, { product_mode: 'named', product_name: 'Mover', brand: null }, ['front', 'left'])
+    const r = await a.client.rpc('move_photo', { p_photo_id: photos[1].id, p_angle: 'back' })
+    expect(r.data).toEqual({ moved: true, swapped_with: null })
+    const now = await angles(a, stageId)
+    expect(Object.keys(now).sort()).toEqual(['back', 'front'])
+    expect(now.back.id).toBe(photos[1].id)
+  })
+
+  it('não mexe em foto de outra pessoa e recusa ângulo inválido', async () => {
+    const { photos } = await seed(a, { product_mode: 'named', product_name: 'Alheia', brand: null }, ['front', 'left'])
+    const other = await b.client.rpc('move_photo', { p_photo_id: photos[0].id, p_angle: 'back' })
+    expect(other.error?.message).toBe('photo_not_found')
+    const bad = await a.client.rpc('move_photo', { p_photo_id: photos[0].id, p_angle: 'top' })
+    expect(bad.error?.message).toBe('invalid_angle')
+  })
+})
