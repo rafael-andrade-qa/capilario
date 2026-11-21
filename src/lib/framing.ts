@@ -129,16 +129,16 @@ export interface HeadInfo {
 
 /** Rosto (caixa do detector) = esta fração da altura do quadro. É a escala: não depende do cabelo,
  * então um cabelo mais volumoso aparece maior (dá para comparar volume). */
-export const HEAD_FACE_HEIGHT = 0.47
+export const HEAD_FACE_HEIGHT = 0.55
 /** Espaço acima do topo do cabelo, em fração da altura do quadro. */
-export const HEAD_TOP_MARGIN = 0.06
+export const HEAD_TOP_MARGIN = 0.04
 /** Onde fica o centro do rosto no quadro (só para a oval-guia do editor). */
-export const HEAD_FACE_CENTER_Y = 0.55
+export const HEAD_FACE_CENTER_Y = 0.61
 /** Sem rosto confiável: altura do quadro = altura do cabelo × fator (frente, perfil, costas). */
-const HAIR_TO_FRAME: Record<PhotoAngle, number> = { front: 2.4, left: 1.95, right: 1.95, back: 1.6 }
-/** Folga mínima embaixo do queixo/nuca e nas laterais do cabelo. */
-const MIN_BOTTOM = 0.14
-const SIDE_FILL = 0.94
+const HAIR_TO_FRAME: Record<PhotoAngle, number> = { front: 2.05, left: 1.65, right: 1.65, back: 1.36 }
+/** Folga mínima embaixo do queixo/nuca (ou do fim do cabelo) e nas laterais do cabelo. */
+const MIN_BOTTOM = 0.08
+const SIDE_FILL = 0.97
 
 function union(a: Box, b: Box): Box {
   const x = Math.min(a.x, b.x)
@@ -170,8 +170,10 @@ export function headCrop(p: HeadInfo, frameH?: number | null): Crop {
   let ch = frameH ?? headFrameHeight(p)
   if (!head || !ch) return coverCrop(p.W, p.H)
   const top = p.hair ? p.hair.y : face!.y - face!.h * 0.55
-  // Fim da cabeça: queixo (rosto) ou, sem rosto, estimado pelo cabelo (nuca, de costas).
-  const bottom = face ? face.y + face.h : p.hair!.y + p.hair!.h * (p.angle === 'back' ? 1 : 1.35)
+  // Fim do que precisa aparecer: o queixo (ou, sem rosto, estimado pelo cabelo; de costas, a
+  // nuca) e, se o cabelo for comprido, até onde ele termina.
+  const chin = face ? face.y + face.h : p.hair!.y + p.hair!.h * (p.angle === 'back' ? 1 : 1.35)
+  const bottom = Math.max(chin, p.hair ? p.hair.y + p.hair.h : chin)
   ch = Math.max(ch, (bottom - top) / (1 - HEAD_TOP_MARGIN - MIN_BOTTOM), head.w / SIDE_FILL / FRAME)
   const cw = ch * FRAME
   const cx = head.x + head.w / 2
@@ -191,6 +193,13 @@ export function momentCrops(photos: (HeadInfo & { key: string })[]): Record<stri
   const out: Record<string, Crop> = {}
   const ref = photos.find((p) => faceForScale(p))
   const refH = ref ? headFrameHeight(ref) : null
-  for (const p of photos) out[p.key] = headCrop(p, ref && refH && sameCamera(ref, p) ? refH : null)
+  for (const p of photos) {
+    const own = headFrameHeight(p)
+    let frame = ref && refH && sameCamera(ref, p) ? refH : own
+    // A pessoa se aproxima/afasta entre uma foto e outra (selfie de frente, perfil de mais
+    // longe): a escala da frente vale só enquanto não deixa a cabeça pequena ou cortada demais.
+    if (frame && own) frame = Math.min(Math.max(frame, own * 0.9), own * 1.08)
+    out[p.key] = headCrop(p, frame)
+  }
   return out
 }

@@ -13,8 +13,8 @@ import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
 import { momentPdf } from '../lib/pdf'
-import { finalizationOption } from '../lib/finalizationShare'
-import { momentFileName, momentInfo, momentMessage, productTitle } from '../lib/share'
+import { finalizationOption, heroOf } from '../lib/finalizationShare'
+import { momentFileName, momentInfo, momentMessage } from '../lib/share'
 import { deletePhoto, movePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
 import { MoveAngleSheet, SwapIcon } from '../components/MoveAngleSheet'
 import { analyzeUrl } from '../lib/faces'
@@ -450,8 +450,13 @@ export function StageDetail({ stageId }: { stageId: string }) {
           build: async () => ({
             fileName: momentFileName(momentInfo(experiment, stage)),
             blob: await momentPdf({
-              title: productTitle(experiment),
-              subtitle: `${STAGE_LABEL[stage.stage_type]} · ${formatDateTime(stage.captured_at)}`,
+              banner: {
+                kicker: `Momento · ${STAGE_LABEL[stage.stage_type]}`,
+                title: productLabel(experiment),
+                brand: brandLabel(experiment) || null,
+                pill: formatDateTime(stage.captured_at),
+                heroes: [{ label: STAGE_LABEL[stage.stage_type], photo: heroOf(stage, urls) }],
+              },
               notes: stage.notes,
               photos: present.map((ang) => {
                 const p = photoByAngle(stage, ang)!

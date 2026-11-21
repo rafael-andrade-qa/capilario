@@ -2,9 +2,18 @@
 // histórico e no detalhe do momento. As URLs das fotos são assinadas na hora de montar.
 import type { PdfOption } from '../components/PdfShareSheet'
 import { signedUrls } from './api'
-import { ANGLES, ANGLE_LABEL, STAGE_LABEL, STAGE_TYPES, formatDateTime, photoByAngle, type Experiment, type Finalization } from './domain'
-import { finalizationPdf } from './pdf'
-import { finalizationFileName, finalizationInfo, finalizationMessage, productTitle, whenText } from './share'
+import { ANGLES, ANGLE_LABEL, STAGE_LABEL, STAGE_TYPES, brandLabel, photoByAngle, productLabel, type Experiment, type Finalization, type Stage } from './domain'
+import { finalizationPdf, type PdfPhoto } from './pdf'
+import { finalizationFileName, finalizationInfo, finalizationMessage, whenText } from './share'
+
+/** Foto de destaque de um momento para a capa: a de frente (ou a primeira que houver). */
+export function heroOf(stage: Stage, urls: Record<string, string>): PdfPhoto | null {
+  const p = photoByAngle(stage, 'front') ?? ANGLES.map((a) => photoByAngle(stage, a)).find(Boolean)
+  return p && urls[p.storage_path] ? { label: ANGLE_LABEL[p.angle], url: urls[p.storage_path], crop: p.crop } : null
+}
+
+/** "20/11" */
+export const dayMonth = (iso: string) => whenText(iso).split(' às ')[0]
 
 export function finalizationOption(experiment: Experiment, f: Finalization, label = 'Finalização inteira'): PdfOption {
   const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
@@ -18,8 +27,13 @@ export function finalizationOption(experiment: Experiment, f: Finalization, labe
     build: async () => {
       const urls = await signedUrls(stages.flatMap((s) => s.photos.map((p) => p.storage_path)))
       const blob = await finalizationPdf({
-        title: productTitle(experiment),
-        subtitle: `Finalização de ${formatDateTime(f.start)}`,
+        banner: {
+          kicker: 'Evolução da finalização',
+          title: productLabel(experiment),
+          brand: brandLabel(experiment) || null,
+          pill: `${dayMonth(f.start)} · ${stages.map((s) => STAGE_LABEL[s.stage_type]).join(' → ')}`,
+          heroes: stages.map((s) => ({ label: STAGE_LABEL[s.stage_type], photo: heroOf(s, urls) })),
+        },
         columns: stages.map((s) => ({ title: STAGE_LABEL[s.stage_type], subtitle: whenText(s.captured_at) })),
         rows: angles.map((a) => ({
           label: ANGLE_LABEL[a],

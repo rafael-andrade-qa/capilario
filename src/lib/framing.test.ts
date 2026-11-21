@@ -59,6 +59,20 @@ describe('headCrop (pela cabeça)', () => {
     expect(headCrop({ W, H, angle: 'front', face: null, hair: null })).toEqual(coverCrop(W, H))
   })
 
+  it('cabelo curto: a cabeça preenche o quadro, com pouco pescoço', () => {
+    const c = px(headCrop(front), W, H)
+    const chin = front.face.y + front.face.h
+    expect((chin - c.y) / c.h).toBeGreaterThan(0.82) // queixo perto de baixo
+    expect((chin - c.y) / c.h).toBeLessThan(0.93)
+  })
+
+  it('cabelo comprido: o quadro vai até onde o cabelo termina', () => {
+    const long = { ...front, hair: { x: 200, y: 533, w: 800, h: 1300 } } // desce até o peito
+    const c = px(headCrop(long), W, H)
+    expect(c.y + c.h).toBeGreaterThan(533 + 1300)
+    expect(c.y).toBeLessThan(533)
+  })
+
   it('cabelo volumoso não é cortado: afasta o necessário', () => {
     const big = { ...front, hair: { x: 100, y: 300, w: 980, h: 800 } }
     const c = px(headCrop(big), W, H)
@@ -106,7 +120,7 @@ describe('momentCrops', () => {
       { key: 'frente', ...front },
       { key: 'outra', W: 3000, H: 4000, angle: 'back', face: null, hair: { x: 1000, y: 600, w: 1000, h: 1200 } },
     ])
-    expect(r.outra.h * 4000).toBeCloseTo(1200 * 1.6, -1)
+    expect(r.outra.h * 4000).toBeCloseTo(1200 * 1.36, -1)
   })
 })
 
