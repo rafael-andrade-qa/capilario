@@ -307,7 +307,10 @@ export function History({
       {pdfFor && (
         <PdfShareSheet
           heading="Enviar PDF da finalização"
-          intro={`Escolha a finalização de ${productLabel(pdfFor)}:`}
+          intro={(() => {
+            const n = finalizationsOf(pdfFor).length
+            return n > 2 ? `Escolha uma das ${n} finalizações de ${productLabel(pdfFor)} (deslize para ver todas):` : `Escolha a finalização de ${productLabel(pdfFor)}:`
+          })()}
           pick="list"
           options={finalizationChoices(pdfFor, urls)}
           onClose={() => setPdfFor(null)}

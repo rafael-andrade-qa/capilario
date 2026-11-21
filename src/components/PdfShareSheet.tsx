@@ -2,8 +2,9 @@
 // "Enviar" abre o compartilhamento do aparelho (WhatsApp, e-mail…) na hora do toque; por isso o
 // PDF é gerado antes (o iPhone só deixa compartilhar dentro do toque).
 // Com mais de uma opção (ex.: "Este momento" / "Finalização inteira"), um seletor troca o PDF e
-// a mensagem; cada PDF é montado uma vez só. Em lista (pick="list"), cada opção é um cartão com
-// data, detalhe e miniaturas (ex.: escolher a finalização).
+// a mensagem; cada PDF é montado uma vez só. Em pick="list" (ex.: escolher a finalização), as
+// opções viram uma faixa horizontal de cartões (miniaturas, data e momentos): altura fixa, desliza
+// para o lado, então serve igual para 2 ou 20 opções.
 import { useEffect, useRef, useState } from 'react'
 import { shareFile } from '../lib/share'
 import type { Crop } from '../lib/framing'
@@ -101,19 +102,31 @@ export function PdfShareSheet({
         <h2 className="sheet-title">{heading}</h2>
         {intro && <p className="muted small pdf-intro">{intro}</p>}
         {pick === 'list' && (
-          <div className="pdf-list" role="radiogroup" aria-label="Finalização">
+          <div className="pdf-strip" role="radiogroup" aria-label="Finalização">
             {options.map((o, i) => (
-              <button key={i} type="button" role="radio" aria-checked={i === index} className="pdf-item" onClick={() => setIndex(i)}>
-                <span className="pdf-radio" aria-hidden="true" />
-                <span className="pdf-item-text">
-                  <strong>{o.label}</strong>
-                  {o.detail && <span className="muted">{o.detail}</span>}
-                </span>
+              <button
+                key={i}
+                type="button"
+                role="radio"
+                aria-checked={i === index}
+                className="pdf-card"
+                onClick={(e) => {
+                  setIndex(i)
+                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+                }}
+              >
                 {o.thumbs && (
-                  <span className="pdf-thumbs" aria-hidden="true">
+                  <span className="pdf-card-thumbs" aria-hidden="true">
                     {o.thumbs.map((t, j) => (
                       <PhotoView key={j} url={t.url} crop={t.crop} alt="" />
                     ))}
+                  </span>
+                )}
+                <strong className="pdf-card-label">{o.label}</strong>
+                {o.detail && <span className="muted pdf-card-detail">{o.detail}</span>}
+                {i === index && (
+                  <span className="pdf-card-check" aria-hidden="true">
+                    ✓
                   </span>
                 )}
               </button>
