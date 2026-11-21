@@ -133,6 +133,100 @@ export async function momentPdf(opts: { title: string; subtitle: string; photos:
   return doc.output('blob')
 }
 
+/**
+ * PDF da finalização inteira: uma coluna por momento (molhado → seco → dia seguinte) e uma
+ * linha por ângulo, para ler a evolução da esquerda para a direita; as observações no fim.
+ * O tamanho das fotos se ajusta para tudo caber numa página.
+ */
+export async function finalizationPdf(opts: {
+  title: string
+  subtitle: string
+  columns: { title: string; subtitle: string }[]
+  rows: { label: string; cells: (PdfPhoto | null)[] }[]
+  notes: { title: string; text: string }[]
+}): Promise<Blob> {
+  const flat = opts.rows.flatMap((r) => r.cells)
+  const [doc, images] = await Promise.all([newDoc(), Promise.all(flat.map((p) => (p ? prepared(p) : Promise.resolve(null))))])
+  const n = Math.max(1, opts.columns.length)
+  const labelW = 17
+  const gap = 4
+  const rowGap = 3
+  let y = header(doc, opts.title, opts.subtitle) + 2
+  const headH = 12
+  // Observações no fim: reserva o espaço delas para caber tudo numa página (até um limite).
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  const blocks = opts.notes.map((nt) => doc.splitTextToSize(`${nt.title}: ${nt.text}`, PAGE_W - 2 * MARGIN) as string[])
+  const notesH = blocks.length ? 11 + blocks.reduce((s, b) => s + b.length * 5 + 2, 0) : 0
+  const room = PAGE_H - 16 - y - headH - Math.min(notesH, 60)
+  const byHeight = ((room / Math.max(1, opts.rows.length) - rowGap) * 3) / 4
+  const byWidth = (PAGE_W - 2 * MARGIN - labelW - (n - 1) * gap) / n
+  const w = Math.max(30, Math.min(48, byHeight, byWidth))
+  const h = (w * 4) / 3
+  const x0 = (PAGE_W - (labelW + n * w + (n - 1) * gap)) / 2 + labelW
+  const colX = (i: number) => x0 + i * (w + gap)
+
+  opts.columns.forEach((c, i) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(...TEXT)
+    doc.text(c.title, colX(i) + w / 2, y + 4, { align: 'center' })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...MUTED)
+    doc.text(c.subtitle, colX(i) + w / 2, y + 9, { align: 'center' })
+  })
+  y += headH
+
+  opts.rows.forEach((r, ri) => {
+    if (y + h > PAGE_H - 16) {
+      doc.addPage()
+      y = MARGIN
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(...TEXT)
+    doc.text(r.label, x0 - 3, y + h / 2, { align: 'right', baseline: 'middle' })
+    r.cells.forEach((_, ci) => {
+      const img = images[ri * n + ci]
+      const x = colX(ci)
+      if (img) doc.addImage(img, 'JPEG', x, y, w, h, undefined, 'FAST')
+      else {
+        doc.setFillColor(246, 240, 234)
+        doc.rect(x, y, w, h, 'F')
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(...MUTED)
+        doc.text(r.cells[ci] ? 'Foto indisponível' : 'Sem foto', x + w / 2, y + h / 2, { align: 'center', baseline: 'middle' })
+      }
+      doc.setDrawColor(...LINE)
+      doc.setLineWidth(0.3)
+      doc.rect(x, y, w, h)
+    })
+    y += h + rowGap
+  })
+
+  if (blocks.length) {
+    y += 3
+    if (y + notesH - 3 > PAGE_H - 16) {
+      doc.addPage()
+      y = MARGIN
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(...TEXT)
+    doc.text('Observações', MARGIN, y + 4)
+    y += 10
+    doc.setFont('helvetica', 'normal')
+    for (const b of blocks) {
+      doc.text(b, MARGIN, y)
+      y += b.length * 5 + 2
+    }
+  }
+  footers(doc)
+  return doc.output('blob')
+}
+
 export interface CompareSide {
   title: string
   subtitle: string

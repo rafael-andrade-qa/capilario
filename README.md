@@ -139,7 +139,9 @@ os atalhos *Nova finalização* e *Comparar*.
 
 No detalhe do momento e no comparador há o ícone **Enviar PDF**. Ele monta, no próprio aparelho, um PDF com as
 fotos (com o enquadramento do app): o momento em grade, com a observação, ou o comparativo A × B lado a lado, um
-ângulo por linha. A mensagem já vem pronta (dá para editar) e **Enviar** abre o compartilhamento do aparelho
+ângulo por linha. A **finalização inteira** (ícone ao lado da data no histórico, ou a opção "Finalização inteira"
+no detalhe do momento) vira uma página com uma coluna por momento (molhado → seco → dia seguinte), um ângulo por
+linha, e as observações no fim. A mensagem já vem pronta (dá para editar) e **Enviar** abre o compartilhamento do aparelho
 (WhatsApp, e-mail…). Onde não há compartilhamento de arquivos (computador), o PDF é baixado e a mensagem copiada.
 
 ## Avisos

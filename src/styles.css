@@ -1783,8 +1783,33 @@ input[list]::-webkit-list-button {
   border-top: 1px solid var(--line);
 }
 .fin-when {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  max-width: calc(3 * 88px + 16px);
   margin: 0 0 6px;
   font-weight: 600;
+}
+/* Enviar PDF da finalização: ícone discreto ao lado da data */
+.fin-pdf {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -6px -4px -6px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fin-pdf:hover,
+.fin-pdf:focus-visible {
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 .fin-strip {
   display: grid;
@@ -2570,6 +2595,9 @@ body:has(.save-bar) .toasts {
 }
 
 /* Enviar PDF ------------------------------------------------------------ */
+.pdf-choice {
+  margin: 0 0 12px;
+}
 .pdf-summary {
   display: flex;
   align-items: center;

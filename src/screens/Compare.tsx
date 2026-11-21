@@ -259,10 +259,12 @@ export function Compare({ params }: { params: URLSearchParams }) {
           {pdfOpen && (
             <PdfShareSheet
               heading="Enviar PDF do comparativo"
-              summary={`${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`}
-              message={compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage))}
               onClose={() => setPdfOpen(false)}
-              build={async () => ({
+              options={[{
+              label: 'Comparativo',
+              summary: `${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`,
+              message: compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
+              build: async () => ({
                 fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
                 blob: await comparePdf({
                   title: `Comparativo · ${STAGE_LABEL[type]}`,
@@ -279,7 +281,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
                     }
                   }),
                 }),
-              })}
+              }),
+              }]}
             />
           )}
 

@@ -1,6 +1,6 @@
 // Enviar em PDF: textos prontos (mensagem que acompanha o arquivo e nome do arquivo) e o
 // compartilhamento do aparelho. Os textos são funções puras (testadas em share.test.ts).
-import { brandLabel, productLabel, type Experiment, type Stage, type StageType } from './domain'
+import { STAGE_TYPES, brandLabel, productLabel, type Experiment, type Finalization, type Stage, type StageType } from './domain'
 
 export interface MomentInfo {
   productName: string
@@ -67,6 +67,52 @@ export function compareMessage(a: MomentInfo, b: MomentInfo): string {
   ].join('\n')
 }
 
+export interface FinalizationInfo {
+  productName: string
+  brand: string | null
+  noFinisher: boolean
+  /** Momentos registrados, na ordem molhado → seco → dia seguinte. */
+  moments: { stageType: StageType; capturedAt: string; notes?: string | null }[]
+}
+
+export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, 'moments'>): FinalizationInfo {
+  const base = momentInfo(experiment, { stage_type: 'wet', captured_at: '', notes: null } as Stage)
+  return {
+    productName: base.productName,
+    brand: base.brand,
+    noFinisher: base.noFinisher,
+    moments: STAGE_TYPES.flatMap((t) => {
+      const s = f.moments[t]
+      return s ? [{ stageType: t, capturedAt: s.captured_at, notes: s.notes }] : []
+    }),
+  }
+}
+
+const sameDay = (a: string, b: string) => new Date(a).toDateString() === new Date(b).toDateString()
+const timeOnly = (iso: string) => {
+  const d = new Date(iso)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Mensagem pronta para o PDF da finalização inteira (a evolução do cabelo). */
+export function finalizationMessage(f: FinalizationInfo): string {
+  const start = f.moments[0]?.capturedAt
+  if (!start) return ''
+  const product = productPhrase({ ...f, stageType: 'wet', capturedAt: start })
+  const lines = f.moments.map((m, i) => {
+    const when = sameDay(m.capturedAt, start) ? `às ${timeOnly(m.capturedAt)}` : `em ${whenText(m.capturedAt)}`
+    const word = m.stageType === 'next_day' ? 'no dia seguinte,' : MOMENT_WORD[m.stageType]
+    return `• ${word} ${when}${i === f.moments.length - 1 ? '.' : ';'}`
+  })
+  const notes = f.moments.some((m) => m.notes?.trim())
+  return [
+    `Olha como meu cabelo evoluiu ${product}, na finalização de ${whenText(start).split(' às ')[0]}:`,
+    ...lines,
+    '',
+    notes ? 'As fotos estão lado a lado no PDF, com as minhas observações.' : 'As fotos estão lado a lado no PDF.',
+  ].join('\n')
+}
+
 const slug = (s: string) =>
   s
     .normalize('NFD')
@@ -92,6 +138,12 @@ export function momentFileName(m: MomentInfo): string {
 /** capilar-comparativo-seco-18-11-x-19-11.pdf */
 export function compareFileName(a: MomentInfo, b: MomentInfo): string {
   return `capilar-comparativo-${slug(MOMENT_WORD[a.stageType].replace(/^no /, ''))}-${day(a.capturedAt)}-x-${day(b.capturedAt)}.pdf`
+}
+
+/** capilar-finalizacao-19-11-gelatina-supervolume.pdf */
+export function finalizationFileName(f: FinalizationInfo): string {
+  const start = f.moments[0]?.capturedAt ?? new Date().toISOString()
+  return `capilar-finalizacao-${day(start)}-${productSlug({ ...f, stageType: 'wet', capturedAt: start })}.pdf`
 }
 
 export type ShareResult = 'shared' | 'cancelled' | 'downloaded'

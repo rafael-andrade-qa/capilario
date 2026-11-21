@@ -13,6 +13,7 @@ import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
 import { momentPdf } from '../lib/pdf'
+import { finalizationOption } from '../lib/finalizationShare'
 import { momentFileName, momentInfo, momentMessage, productTitle } from '../lib/share'
 import { deletePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
 import { analyzeUrl } from '../lib/faces'
@@ -22,7 +23,9 @@ import {
   ANGLES,
   ANGLE_LABEL,
   STAGE_LABEL,
+  STAGE_TYPES,
   brandLabel,
+  finalizationsOf,
   formatDateTime,
   formatShortDateTime,
   localInputToIso,
@@ -81,6 +84,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
     )
   }
   const { experiment } = found
+  const fin = finalizationsOf(experiment).find((f) => f.id === stage.finalization_id)
   const missing = missingAngles(stage)
   const notesChanged = (notes.trim() || null) !== (stage.notes ?? null)
 
@@ -401,10 +405,12 @@ export function StageDetail({ stageId }: { stageId: string }) {
       {pdfOpen && (
         <PdfShareSheet
           heading="Enviar PDF"
-          summary={`${present.length} ${present.length === 1 ? 'foto' : 'fotos'} do ${STAGE_LABEL[stage.stage_type]}`}
-          message={momentMessage(momentInfo(experiment, stage))}
           onClose={() => setPdfOpen(false)}
-          build={async () => ({
+          options={[{
+          label: 'Este momento',
+          summary: `${present.length} ${present.length === 1 ? 'foto' : 'fotos'} do ${STAGE_LABEL[stage.stage_type]}`,
+          message: momentMessage(momentInfo(experiment, stage)),
+          build: async () => ({
             fileName: momentFileName(momentInfo(experiment, stage)),
             blob: await momentPdf({
               title: productTitle(experiment),
@@ -415,7 +421,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
                 return { label: ANGLE_LABEL[ang], url: urls[p.storage_path], crop: p.crop }
               }),
             }),
-          })}
+          }),
+          },
+          ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin)] : [])]}
         />
       )}
 
