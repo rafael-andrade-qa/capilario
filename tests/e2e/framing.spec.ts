@@ -80,9 +80,9 @@ test('corrigir horário e ajustar o enquadramento à mão', async ({ page }) => 
   // A miniatura mostra o recorte (imagem maior que o quadro).
   await expect(page.locator('.angle-cell[data-angle="front"] .photo-frame.cropped img')).toHaveCount(1)
 
-  // Enquadrar todas pelo rosto: sem rosto, volta ao preencher e avisa.
-  await page.getByRole('button', { name: 'Enquadrar todas pelo rosto' }).click()
-  await expect(page.getByText('Não achei rosto nas fotos', { exact: false })).toBeVisible({ timeout: 60_000 })
+  // Enquadrar todas automaticamente: sem cabeça, volta ao preencher e avisa.
+  await page.getByRole('button', { name: 'Enquadrar todas automaticamente' }).click()
+  await expect(page.getByText('Não achei a cabeça nas fotos', { exact: false })).toBeVisible({ timeout: 60_000 })
   for (const p of await crops()) expect(p.crop).toEqual({ x: 0, y: 0.1667, w: 1, h: 0.6667 })
 })
 

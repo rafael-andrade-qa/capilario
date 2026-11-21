@@ -1933,12 +1933,64 @@ input[list]::-webkit-list-button {
   aspect-ratio: 3 / 4;
   border: 1.5px dashed var(--line);
 }
-.remove-photo {
-  margin-top: 2px;
-  min-height: 32px;
+/* Nome do ângulo com os ícones ao lado (ajustar e remover), numa linha só */
+.angle-grid.editing .cell-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+  overflow: visible;
 }
-.remove-photo.confirm {
-  font-weight: 600;
+.angle-grid.editing .cell-bar.solo {
+  justify-content: center;
+}
+.cell-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cell-bar.solo .cell-label {
+  flex: none;
+}
+.cell-label.danger {
+  color: var(--err);
+}
+.cell-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--brand);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.cell-icon:hover,
+.cell-icon:focus-visible {
+  background: var(--brand-soft);
+}
+.cell-icon:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.cell-icon.danger {
+  color: var(--err);
+}
+.cell-icon.danger:hover,
+.cell-icon.danger:focus-visible {
+  background: var(--err-soft);
+}
+.cell-icon.danger.confirm {
+  background: var(--err);
+  border-color: var(--err);
+  color: #fff;
 }
 
 /* Avisos rápidos (toasts): embaixo, no centro, somem sozinhos ou com um toque ---- */
@@ -2329,10 +2381,6 @@ body:has(.save-bar) .toasts {
 }
 .edit-moment .edit-hint {
   margin: 0;
-}
-.adjust-photo {
-  display: block;
-  margin: 2px auto 0;
 }
 .framing-backdrop {
   position: fixed;

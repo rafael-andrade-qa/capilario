@@ -353,11 +353,11 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
     setDateFromPhotos(true)
   }, [kind, dateTouched, photoTimeValue])
 
-  // Enquadramento automático (rosto; sem rosto, a referência da frente ou preencher).
+  // Enquadramento automático pela cabeça (cabelo + rosto), na escala do rosto da frente.
   const analyzed = filled
     .map((angle) => ({ angle, it: items[slots[angle]!] }))
     .filter(({ it }) => it?.analysis)
-    .map(({ angle, it }) => ({ key: it.key, W: it.analysis!.W, H: it.analysis!.H, face: it.analysis!.face, front: angle === 'front' }))
+    .map(({ angle, it }) => ({ key: it.key, W: it.analysis!.W, H: it.analysis!.H, face: it.analysis!.face, hair: it.analysis!.hair, angle }))
   const autoCrops: Record<string, Crop> = momentCrops(analyzed)
   const invalidCount = filledItems.filter((i) => i.invalid).length
   const checkingCount = filledItems.filter((i) => i.checking).length
@@ -385,7 +385,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
       const list = done
         .map(({ angle, key }) => ({ angle, it: itemsRef.current[key] }))
         .filter(({ it }) => it?.analysis)
-        .map(({ angle, it }) => ({ key: it.key, W: it.analysis!.W, H: it.analysis!.H, face: it.analysis!.face, front: angle === 'front' }))
+        .map(({ angle, it }) => ({ key: it.key, W: it.analysis!.W, H: it.analysis!.H, face: it.analysis!.face, hair: it.analysis!.hair, angle }))
       const crops = momentCrops(list)
       await setPhotoCrops(Object.entries(crops).map(([photoId, crop]) => ({ photoId, crop })))
     } catch {

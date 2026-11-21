@@ -20,10 +20,6 @@ export interface Box {
 /** Proporção do quadro (largura / altura): o mesmo 3:4 das miniaturas e do comparador. */
 export const FRAME = 3 / 4
 
-/** Quanto da altura do quadro o rosto ocupa, e onde fica o centro dele (de cima para baixo). */
-export const FACE_HEIGHT = 0.27
-export const FACE_CENTER_Y = 0.45
-
 const round = (n: number) => Math.round(n * 10000) / 10000
 
 /** Maior recorte 3:4 que cabe na imagem, centralizado (o "preencher" sem faixas). */
@@ -53,19 +49,6 @@ export function clampBox(b: Box, W: number, H: number): Box {
   const x = Math.min(Math.max(b.x + (b.w - w) / 2, 0), W - w)
   const y = Math.min(Math.max(b.y + (b.h - h) / 2, 0), H - h)
   return { x, y, w, h }
-}
-
-/**
- * Recorte a partir do rosto: o rosto ocupa a mesma fração da altura em todas as fotos (mesma
- * escala para comparar), centralizado na horizontal e um pouco acima do meio, deixando espaço
- * para o volume do cabelo.
- */
-export function faceCrop(W: number, H: number, face: Box): Crop {
-  const ch = face.h / FACE_HEIGHT
-  const cw = ch * FRAME
-  const cx = face.x + face.w / 2
-  const cy = face.y + face.h / 2
-  return normalize({ x: cx - cw / 2, y: cy - FACE_CENTER_Y * ch, w: cw, h: ch }, W, H)
 }
 
 /** Menor recorte permitido (zoom máximo): 1/6 da imagem. */
@@ -127,21 +110,87 @@ export function isCrop(v: unknown): v is Crop {
   return x >= 0 && y >= 0 && w > 0.02 && h > 0.02 && x + w <= 1.001 && y + h <= 1.001
 }
 
+// ---------------------------------------------------------------------------------------------
+// Enquadramento pela cabeça (cabelo + rosto). O foco é o cabelo, com o rosto aparecendo: o topo
+// do cabelo fica logo abaixo da borda de cima e a cabeça preenche o quadro, com pouco ombro.
+// Proporções medidas em fotos reais (frente, perfis e costas, de perto e de tripé).
+
+export type PhotoAngle = 'front' | 'left' | 'right' | 'back'
+
+export interface HeadInfo {
+  W: number
+  H: number
+  /** Caixa do rosto (sobrancelha ao queixo), do detector de rosto. */
+  face: Box | null
+  /** Caixa do cabelo, da segmentação de cabelo. */
+  hair: Box | null
+  angle: PhotoAngle
+}
+
+/** Rosto (caixa do detector) = esta fração da altura do quadro. É a escala: não depende do cabelo,
+ * então um cabelo mais volumoso aparece maior (dá para comparar volume). */
+export const HEAD_FACE_HEIGHT = 0.47
+/** Espaço acima do topo do cabelo, em fração da altura do quadro. */
+export const HEAD_TOP_MARGIN = 0.06
+/** Onde fica o centro do rosto no quadro (só para a oval-guia do editor). */
+export const HEAD_FACE_CENTER_Y = 0.55
+/** Sem rosto confiável: altura do quadro = altura do cabelo × fator (frente, perfil, costas). */
+const HAIR_TO_FRAME: Record<PhotoAngle, number> = { front: 2.4, left: 1.95, right: 1.95, back: 1.6 }
+/** Folga mínima embaixo do queixo/nuca e nas laterais do cabelo. */
+const MIN_BOTTOM = 0.14
+const SIDE_FILL = 0.94
+
+function union(a: Box, b: Box): Box {
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y }
+}
+
+/** O rosto só vale para a escala de frente (de perfil a caixa encolhe; de costas é engano). */
+const faceForScale = (p: HeadInfo) => (p.angle === 'front' ? p.face : null)
+/** De costas o detector às vezes "acha" rosto na nuca: ignora. */
+const usableFace = (p: HeadInfo) => (p.angle === 'back' ? null : p.face)
+
+/** Altura do quadro (px) que a própria foto sugere, ou null sem nada detectado. */
+export function headFrameHeight(p: HeadInfo): number | null {
+  const f = faceForScale(p)
+  if (f) return f.h / HEAD_FACE_HEIGHT
+  if (p.hair) return p.hair.h * HAIR_TO_FRAME[p.angle]
+  if (p.face) return p.face.h / HEAD_FACE_HEIGHT / (p.angle === 'front' ? 1 : 0.7)
+  return null
+}
+
 /**
- * Recortes de um momento inteiro (mesma câmera, mesmo lugar): fotos com rosto usam o rosto; as
- * sem rosto (costas, perfil) usam o recorte da foto de frente se as imagens têm o mesmo tamanho
- * (tripé parado) e, se não, o "preencher" centralizado.
+ * Recorte de uma foto pela cabeça. `frameH` (px) força a escala (a mesma do momento todo); sem
+ * ele, usa a escala da própria foto. Se a cabeça não couber, afasta o necessário.
  */
-export function momentCrops(
-  photos: { key: string; W: number; H: number; face: Box | null; front: boolean }[],
-): Record<string, Crop> {
+export function headCrop(p: HeadInfo, frameH?: number | null): Crop {
+  const face = usableFace(p)
+  const head = p.hair && face ? union(p.hair, face) : p.hair ?? face
+  let ch = frameH ?? headFrameHeight(p)
+  if (!head || !ch) return coverCrop(p.W, p.H)
+  const top = p.hair ? p.hair.y : face!.y - face!.h * 0.55
+  // Fim da cabeça: queixo (rosto) ou, sem rosto, estimado pelo cabelo (nuca, de costas).
+  const bottom = face ? face.y + face.h : p.hair!.y + p.hair!.h * (p.angle === 'back' ? 1 : 1.35)
+  ch = Math.max(ch, (bottom - top) / (1 - HEAD_TOP_MARGIN - MIN_BOTTOM), head.w / SIDE_FILL / FRAME)
+  const cw = ch * FRAME
+  const cx = head.x + head.w / 2
+  return normalize({ x: cx - cw / 2, y: top - HEAD_TOP_MARGIN * ch, w: cw, h: ch }, p.W, p.H)
+}
+
+/** Mesmo aparelho e mesma pose (tamanhos quase iguais): dá para usar a mesma escala em pixels. */
+const sameCamera = (a: { W: number; H: number }, b: { W: number; H: number }) =>
+  Math.abs(a.W - b.W) / a.W < 0.03 && Math.abs(a.H - b.H) / a.H < 0.03
+
+/**
+ * Recortes de um momento inteiro: cada foto é centralizada na própria cabeça (a pessoa se mexe
+ * entre um ângulo e outro), mas a escala vem do rosto da foto de frente quando as fotos são da
+ * mesma câmera, para frente, perfis e costas ficarem do mesmo tamanho.
+ */
+export function momentCrops(photos: (HeadInfo & { key: string })[]): Record<string, Crop> {
   const out: Record<string, Crop> = {}
-  const withFace = photos.filter((p) => p.face)
-  const ref = withFace.find((p) => p.front) ?? withFace[0]
-  for (const p of photos) {
-    if (p.face) out[p.key] = faceCrop(p.W, p.H, p.face)
-    else if (ref && ref.W === p.W && ref.H === p.H) out[p.key] = faceCrop(ref.W, ref.H, ref.face!)
-    else out[p.key] = coverCrop(p.W, p.H)
-  }
+  const ref = photos.find((p) => faceForScale(p))
+  const refH = ref ? headFrameHeight(ref) : null
+  for (const p of photos) out[p.key] = headCrop(p, ref && refH && sameCamera(ref, p) ? refH : null)
   return out
 }

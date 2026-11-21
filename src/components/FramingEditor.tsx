@@ -1,19 +1,21 @@
 // Ajustar o enquadramento de uma foto: arrastar para mover, pinça (ou + e −) para aproximar.
-// "Rosto" enquadra sozinho pelo rosto; "Preencher" volta ao quadro cheio centralizado. A oval
-// mostra onde o rosto fica no enquadramento automático, para manter as fotos parecidas.
+// "Automático" enquadra sozinho pela cabeça (cabelo + rosto); "Preencher" volta ao quadro cheio
+// centralizado. A oval mostra onde o rosto fica no enquadramento automático (fotos parecidas).
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type SyntheticEvent, type WheelEvent } from 'react'
 import { analyzeUrl } from '../lib/faces'
-import { FACE_CENTER_Y, FACE_HEIGHT, FRAME, coverCrop, cropStyle, faceCrop, panCrop, zoomCrop, type Crop } from '../lib/framing'
+import { FRAME, HEAD_FACE_CENTER_Y, HEAD_FACE_HEIGHT, coverCrop, cropStyle, headCrop, panCrop, zoomCrop, type Crop, type PhotoAngle } from '../lib/framing'
 
 export function FramingEditor({
   url,
   title,
+  angle,
   initial,
   onCancel,
   onSave,
 }: {
   url: string
   title: string
+  angle: PhotoAngle
   initial: Crop | null | undefined
   onCancel: () => void
   onSave: (crop: Crop) => Promise<void> | void
@@ -93,14 +95,14 @@ export function FramingEditor({
     else if (e.key === '-') setCrop(zoomCrop(crop, 1 / 1.15, size.W, size.H))
   }
 
-  async function byFace() {
+  async function auto() {
     if (!size) return
     setFinding(true)
     setNote(null)
     const a = await analyzeUrl(url)
     setFinding(false)
-    if (a?.face) setCrop(faceCrop(a.W, a.H, a.face))
-    else setNote('Não achei o rosto nesta foto. Ajuste à mão.')
+    if (a && (a.hair || (a.face && angle !== 'back'))) setCrop(headCrop({ ...a, angle }))
+    else setNote('Não achei a cabeça nesta foto. Ajuste à mão.')
   }
 
   async function save() {
@@ -114,7 +116,11 @@ export function FramingEditor({
   }
 
   // Oval-guia: tamanho e posição do rosto no enquadramento automático.
-  const guide = { height: `${FACE_HEIGHT * 100}%`, width: `${((FACE_HEIGHT * 0.78) / FRAME) * 100}%`, top: `${(FACE_CENTER_Y - FACE_HEIGHT / 2) * 100}%` }
+  const guide = {
+    height: `${HEAD_FACE_HEIGHT * 100}%`,
+    width: `${((HEAD_FACE_HEIGHT * 0.78) / FRAME) * 100}%`,
+    top: `${(HEAD_FACE_CENTER_Y - HEAD_FACE_HEIGHT / 2) * 100}%`,
+  }
 
   return (
     <div className="framing-backdrop" role="dialog" aria-modal="true" aria-label={`Ajustar enquadramento: ${title}`}>
@@ -134,9 +140,9 @@ export function FramingEditor({
           data-testid="framing-frame"
         >
           <img src={url} alt="" draggable={false} onLoad={onLoaded} style={crop ? cropStyle(crop) : { opacity: 0 }} />
-          <span className="framing-guide" style={guide} aria-hidden="true" />
+          {angle === 'front' && <span className="framing-guide" style={guide} aria-hidden="true" />}
         </div>
-        <p className="muted small framing-help">Arraste para mover e use dois dedos (ou + e −) para aproximar. A oval mostra onde fica o rosto.</p>
+        <p className="muted small framing-help">Arraste para mover e use dois dedos (ou + e −) para aproximar.{angle === 'front' ? ' A oval mostra onde fica o rosto.' : ''}</p>
         {note && <p className="small framing-note" role="status">{note}</p>}
         <div className="framing-tools">
           <button type="button" className="btn btn-small" onClick={() => size && crop && setCrop(zoomCrop(crop, 1 / 1.15, size.W, size.H))} disabled={!size} aria-label="Afastar">
@@ -145,8 +151,8 @@ export function FramingEditor({
           <button type="button" className="btn btn-small" onClick={() => size && crop && setCrop(zoomCrop(crop, 1.15, size.W, size.H))} disabled={!size} aria-label="Aproximar">
             +
           </button>
-          <button type="button" className="btn btn-small" onClick={() => void byFace()} disabled={!size || finding}>
-            {finding ? 'Procurando…' : 'Rosto'}
+          <button type="button" className="btn btn-small" onClick={() => void auto()} disabled={!size || finding}>
+            {finding ? 'Procurando…' : 'Automático'}
           </button>
           <button type="button" className="btn btn-small" onClick={() => size && setCrop(coverCrop(size.W, size.H))} disabled={!size}>
             Preencher

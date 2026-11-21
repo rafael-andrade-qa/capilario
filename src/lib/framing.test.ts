@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FACE_CENTER_Y, FACE_HEIGHT, coverCrop, cropStyle, faceCrop, isCrop, momentCrops, panCrop, zoomCrop } from './framing'
+import { FRAME, HEAD_FACE_HEIGHT, HEAD_TOP_MARGIN, coverCrop, cropStyle, headCrop, isCrop, momentCrops, panCrop, zoomCrop } from './framing'
 
 const aspect = (c: { w: number; h: number }, W: number, H: number) => (c.w * W) / (c.h * H)
 
@@ -22,45 +22,55 @@ describe('coverCrop', () => {
   })
 })
 
-describe('faceCrop', () => {
-  it('pessoa longe da câmera: aproxima até o rosto ocupar a fração padrão', () => {
-    const W = 1080
-    const H = 1920
-    const face = { x: 480, y: 600, w: 120, h: 150 }
-    const c = faceCrop(W, H, face)
-    expect(aspect(c, W, H)).toBeCloseTo(0.75, 3)
-    expect((face.h / (c.h * H))).toBeCloseTo(FACE_HEIGHT, 2)
-    // rosto centralizado na horizontal e na altura combinada
-    const cx = (c.x + c.w / 2) * W
-    expect(cx).toBeCloseTo(face.x + face.w / 2, 0)
-    const faceCenterInCrop = (face.y + face.h / 2 - c.y * H) / (c.h * H)
-    expect(faceCenterInCrop).toBeCloseTo(FACE_CENTER_Y, 2)
+// Caixas medidas em fotos reais (tripé, 9:16): frente, perfil e costas do mesmo momento.
+const W = 1170
+const H = 2058
+const front = { W, H, angle: 'front' as const, face: { x: 252, y: 890, w: 670, h: 670 }, hair: { x: 242, y: 533, w: 718, h: 560 } }
+const side = { W, H: 2063, angle: 'left' as const, face: { x: 521, y: 935, w: 424, h: 424 }, hair: { x: 126, y: 603, w: 686, h: 759 } }
+const back = { W, H: 2068, angle: 'back' as const, face: { x: 617, y: 1220, w: 241, h: 241 }, hair: { x: 203, y: 555, w: 720, h: 864 } }
+const px = (c: { x: number; y: number; w: number; h: number }, w: number, h: number) => ({ x: c.x * w, y: c.y * h, w: c.w * w, h: c.h * h })
+
+describe('headCrop (pela cabeça)', () => {
+  it('frente: rosto na fração padrão, cabelo logo abaixo da borda de cima, centralizado', () => {
+    const c = px(headCrop(front), W, H)
+    expect(c.w / c.h).toBeCloseTo(FRAME, 3)
+    expect(front.face.h / c.h).toBeCloseTo(HEAD_FACE_HEIGHT, 2)
+    expect((front.hair.y - c.y) / c.h).toBeCloseTo(HEAD_TOP_MARGIN, 2)
+    expect(c.x + c.w / 2).toBeCloseTo(front.hair.x + front.hair.w / 2, -1)
+    // aproxima bem mais que o quadro cheio (antes sobrava ombro)
+    expect(c.h).toBeLessThan(coverCrop(W, H).h * H * 0.95)
   })
 
-  it('rosto perto da borda: o recorte não sai da imagem', () => {
-    const c = faceCrop(1000, 1000, { x: 0, y: 0, w: 200, h: 250 })
-    expect(c.x).toBe(0)
-    expect(c.y).toBe(0)
-    expect(c.x + c.w).toBeLessThanOrEqual(1)
-    expect(c.y + c.h).toBeLessThanOrEqual(1)
+  it('costas: ignora o "rosto" falso na nuca e centraliza no cabelo', () => {
+    const c = px(headCrop(back), W, back.H)
+    expect(c.x + c.w / 2).toBeCloseTo(back.hair.x + back.hair.w / 2, -1)
+    expect(c.y).toBeLessThan(back.hair.y)
+    expect(c.y + c.h).toBeGreaterThan(back.hair.y + back.hair.h) // nuca inteira
   })
 
-  it('rosto enorme (muito perto): usa o maior recorte que cabe', () => {
-    const c = faceCrop(900, 1200, { x: 100, y: 100, w: 700, h: 900 })
-    expect(c.w).toBeCloseTo(1, 3)
-    expect(c.h).toBeCloseTo(1, 3)
+  it('perfil: o cabelo inteiro e o queixo cabem no quadro', () => {
+    const c = px(headCrop(side), W, side.H)
+    expect(c.x).toBeLessThanOrEqual(side.hair.x)
+    expect(c.x + c.w).toBeGreaterThanOrEqual(side.face.x + side.face.w - 1)
+    expect(c.y + c.h).toBeGreaterThan(side.face.y + side.face.h)
   })
 
-  it('fotos tiradas de distâncias diferentes ficam na mesma escala', () => {
-    const near = faceCrop(1200, 1600, { x: 450, y: 400, w: 300, h: 380 })
-    const far = faceCrop(1080, 1920, { x: 490, y: 700, w: 100, h: 127 })
-    expect(380 / (near.h * 1600)).toBeCloseTo(127 / (far.h * 1920), 2)
+  it('sem nada detectado: preenche o quadro centralizado', () => {
+    expect(headCrop({ W, H, angle: 'front', face: null, hair: null })).toEqual(coverCrop(W, H))
+  })
+
+  it('cabelo volumoso não é cortado: afasta o necessário', () => {
+    const big = { ...front, hair: { x: 100, y: 300, w: 980, h: 800 } }
+    const c = px(headCrop(big), W, H)
+    expect(c.x).toBeLessThanOrEqual(100)
+    expect(c.x + c.w).toBeGreaterThanOrEqual(1080)
+    expect(c.y).toBeLessThan(300)
   })
 })
 
 describe('zoom e arraste', () => {
   const W = 1080
-  const H = 1920
+  const H = 1920 // (sombreia as constantes de cima)
   it('zoom aproxima mantendo 3:4 e o centro; não passa do limite', () => {
     const c = coverCrop(W, H)
     const z = zoomCrop(c, 2, W, H)
@@ -79,15 +89,24 @@ describe('zoom e arraste', () => {
 })
 
 describe('momentCrops', () => {
-  it('costas sem rosto usam o recorte da frente (mesmo tripé); tamanho diferente: preencher', () => {
-    const face = { x: 480, y: 600, w: 120, h: 150 }
+  it('mesma câmera: todos na escala do rosto da frente, cada um centrado na própria cabeça', () => {
     const r = momentCrops([
-      { key: 'frente', W: 1080, H: 1920, face, front: true },
-      { key: 'costas', W: 1080, H: 1920, face: null, front: false },
-      { key: 'outra', W: 3000, H: 4000, face: null, front: false },
+      { key: 'frente', ...front },
+      { key: 'perfil', ...side },
+      { key: 'costas', ...back },
     ])
-    expect(r.costas).toEqual(r.frente)
-    expect(r.outra).toEqual(coverCrop(3000, 4000))
+    const h = (k: string, ih: number) => r[k].h * ih
+    expect(h('perfil', side.H)).toBeCloseTo(h('frente', H), -1)
+    expect(h('costas', back.H)).toBeCloseTo(h('frente', H), -1)
+    expect(r.costas.x).not.toBeCloseTo(r.frente.x, 2)
+  })
+
+  it('câmera diferente: cada foto usa a própria escala', () => {
+    const r = momentCrops([
+      { key: 'frente', ...front },
+      { key: 'outra', W: 3000, H: 4000, angle: 'back', face: null, hair: { x: 1000, y: 600, w: 1000, h: 1200 } },
+    ])
+    expect(r.outra.h * 4000).toBeCloseTo(1200 * 1.6, -1)
   })
 })
 

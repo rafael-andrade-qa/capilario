@@ -54,3 +54,24 @@ export function CameraIcon({ size = 18 }: { size?: number }) {
     </svg>
   )
 }
+
+/** Ajustar enquadramento (recorte). */
+export function CropIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7 3v13a1 1 0 0 0 1 1h13" />
+        <path d="M3 7h13a1 1 0 0 1 1 1v13" />
+      </g>
+    </svg>
+  )
+}
+
+/** Remover (x). */
+export function CloseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  )
+}

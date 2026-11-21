@@ -1,8 +1,8 @@
 // Detalhe do momento: fotos, observação e favorita. O lápis liga o modo de edição: corrigir data
 // e horário, trocar a foto de um ângulo, remover (menos a última), pôr foto num ângulo vazio e
-// ajustar o enquadramento (à mão ou pelo rosto, em todas as fotos de uma vez).
+// ajustar o enquadramento (à mão ou automático, em todas as fotos de uma vez).
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { CheckIcon, EditIcon } from '../components/ActionIcons'
+import { CheckIcon, CloseIcon, CropIcon, EditIcon } from '../components/ActionIcons'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { useToast } from '../components/Toasts'
 import { PageHeader } from '../components/PageHeader'
@@ -200,8 +200,8 @@ export function StageDetail({ stageId }: { stageId: string }) {
     }
   }
 
-  /** Enquadra todas as fotos do momento pelo rosto (as sem rosto seguem a da frente). */
-  async function frameAllByFace() {
+  /** Enquadra todas as fotos do momento pela cabeça, na mesma escala (rosto da frente). */
+  async function frameAll() {
     if (!stage || framing) return
     setFraming(true)
     try {
@@ -210,14 +210,14 @@ export function StageDetail({ stageId }: { stageId: string }) {
         const p = photoByAngle(stage, a)!
         const url = urls[p.storage_path]
         const r = url ? await analyzeUrl(url) : null
-        if (r) list.push({ key: p.id, W: r.W, H: r.H, face: r.face, front: a === 'front' })
+        if (r) list.push({ key: p.id, W: r.W, H: r.H, face: r.face, hair: r.hair, angle: a })
       }
       if (!list.length) throw new Error('Não foi possível analisar as fotos agora.')
       const crops = momentCrops(list)
       await setPhotoCrops(Object.entries(crops).map(([photoId, crop]) => ({ photoId, crop })))
       await reload()
-      const found = list.filter((x) => x.face).length
-      notify(found ? 'Fotos enquadradas pelo rosto.' : 'Não achei rosto nas fotos; elas foram centralizadas. Ajuste à mão se precisar.', found ? 'success' : 'info')
+      const found = list.filter((x) => x.hair || (x.face && x.angle !== 'back')).length
+      notify(found ? 'Fotos enquadradas.' : 'Não achei a cabeça nas fotos; elas foram centralizadas. Ajuste à mão se precisar.', found ? 'success' : 'info')
     } catch (e) {
       notify((e as Error).message, 'error')
     } finally {
@@ -279,10 +279,10 @@ export function StageDetail({ stageId }: { stageId: string }) {
             </span>
             <DateTimeField id="d-data" labelledBy="d-data-label" value={toLocalInputValue(new Date(stage.captured_at))} onChange={(v) => void saveTime(v)} disabled={savingTime} />
           </div>
-          <button type="button" className="btn btn-outline-brand btn-block" onClick={() => void frameAllByFace()} disabled={framing || !!working}>
-            {framing ? 'Enquadrando…' : 'Enquadrar todas pelo rosto'}
+          <button type="button" className="btn btn-outline-brand btn-block" onClick={() => void frameAll()} disabled={framing || !!working}>
+            {framing ? 'Enquadrando…' : 'Enquadrar todas automaticamente'}
           </button>
-          <p className="muted small edit-hint">Toque numa foto para trocar; em Ajustar, aproxime e mova. Ângulo vazio: toque para adicionar.</p>
+          <p className="muted small edit-hint">Toque numa foto para trocar, ou num ângulo vazio para adicionar.</p>
         </section>
       )}
       <input ref={fileInput} type="file" accept={INPUT_ACCEPT} hidden onChange={(e) => void onPicked(e)} data-testid="detail-photo-input" />
@@ -308,29 +308,33 @@ export function StageDetail({ stageId }: { stageId: string }) {
                   )}
                   {working === a && <span className="badge">Enviando…</span>}
                 </button>
-                <figcaption>{ANGLE_LABEL[a]}</figcaption>
-                {p && (
-                  <button
-                    type="button"
-                    className="link small-link adjust-photo"
-                    onClick={() => setAdjusting(a)}
-                    disabled={!!working || framing || !urls[p.storage_path]}
-                    aria-label={`Ajustar enquadramento: ${ANGLE_LABEL[a]}`}
-                  >
-                    Ajustar
-                  </button>
-                )}
-                {p && present.length > 1 && (
-                  <button
-                    type="button"
-                    className={`link danger small-link remove-photo ${confirmRemove === a ? 'confirm' : ''}`}
-                    onClick={() => void remove(a)}
-                    disabled={!!working}
-                    aria-label={confirmRemove === a ? `Confirmar remoção: ${ANGLE_LABEL[a]}` : `Remover foto: ${ANGLE_LABEL[a]}`}
-                  >
-                    {confirmRemove === a ? 'Toque de novo para remover' : 'Remover'}
-                  </button>
-                )}
+                <figcaption className={`cell-bar ${p ? '' : 'solo'}`}>
+                  <span className={`cell-label ${confirmRemove === a ? 'danger' : ''}`}>{confirmRemove === a ? 'Remover?' : ANGLE_LABEL[a]}</span>
+                  {p && confirmRemove !== a && (
+                    <button
+                      type="button"
+                      className="cell-icon"
+                      onClick={() => setAdjusting(a)}
+                      disabled={!!working || framing || !urls[p.storage_path]}
+                      aria-label={`Ajustar enquadramento: ${ANGLE_LABEL[a]}`}
+                      title="Ajustar enquadramento"
+                    >
+                      <CropIcon />
+                    </button>
+                  )}
+                  {p && present.length > 1 && (
+                    <button
+                      type="button"
+                      className={`cell-icon danger ${confirmRemove === a ? 'confirm' : ''}`}
+                      onClick={() => void remove(a)}
+                      disabled={!!working}
+                      aria-label={confirmRemove === a ? `Confirmar remoção: ${ANGLE_LABEL[a]}` : `Remover foto: ${ANGLE_LABEL[a]}`}
+                      title={confirmRemove === a ? 'Toque de novo para remover' : 'Remover foto'}
+                    >
+                      <CloseIcon />
+                    </button>
+                  )}
+                </figcaption>
               </figure>
             )
           })}
@@ -387,6 +391,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
         <FramingEditor
           url={urls[photoByAngle(stage, adjusting)!.storage_path]}
           title={ANGLE_LABEL[adjusting]}
+          angle={adjusting}
           initial={photoByAngle(stage, adjusting)!.crop}
           onCancel={() => setAdjusting(null)}
           onSave={(crop) => saveCrop(adjusting, crop)}
