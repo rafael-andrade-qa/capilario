@@ -58,20 +58,21 @@ describe('finalização inteira', () => {
     )
   })
   it('nome do arquivo', () => {
-    expect(finalizationFileName(fin)).toBe('Finalização 19-11')
+    expect(finalizationFileName(fin)).toBe('Finalização 19-11 - Gelatina Modeladora Supervolume')
   })
 })
 
 describe('nomes de arquivo', () => {
-  it('curtos e legíveis (cabem numa linha)', () => {
-    expect(momentFileName(gel)).toBe('Seco 19-11')
-    expect(momentFileName({ ...none, stageType: 'next_day' })).toBe('Dia seguinte 18-11')
-    expect(compareFileName(none, gel)).toBe('Comparativo 18-11 x 19-11')
+  it('dizem o que é: momento, data e produto', () => {
+    expect(momentFileName(gel)).toBe('Seco 19-11 - Gelatina Modeladora Supervolume')
+    expect(momentFileName({ ...none, stageType: 'next_day' })).toBe('Dia seguinte 18-11 - Sem finalizador')
+    expect(compareFileName(none, gel)).toBe('Comparativo Seco 18-11 x 19-11 - Sem finalizador x Gelatina Modeladora Supervolume')
+    expect(compareFileName(gel, gel)).toBe('Comparativo Seco 19-11 x 19-11 - Gelatina Modeladora Supervolume')
   })
   it('nome editado: sem caracteres proibidos, sem .pdf repetido, nunca vazio', () => {
     expect(cleanFileName('  Meu cabelo: antes/depois?  ')).toBe('Meu cabelo- antes-depois-')
     expect(cleanFileName('Seco 19-11.PDF')).toBe('Seco 19-11')
     expect(cleanFileName('   ')).toBe('Projeto Capilar')
-    expect(cleanFileName('a'.repeat(80))).toHaveLength(60)
+    expect(cleanFileName('a'.repeat(200))).toHaveLength(120)
   })
 })

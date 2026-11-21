@@ -128,24 +128,30 @@ export function cleanFileName(name: string): string {
     .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 60)
+    .slice(0, 120)
     .trim()
   return s || 'Projeto Capilar'
 }
 
-/** "Seco 19-11" (sem o .pdf; a pessoa pode editar antes de enviar). */
+const productName = (m: Pick<MomentInfo, 'noFinisher' | 'productName'>) => (m.noFinisher ? 'Sem finalizador' : m.productName)
+
+// Nomes de arquivo que dizem o que é (sem o .pdf; a pessoa pode editar antes de enviar).
+
+/** "Seco 19-11 - Gelatina Supervolume" */
 export function momentFileName(m: MomentInfo): string {
-  return `${STAGE_LABEL[m.stageType]} ${day(m.capturedAt)}`
+  return cleanFileName(`${STAGE_LABEL[m.stageType]} ${day(m.capturedAt)} - ${productName(m)}`)
 }
 
-/** "Comparativo 18-11 x 19-11" */
+/** "Comparativo Seco 18-11 x 19-11 - Sem finalizador x Gelatina Supervolume" */
 export function compareFileName(a: MomentInfo, b: MomentInfo): string {
-  return `Comparativo ${day(a.capturedAt)} x ${day(b.capturedAt)}`
+  const pa = productName(a)
+  const pb = productName(b)
+  return cleanFileName(`Comparativo ${STAGE_LABEL[a.stageType]} ${day(a.capturedAt)} x ${day(b.capturedAt)} - ${pa === pb ? pa : `${pa} x ${pb}`}`)
 }
 
-/** "Finalização 19-11" */
+/** "Finalização 19-11 - Gelatina Supervolume" */
 export function finalizationFileName(f: FinalizationInfo): string {
-  return `Finalização ${day(f.moments[0]?.capturedAt ?? new Date().toISOString())}`
+  return cleanFileName(`Finalização ${day(f.moments[0]?.capturedAt ?? new Date().toISOString())} - ${productName(f)}`)
 }
 
 export type ShareResult = 'shared' | 'cancelled' | 'downloaded'

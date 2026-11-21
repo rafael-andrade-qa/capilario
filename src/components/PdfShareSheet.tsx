@@ -168,7 +168,7 @@ export function PdfShareSheet({
               <input
                 type="text"
                 value={names[index]}
-                maxLength={60}
+                maxLength={120}
                 enterKeyHint="done"
                 autoComplete="off"
                 spellCheck={false}

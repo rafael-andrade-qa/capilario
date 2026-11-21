@@ -86,7 +86,7 @@ test('PDF do momento: mensagem pronta e arquivo com as fotos', async ({ page }) 
   await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha como ficou meu cabelo seco, com Gelatina PDF \(Marca PDF\), em 19\/11 às 10:23\./)
   await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/Minha observação: Definição boa, pouco frizz\./)
   const fileName = dialog.getByRole('textbox', { name: 'Nome do arquivo' })
-  await expect(fileName).toHaveValue('Seco 19-11')
+  await expect(fileName).toHaveValue('Seco 19-11 - Gelatina PDF')
   // O nome é editável: o arquivo sai com o nome escolhido.
   await fileName.fill('Meu seco: 19/11')
 
@@ -103,9 +103,9 @@ test('PDF do comparativo: A e B lado a lado', async ({ page }) => {
   await page.getByRole('button', { name: 'Enviar PDF do comparativo' }).click()
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF do comparativo' })
   await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/à esquerda, sem finalizador, em 17\/11 às 10:23;\n• à direita, com Gelatina PDF \(Marca PDF\), em 19\/11 às 10:23\./)
-  await expect(dialog.getByRole('textbox', { name: 'Nome do arquivo' })).toHaveValue('Comparativo 17-11 x 19-11')
+  await expect(dialog.getByRole('textbox', { name: 'Nome do arquivo' })).toHaveValue('Comparativo Seco 17-11 x 19-11 - Sem finalizador x Gelatina PDF')
   const { name, bytes } = await downloadPdf(page, 'Enviar PDF do comparativo')
-  expect(name).toBe('Comparativo 17-11 x 19-11.pdf')
+  expect(name).toBe('Comparativo Seco 17-11 x 19-11 - Sem finalizador x Gelatina PDF.pdf')
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.length).toBeGreaterThan(12_000)
 })
@@ -130,7 +130,7 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
     'Olha como meu cabelo evoluiu com Creme Evolução (Marca E), na finalização de 21/11:\n• molhado às 09:00;\n• seco às 12:30.\n\nAs fotos estão lado a lado no PDF, com as minhas observações.',
   )
   const { name, bytes } = await downloadPdf(page, 'Enviar PDF da finalização')
-  expect(name).toBe('Finalização 21-11.pdf')
+  expect(name).toBe('Finalização 21-11 - Creme Evolução.pdf')
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.length).toBeGreaterThan(12_000)
 
@@ -143,5 +143,5 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   await sheet.getByRole('button', { name: 'Finalização inteira' }).click()
   await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha como meu cabelo evoluiu/)
   const fin = await downloadPdf(page, 'Enviar PDF')
-  expect(fin.name).toBe('Finalização 21-11.pdf')
+  expect(fin.name).toBe('Finalização 21-11 - Creme Evolução.pdf')
 })
