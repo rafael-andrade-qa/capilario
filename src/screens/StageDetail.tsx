@@ -473,7 +473,10 @@ export function StageDetail({ stageId }: { stageId: string }) {
 
       {viewer && viewerPhoto && present.includes(viewer) && (
         <PhotoViewer
-          photos={present.map((a) => ({ key: a, label: ANGLE_LABEL[a], url: urls[photoByAngle(stage, a)!.storage_path] }))}
+          photos={present.map((a) => {
+            const p = photoByAngle(stage, a)!
+            return { key: a, label: ANGLE_LABEL[a], url: urls[p.storage_path], crop: p.crop }
+          })}
           index={present.indexOf(viewer)}
           context={`${STAGE_LABEL[stage.stage_type]} · ${formatShortDateTime(stage.captured_at)}`}
           onIndex={(i) => setViewer(present[i])}

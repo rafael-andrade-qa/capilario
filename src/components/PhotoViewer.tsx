@@ -1,13 +1,15 @@
-// Visualizador em tela cheia: a foto inteira ocupando a tela, deslizar para o lado (ou setas,
-// ou teclado) passa pelos ângulos do momento, puxar para baixo fecha. Os ângulos ficam embaixo
-// para pular direto.
+// Visualizador de fotos: um cartão flutuante sobre o fundo desfocado, com a foto no enquadramento
+// do app. Deslizar para o lado (ou as setas, fora do cartão, ou o teclado) passa pelos ângulos
+// do momento; puxar para baixo, tocar fora ou o ✕ fecha. Os ângulos ficam embaixo para pular direto.
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { cropStyle, type Crop } from '../lib/framing'
 import { edgeResist, lockAxis, swipeOutcome, type Axis } from '../lib/swipe'
 
 export interface ViewerPhoto {
   key: string
   label: string
   url?: string
+  crop?: Crop | null
 }
 
 function Chevron({ dir }: { dir: 'left' | 'right' }) {
@@ -111,12 +113,11 @@ export function PhotoViewer({
     setDrag(null)
   }
 
-  const height = stageRef.current?.clientHeight || 700
+  const height = stageRef.current?.clientHeight || 500
   const pull = drag ? Math.min(drag.dy / height, 1) : 0
-  const trackStyle = {
-    transform: `translate3d(calc(${-index * 100}% + ${drag?.dx ?? 0}px), ${drag?.dy ?? 0}px, 0) scale(${1 - pull * 0.25})`,
-    transition: drag ? 'none' : 'transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-  }
+  const easing = drag ? 'none' : 'transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+  const trackStyle = { transform: `translate3d(calc(${-index * 100}% + ${drag?.dx ?? 0}px), 0, 0)`, transition: easing }
+  const wrapStyle = { transform: `translate3d(0, ${drag?.dy ?? 0}px, 0) scale(${1 - pull * 0.2})`, transition: easing }
 
   return (
     <div
@@ -124,58 +125,68 @@ export function PhotoViewer({
       role="dialog"
       aria-modal="true"
       aria-label={`Foto: ${current?.label ?? ''}`}
-      style={{ backgroundColor: `rgba(0, 0, 0, ${1 - pull * 0.7})` }}
+      style={{ opacity: 1 - pull * 0.6 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <header className="pv-top" style={{ opacity: 1 - pull * 2 }}>
-        <div className="pv-title">
-          <strong>{current?.label}</strong>
-          <span>
-            {context ? `${context} · ` : ''}
-            {index + 1} de {photos.length}
-          </span>
-        </div>
-        <button ref={closeRef} type="button" className="pv-close" onClick={onClose} aria-label="Fechar">
-          <CloseIcon />
-        </button>
-      </header>
-
-      <div
-        ref={stageRef}
-        className="pv-stage"
-        data-testid="viewer-stage"
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={cancel}
-      >
-        <div className="pv-track" style={trackStyle}>
-          {photos.map((p, i) => (
-            <div key={p.key} className="pv-slide" aria-hidden={i !== index}>
-              {p.url ? <img src={p.url} alt={p.label} draggable={false} /> : <span className="pv-loading">Carregando…</span>}
+      <div className="pv-wrap" style={wrapStyle}>
+        <div className="pv-card">
+          <header className="pv-top">
+            <div className="pv-title">
+              <strong>{current?.label}</strong>
+              <span>
+                {context ? `${context} · ` : ''}
+                {index + 1} de {photos.length}
+              </span>
             </div>
-          ))}
+            <button ref={closeRef} type="button" className="pv-close" onClick={onClose} aria-label="Fechar">
+              <CloseIcon />
+            </button>
+          </header>
+
+          <div
+            ref={stageRef}
+            className="pv-stage"
+            data-testid="viewer-stage"
+            onPointerDown={down}
+            onPointerMove={move}
+            onPointerUp={up}
+            onPointerCancel={cancel}
+          >
+            <div className="pv-track" style={trackStyle}>
+              {photos.map((p, i) => (
+                <div key={p.key} className="pv-slide" aria-hidden={i !== index}>
+                  {p.url ? (
+                    <img src={p.url} alt={p.label} draggable={false} className={p.crop ? 'cropped' : 'cover'} style={p.crop ? cropStyle(p.crop) : undefined} />
+                  ) : (
+                    <span className="pv-loading">Carregando…</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
+
         {canPrev && !drag && (
-          <button type="button" className="pv-arrow prev" onPointerDown={(e) => e.stopPropagation()} onClick={() => onIndex(index - 1)} aria-label="Foto anterior">
+          <button type="button" className="pv-arrow prev" onClick={() => onIndex(index - 1)} aria-label="Foto anterior">
             <Chevron dir="left" />
           </button>
         )}
         {canNext && !drag && (
-          <button type="button" className="pv-arrow next" onPointerDown={(e) => e.stopPropagation()} onClick={() => onIndex(index + 1)} aria-label="Próxima foto">
+          <button type="button" className="pv-arrow next" onClick={() => onIndex(index + 1)} aria-label="Próxima foto">
             <Chevron dir="right" />
           </button>
         )}
-      </div>
 
-      {photos.length > 1 && (
-        <nav className="pv-tabs" aria-label="Ângulos" style={{ opacity: 1 - pull * 2 }}>
-          {photos.map((p, i) => (
-            <button key={p.key} type="button" className="pv-tab" aria-current={i === index ? 'true' : undefined} onClick={() => onIndex(i)}>
-              {p.label}
-            </button>
-          ))}
-        </nav>
-      )}
+        {photos.length > 1 && (
+          <nav className="pv-tabs" aria-label="Ângulos">
+            {photos.map((p, i) => (
+              <button key={p.key} type="button" className="pv-tab" aria-current={i === index ? 'true' : undefined} onClick={() => onIndex(i)}>
+                {p.label}
+              </button>
+            ))}
+          </nav>
+        )}
+      </div>
     </div>
   )
 }
