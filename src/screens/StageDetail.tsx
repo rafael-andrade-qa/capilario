@@ -8,6 +8,7 @@ import { useToast } from '../components/Toasts'
 import { PageHeader } from '../components/PageHeader'
 import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
+import { PhotoViewer } from '../components/PhotoViewer'
 import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
@@ -419,11 +420,14 @@ export function StageDetail({ stageId }: { stageId: string }) {
         </button>
       )}
 
-      {viewer && viewerPhoto && (
-        <div className="viewer" role="dialog" aria-label={ANGLE_LABEL[viewer]} onClick={() => setViewer(null)}>
-          <img src={urls[viewerPhoto.storage_path]} alt={ANGLE_LABEL[viewer]} />
-          <button className="btn viewer-close">Fechar</button>
-        </div>
+      {viewer && viewerPhoto && present.includes(viewer) && (
+        <PhotoViewer
+          photos={present.map((a) => ({ key: a, label: ANGLE_LABEL[a], url: urls[photoByAngle(stage, a)!.storage_path] }))}
+          index={present.indexOf(viewer)}
+          context={`${STAGE_LABEL[stage.stage_type]} · ${formatShortDateTime(stage.captured_at)}`}
+          onIndex={(i) => setViewer(present[i])}
+          onClose={() => setViewer(null)}
+        />
       )}
     </main>
   )
