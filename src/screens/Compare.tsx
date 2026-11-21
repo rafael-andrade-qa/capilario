@@ -6,7 +6,7 @@ import { Dropdown, type DropdownOption } from '../components/Dropdown'
 import { PageHeader } from '../components/PageHeader'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
 import { comparePdf } from '../lib/pdf'
-import { dayMonth, heroOf } from '../lib/finalizationShare'
+import { dayMonth, productHero } from '../lib/finalizationShare'
 import { compareFileName, compareMessage, momentInfo, productTitle } from '../lib/share'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, productThumbPath } from '../components/ProductThumb'
@@ -266,17 +266,17 @@ export function Compare({ params }: { params: URLSearchParams }) {
               summary: `${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`,
               message: compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
               fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
-              build: () =>
+              build: async () =>
                 comparePdf({
                   banner: {
                     kicker: `Comparativo · ${STAGE_LABEL[type]}`,
                     title: a.experiment.id === b.experiment.id ? productLabel(a.experiment) : `${productLabel(a.experiment)} × ${productLabel(b.experiment)}`,
                     brand: a.experiment.id === b.experiment.id ? brandLabel(a.experiment) || null : null,
                     pill: `${dayMonth(a.stage.captured_at)} × ${dayMonth(b.stage.captured_at)} · mesmos ângulos lado a lado`,
-                    heroes: [
-                      { label: `A · ${dayMonth(a.stage.captured_at)}`, photo: heroOf(a.stage, urls) },
-                      { label: `B · ${dayMonth(b.stage.captured_at)}`, photo: heroOf(b.stage, urls) },
-                    ],
+                    heroes:
+                      a.experiment.id === b.experiment.id
+                        ? [await productHero(a.experiment)]
+                        : [await productHero(a.experiment, 'A'), await productHero(b.experiment, 'B')],
                   },
                   a: { title: productTitle(a.experiment), subtitle: formatDateTime(a.stage.captured_at) },
                   b: { title: productTitle(b.experiment), subtitle: formatDateTime(b.stage.captured_at) },

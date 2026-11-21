@@ -2,14 +2,17 @@
 // histórico e no detalhe do momento. As URLs das fotos são assinadas na hora de montar.
 import type { PdfOption } from '../components/PdfShareSheet'
 import { signedUrls } from './api'
-import { ANGLES, ANGLE_LABEL, STAGE_LABEL, STAGE_TYPES, brandLabel, photoByAngle, productLabel, type Experiment, type Finalization, type Stage } from './domain'
-import { finalizationPdf, type PdfPhoto } from './pdf'
+import { ANGLES, ANGLE_LABEL, STAGE_LABEL, STAGE_TYPES, brandLabel, photoByAngle, productLabel, type Experiment, type Finalization } from './domain'
+import { finalizationPdf, type Banner } from './pdf'
 import { finalizationFileName, finalizationInfo, finalizationMessage, whenText } from './share'
 
-/** Foto de destaque de um momento para a capa: a de frente (ou a primeira que houver). */
-export function heroOf(stage: Stage, urls: Record<string, string>): PdfPhoto | null {
-  const p = photoByAngle(stage, 'front') ?? ANGLES.map((a) => photoByAngle(stage, a)).find(Boolean)
-  return p && urls[p.storage_path] ? { label: ANGLE_LABEL[p.angle], url: urls[p.storage_path], crop: p.crop } : null
+/** Embalagem do produto para a capa do PDF (é ela que diz qual produto é). */
+export async function productHero(exp: Experiment, label = ''): Promise<Banner['heroes'][number]> {
+  if (exp.photo_path) {
+    const url = (await signedUrls([exp.photo_path]).catch(() => ({}) as Record<string, string>))[exp.photo_path]
+    if (url) return { label, photo: { label: '', url } }
+  }
+  return { label, photo: null, placeholder: exp.product_mode === 'none' ? 'Sem finalizador' : 'Sem foto da embalagem' }
 }
 
 /** "20/11" */
@@ -33,7 +36,7 @@ export function finalizationOption(experiment: Experiment, f: Finalization, labe
           title: productLabel(experiment),
           brand: brandLabel(experiment) || null,
           pill: `${dayMonth(f.start)} · ${stages.map((s) => STAGE_LABEL[s.stage_type]).join(' → ')}`,
-          heroes: stages.map((s) => ({ label: STAGE_LABEL[s.stage_type], photo: heroOf(s, urls) })),
+          heroes: [await productHero(experiment)],
         },
         columns: stages.map((s) => ({ title: STAGE_LABEL[s.stage_type], subtitle: whenText(s.captured_at) })),
         rows: angles.map((a) => ({

@@ -13,7 +13,7 @@ import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
 import { momentPdf } from '../lib/pdf'
-import { finalizationOption, heroOf } from '../lib/finalizationShare'
+import { finalizationOption, productHero } from '../lib/finalizationShare'
 import { momentFileName, momentInfo, momentMessage } from '../lib/share'
 import { deletePhoto, movePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
 import { MoveAngleSheet, SwapIcon } from '../components/MoveAngleSheet'
@@ -451,14 +451,14 @@ export function StageDetail({ stageId }: { stageId: string }) {
           summary: `${present.length} ${present.length === 1 ? 'foto' : 'fotos'} do ${STAGE_LABEL[stage.stage_type]}`,
           message: momentMessage(momentInfo(experiment, stage)),
           fileName: momentFileName(momentInfo(experiment, stage)),
-          build: () =>
+          build: async () =>
             momentPdf({
               banner: {
                 kicker: `Momento · ${STAGE_LABEL[stage.stage_type]}`,
                 title: productLabel(experiment),
                 brand: brandLabel(experiment) || null,
                 pill: formatDateTime(stage.captured_at),
-                heroes: [{ label: STAGE_LABEL[stage.stage_type], photo: heroOf(stage, urls) }],
+                heroes: [await productHero(experiment)],
               },
               notes: stage.notes,
               photos: present.map((ang) => {

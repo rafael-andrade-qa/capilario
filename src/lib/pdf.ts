@@ -2,8 +2,9 @@
 // mesmo enquadramento do app (recorte 3:4). A4 em pé.
 //
 // Capa: o topo da primeira página é um banner com a identidade do app (é o que aparece na
-// prévia do WhatsApp): marca, produto em destaque, uma etiqueta com data e momentos, as fotos de
-// frente à direita e o endereço do app. O conteúdo vem logo abaixo, dimensionado para caber.
+// prévia do WhatsApp): marca, produto em destaque, uma etiqueta com data e momentos, a foto da
+// embalagem à direita (para saber qual é o produto) e o endereço do app. As fotos do rosto ficam
+// na análise, logo abaixo. O conteúdo vem logo abaixo, dimensionado para caber.
 import { coverCrop, type Crop } from './framing'
 
 export interface PdfPhoto {
@@ -21,8 +22,8 @@ export interface Banner {
   brand?: string | null
   /** Etiqueta: "20/11 · Molhado → Seco → Dia seguinte". */
   pill: string
-  /** Fotos de destaque à direita (até 3). */
-  heroes: { label: string; photo: PdfPhoto | null }[]
+  /** Embalagens à direita (até 3; no comparativo, A e B). Sem foto: cartão com `placeholder`. */
+  heroes: { label: string; photo: PdfPhoto | null; placeholder?: string }[]
 }
 
 type RGB = [number, number, number]
@@ -54,7 +55,7 @@ function siteAddress(): string {
 }
 
 /** Foto recortada (3:4) como JPEG em data URL; com cantos arredondados para a capa. */
-async function prepared(p: PdfPhoto, o: { w?: number; radius?: number; bg?: string } = {}): Promise<string | null> {
+async function prepared(p: PdfPhoto, o: { w?: number; radius?: number; bg?: string; card?: string } = {}): Promise<string | null> {
   const W = o.w ?? 600
   const H = (W * 4) / 3
   try {
@@ -73,6 +74,10 @@ async function prepared(p: PdfPhoto, o: { w?: number; radius?: number; bg?: stri
         ctx.beginPath()
         ctx.roundRect(0, 0, W, H, o.radius)
         ctx.clip()
+      }
+      if (o.card) {
+        ctx.fillStyle = o.card
+        ctx.fillRect(0, 0, W, H)
       }
       ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, c.w * bmp.width, c.h * bmp.height, 0, 0, W, H)
@@ -116,7 +121,7 @@ const INK_HEX = '#211914'
 async function bannerAssets(b: Banner) {
   const [icon, heroes] = await Promise.all([
     appIcon(),
-    Promise.all(b.heroes.slice(0, 3).map((h) => (h.photo ? prepared(h.photo, { w: 300, radius: 26, bg: INK_HEX }) : Promise.resolve(null)))),
+    Promise.all(b.heroes.slice(0, 3).map((h) => (h.photo ? prepared(h.photo, { w: 300, radius: 26, bg: INK_HEX, card: '#ffffff' }) : Promise.resolve(null)))),
   ])
   return { icon, heroes }
 }
@@ -152,7 +157,7 @@ function drawBanner(doc: Doc, lib: JsPdf, b: Banner, a: { icon: string | null; h
   // Fotos de destaque à direita
   const heroes = b.heroes.slice(0, 3)
   const n = heroes.length
-  const hw = n >= 3 ? 25 : n === 2 ? 29 : 30
+  const hw = n >= 3 ? 25 : n === 2 ? 29 : 34
   const hh = (hw * 4) / 3
   const gap = 4
   const hx0 = PAGE_W - MARGIN - (n * hw + Math.max(0, n - 1) * gap)
@@ -164,11 +169,20 @@ function drawBanner(doc: Doc, lib: JsPdf, b: Banner, a: { icon: string | null; h
     else {
       doc.setFillColor(58, 46, 38)
       doc.roundedRect(x, hy, hw, hh, 2.5, 2.5, 'F')
+      if (h.placeholder) {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8)
+        doc.setTextColor(...LIGHT)
+        const t = doc.splitTextToSize(h.placeholder, hw - 6) as string[]
+        doc.text(t, x + hw / 2, hy + hh / 2 - ((t.length - 1) * 3.4) / 2, { align: 'center', baseline: 'middle' })
+      }
     }
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...LIGHT)
-    doc.text(h.label, x + hw / 2, hy + hh + 4, { align: 'center' })
+    if (h.label) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7.5)
+      doc.setTextColor(...LIGHT)
+      doc.text(h.label, x + hw / 2, hy + hh + 4, { align: 'center' })
+    }
   })
 
   // Texto: chamada, produto (até 3 linhas, diminui se precisar), marca e etiqueta
