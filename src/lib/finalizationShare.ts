@@ -24,6 +24,7 @@ export function finalizationOption(experiment: Experiment, f: Finalization, labe
     label,
     summary: `${names} lado a lado`,
     message: finalizationMessage(info),
+    fileName: finalizationFileName(info),
     build: async () => {
       const urls = await signedUrls(stages.flatMap((s) => s.photos.map((p) => p.storage_path)))
       const blob = await finalizationPdf({
@@ -44,7 +45,7 @@ export function finalizationOption(experiment: Experiment, f: Finalization, labe
         })),
         notes: stages.filter((s) => s.notes?.trim()).map((s) => ({ title: STAGE_LABEL[s.stage_type], text: s.notes!.trim() })),
       })
-      return { blob, fileName: finalizationFileName(info) }
+      return blob
     },
   }
 }

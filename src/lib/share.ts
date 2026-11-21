@@ -1,6 +1,6 @@
 // Enviar em PDF: textos prontos (mensagem que acompanha o arquivo e nome do arquivo) e o
 // compartilhamento do aparelho. Os textos são funções puras (testadas em share.test.ts).
-import { STAGE_TYPES, brandLabel, productLabel, type Experiment, type Finalization, type Stage, type StageType } from './domain'
+import { STAGE_LABEL, STAGE_TYPES, brandLabel, productLabel, type Experiment, type Finalization, type Stage, type StageType } from './domain'
 
 export interface MomentInfo {
   productName: string
@@ -113,37 +113,39 @@ export function finalizationMessage(f: FinalizationInfo): string {
   ].join('\n')
 }
 
-const slug = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-    .replace(/-+$/, '')
-
 const day = (iso: string) => {
   const d = new Date(iso)
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}`
 }
 
-const productSlug = (m: MomentInfo) => (m.noFinisher ? 'sem-finalizador' : slug(m.productName))
+/**
+ * Nome do arquivo como a pessoa escreveu, sem o ".pdf": tira caracteres que os sistemas não
+ * aceitam em nome de arquivo, espaços sobrando e limita o tamanho. Vazio vira "Projeto Capilar".
+ */
+export function cleanFileName(name: string): string {
+  const s = name
+    .replace(/\.pdf$/i, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60)
+    .trim()
+  return s || 'Projeto Capilar'
+}
 
-/** capilar-seco-19-11-gelatina-supervolume.pdf */
+/** "Seco 19-11" (sem o .pdf; a pessoa pode editar antes de enviar). */
 export function momentFileName(m: MomentInfo): string {
-  return `capilar-${slug(MOMENT_WORD[m.stageType].replace(/^no /, ''))}-${day(m.capturedAt)}-${productSlug(m)}.pdf`
+  return `${STAGE_LABEL[m.stageType]} ${day(m.capturedAt)}`
 }
 
-/** capilar-comparativo-seco-18-11-x-19-11.pdf */
+/** "Comparativo 18-11 x 19-11" */
 export function compareFileName(a: MomentInfo, b: MomentInfo): string {
-  return `capilar-comparativo-${slug(MOMENT_WORD[a.stageType].replace(/^no /, ''))}-${day(a.capturedAt)}-x-${day(b.capturedAt)}.pdf`
+  return `Comparativo ${day(a.capturedAt)} x ${day(b.capturedAt)}`
 }
 
-/** capilar-finalizacao-19-11-gelatina-supervolume.pdf */
+/** "Finalização 19-11" */
 export function finalizationFileName(f: FinalizationInfo): string {
-  const start = f.moments[0]?.capturedAt ?? new Date().toISOString()
-  return `capilar-finalizacao-${day(start)}-${productSlug({ ...f, stageType: 'wet', capturedAt: start })}.pdf`
+  return `Finalização ${day(f.moments[0]?.capturedAt ?? new Date().toISOString())}`
 }
 
 export type ShareResult = 'shared' | 'cancelled' | 'downloaded'

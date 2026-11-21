@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanFileName,
   compareFileName,
   compareMessage,
   finalizationFileName,
@@ -57,14 +58,20 @@ describe('finalização inteira', () => {
     )
   })
   it('nome do arquivo', () => {
-    expect(finalizationFileName(fin)).toBe('capilar-finalizacao-19-11-gelatina-modeladora-supervolume.pdf')
+    expect(finalizationFileName(fin)).toBe('Finalização 19-11')
   })
 })
 
 describe('nomes de arquivo', () => {
-  it('sem acento, curtos e descritivos', () => {
-    expect(momentFileName(gel)).toBe('capilar-seco-19-11-gelatina-modeladora-supervolume.pdf')
-    expect(momentFileName({ ...none, stageType: 'next_day' })).toBe('capilar-dia-seguinte-18-11-sem-finalizador.pdf')
-    expect(compareFileName(none, gel)).toBe('capilar-comparativo-seco-18-11-x-19-11.pdf')
+  it('curtos e legíveis (cabem numa linha)', () => {
+    expect(momentFileName(gel)).toBe('Seco 19-11')
+    expect(momentFileName({ ...none, stageType: 'next_day' })).toBe('Dia seguinte 18-11')
+    expect(compareFileName(none, gel)).toBe('Comparativo 18-11 x 19-11')
+  })
+  it('nome editado: sem caracteres proibidos, sem .pdf repetido, nunca vazio', () => {
+    expect(cleanFileName('  Meu cabelo: antes/depois?  ')).toBe('Meu cabelo- antes-depois-')
+    expect(cleanFileName('Seco 19-11.PDF')).toBe('Seco 19-11')
+    expect(cleanFileName('   ')).toBe('Projeto Capilar')
+    expect(cleanFileName('a'.repeat(80))).toHaveLength(60)
   })
 })

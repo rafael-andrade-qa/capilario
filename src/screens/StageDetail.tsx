@@ -450,9 +450,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
           label: 'Este momento',
           summary: `${present.length} ${present.length === 1 ? 'foto' : 'fotos'} do ${STAGE_LABEL[stage.stage_type]}`,
           message: momentMessage(momentInfo(experiment, stage)),
-          build: async () => ({
-            fileName: momentFileName(momentInfo(experiment, stage)),
-            blob: await momentPdf({
+          fileName: momentFileName(momentInfo(experiment, stage)),
+          build: () =>
+            momentPdf({
               banner: {
                 kicker: `Momento · ${STAGE_LABEL[stage.stage_type]}`,
                 title: productLabel(experiment),
@@ -466,7 +466,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
                 return { label: ANGLE_LABEL[ang], url: urls[p.storage_path], crop: p.crop }
               }),
             }),
-          }),
           },
           ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin)] : [])]}
         />

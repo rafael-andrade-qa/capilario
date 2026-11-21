@@ -265,9 +265,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
               label: 'Comparativo',
               summary: `${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`,
               message: compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
-              build: async () => ({
-                fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
-                blob: await comparePdf({
+              fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
+              build: () =>
+                comparePdf({
                   banner: {
                     kicker: `Comparativo · ${STAGE_LABEL[type]}`,
                     title: a.experiment.id === b.experiment.id ? productLabel(a.experiment) : `${productLabel(a.experiment)} × ${productLabel(b.experiment)}`,
@@ -290,7 +290,6 @@ export function Compare({ params }: { params: URLSearchParams }) {
                     }
                   }),
                 }),
-              }),
               }]}
             />
           )}

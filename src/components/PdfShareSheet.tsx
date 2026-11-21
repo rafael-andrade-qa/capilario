@@ -6,7 +6,7 @@
 // opções viram uma faixa horizontal de cartões (miniaturas, data e momentos): altura fixa, desliza
 // para o lado, então serve igual para 2 ou 20 opções.
 import { useEffect, useRef, useState } from 'react'
-import { shareFile } from '../lib/share'
+import { cleanFileName, shareFile } from '../lib/share'
 import type { Crop } from '../lib/framing'
 import { PhotoView } from './PhotoView'
 import { useToast } from './Toasts'
@@ -27,16 +27,32 @@ export function PdfIcon({ size = 20 }: { size?: number }) {
 export interface PdfOption {
   /** Nome no seletor (só aparece com mais de uma opção). */
   label: string
-  /** O que vai no PDF (ex.: "4 fotos do Seco"). */
+  /** O que vai no PDF (ex.: "4 fotos do Seco"), mostrado enquanto ele é montado. */
   summary: string
   message: string
-  build: () => Promise<{ blob: Blob; fileName: string }>
+  /** Nome sugerido do arquivo, sem o .pdf (a pessoa pode editar). */
+  fileName: string
+  build: () => Promise<Blob>
   /** Só na lista: linha de baixo e miniaturas. */
   detail?: string
   thumbs?: { url?: string; crop?: Crop | null }[]
 }
 
-type Built = { file: File | null; failed: boolean }
+type Built = { blob: Blob | null; failed: boolean }
+
+/** Arquivo PDF (folha com a faixa "PDF"), ao lado do nome do arquivo. */
+export function PdfFileIcon() {
+  return (
+    <svg viewBox="0 0 32 40" width="30" height="38" aria-hidden="true" focusable="false" className="pdf-file-icon">
+      <path d="M5 1.5h15.5L29 10v26a2.5 2.5 0 0 1-2.5 2.5h-21A2.5 2.5 0 0 1 3 36V4a2.5 2.5 0 0 1 2-2.5z" fill="var(--surface)" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M20.5 1.5V8a2 2 0 0 0 2 2H29" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="0.8" y="19" width="22" height="11" rx="2.5" fill="var(--brand)" />
+      <text x="11.8" y="27.4" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--brand-ink)" fontFamily="system-ui, sans-serif">
+        PDF
+      </text>
+    </svg>
+  )
+}
 
 export function PdfShareSheet({
   heading,
@@ -54,6 +70,7 @@ export function PdfShareSheet({
   const notify = useToast()
   const [index, setIndex] = useState(0)
   const [messages, setMessages] = useState(() => options.map((o) => o.message))
+  const [names, setNames] = useState(() => options.map((o) => o.fileName))
   const [built, setBuilt] = useState<Record<number, Built>>({})
   const [sending, setSending] = useState(false)
   const sheet = useRef<HTMLDivElement>(null)
@@ -61,7 +78,7 @@ export function PdfShareSheet({
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   const option = options[index]
-  const state = built[index] ?? { file: null, failed: false }
+  const state = built[index] ?? { blob: null, failed: false }
 
   useEffect(() => {
     if (started.current.has(index)) return
@@ -69,8 +86,8 @@ export function PdfShareSheet({
     const i = index
     options[i]
       .build()
-      .then(({ blob, fileName }) => setBuilt((b) => ({ ...b, [i]: { file: new File([blob], fileName, { type: 'application/pdf' }), failed: false } })))
-      .catch(() => setBuilt((b) => ({ ...b, [i]: { file: null, failed: true } })))
+      .then((blob) => setBuilt((b) => ({ ...b, [i]: { blob, failed: false } })))
+      .catch(() => setBuilt((b) => ({ ...b, [i]: { blob: null, failed: true } })))
   }, [index, options])
 
   useEffect(() => {
@@ -86,9 +103,10 @@ export function PdfShareSheet({
   }, [])
 
   async function send() {
-    if (!state.file || sending) return
+    if (!state.blob || sending) return
     setSending(true)
-    const result = await shareFile(state.file, messages[index], heading)
+    const file = new File([state.blob], `${cleanFileName(names[index])}.pdf`, { type: 'application/pdf' })
+    const result = await shareFile(file, messages[index], heading)
     setSending(false)
     if (result === 'cancelled') return
     notify(result === 'shared' ? 'PDF enviado.' : 'PDF baixado. A mensagem foi copiada: é só colar.', 'success')
@@ -142,10 +160,35 @@ export function PdfShareSheet({
             ))}
           </div>
         )}
-        <p className="muted small pdf-summary">
-          <PdfIcon size={16} />{' '}
-          {state.failed ? 'Não foi possível montar o PDF agora.' : state.file ? `${option.summary} · ${state.file.name}` : `Preparando o PDF (${option.summary})…`}
-        </p>
+        <div className={`pdf-file ${state.blob ? 'ready' : ''}`}>
+          <PdfFileIcon />
+          <label className="pdf-file-name">
+            <span className="field-label">Nome do arquivo</span>
+            <span className="pdf-file-input">
+              <input
+                type="text"
+                value={names[index]}
+                maxLength={60}
+                enterKeyHint="done"
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setNames((n) => n.map((x, i) => (i === index ? v : x)))
+                }}
+                onBlur={() => setNames((n) => n.map((x, i) => (i === index ? cleanFileName(x) : x)))}
+              />
+              <span className="pdf-ext" aria-hidden="true">
+                .pdf
+              </span>
+            </span>
+          </label>
+        </div>
+        {!state.blob && (
+          <p className="muted small pdf-status" role="status">
+            {state.failed ? 'Não foi possível montar o PDF agora.' : `Preparando o PDF (${option.summary})…`}
+          </p>
+        )}
         <label className="field pdf-message">
           <span className="field-label">Mensagem</span>
           <textarea
@@ -162,8 +205,8 @@ export function PdfShareSheet({
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => void send()} disabled={!state.file || sending}>
-            {state.file ? 'Enviar' : state.failed ? 'Indisponível' : 'Preparando…'}
+          <button type="button" className="btn btn-primary" onClick={() => void send()} disabled={!state.blob || sending}>
+            {state.blob ? 'Enviar' : state.failed ? 'Indisponível' : 'Preparando…'}
           </button>
         </div>
       </div>

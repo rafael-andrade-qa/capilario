@@ -2742,12 +2742,64 @@ body:has(.save-bar) .toasts {
   font-size: 0.7rem;
   font-weight: 700;
 }
-.pdf-summary {
+/* Arquivo do PDF: ícone + nome editável (uma linha) com .pdf fixo */
+.pdf-file {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   margin: 0 0 12px;
-  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg);
+}
+.pdf-file:focus-within {
+  border-color: var(--brand);
+}
+.pdf-file-icon {
+  flex: none;
+  color: var(--muted);
+}
+.pdf-file.ready .pdf-file-icon {
+  color: var(--brand);
+}
+.pdf-file-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pdf-file-name .field-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pdf-file-input {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+.pdf-file-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  outline: none;
+  text-overflow: ellipsis;
+}
+.pdf-ext {
+  flex: none;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pdf-status {
+  margin: -6px 0 10px;
 }
 .pdf-message textarea {
   width: 100%;
