@@ -1087,19 +1087,28 @@ button.back {
 .pv-arrow.next {
   right: -48px;
 }
+/* Ângulos sempre numa linha: a faixa usa a largura da tela (não a do cartão) */
 .pv-tabs {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100vw - 24px);
+  max-width: 480px;
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   margin-top: 14px;
 }
 .pv-tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 6px clamp(8px, 2.6vw, 12px);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: clamp(0.74rem, 3.5vw, 0.85rem);
   font-weight: 600;
   background: var(--surface);
   color: var(--text);
