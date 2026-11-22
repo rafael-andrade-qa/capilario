@@ -316,8 +316,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
                   ) : (
                     <div className="photo-frame compare-frame empty">Sem foto deste ângulo</div>
                   )}
-                  {/* Sempre duas linhas (produto e marca), iguais dos dois lados; a data fica nos seletores
-                      lá em cima. A observação só aparece ao tocar. */}
+                  {/* Sempre duas linhas, iguais dos dois lados: o produto; embaixo data, horário e marca
+                      (a data nunca corta; marca comprida ganha reticências). Observação só ao tocar. */}
                   <figcaption className="compare-meta">
                     <span className="compare-line">
                       <strong className="one-line" title={productLabel(e.experiment)}>
@@ -337,8 +337,14 @@ export function Compare({ params }: { params: URLSearchParams }) {
                         </button>
                       )}
                     </span>
-                    {/* Sem marca (ex.: Sem finalizador): linha vazia, para os dois lados ficarem alinhados. */}
-                    <span className="one-line muted">{brandLabel(e.experiment) || '\u00a0'}</span>
+                    <span className="compare-sub muted">
+                      <span className="compare-when">{formatShortDateTime(e.stage.captured_at)}</span>
+                      {brandLabel(e.experiment) && (
+                        <span className="one-line" title={brandLabel(e.experiment) ?? undefined}>
+                          · {brandLabel(e.experiment)}
+                        </span>
+                      )}
+                    </span>
                     {showNotes && e.stage.notes && <span className="notes">{e.stage.notes}</span>}
                   </figcaption>
                 </figure>

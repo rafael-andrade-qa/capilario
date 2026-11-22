@@ -1193,6 +1193,15 @@ button.back {
 .compare-line .star {
   flex: none;
 }
+.compare-sub {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.compare-when {
+  flex: none;
+}
 .note-btn {
   flex: none;
   display: inline-grid;
