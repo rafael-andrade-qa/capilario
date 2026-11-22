@@ -161,7 +161,10 @@ export function PdfShareSheet({
           </div>
         )}
         <div className={`pdf-file ${state.blob ? 'ready' : ''}`}>
-          <PdfFileIcon />
+          <span className="pdf-file-badge">
+            <PdfFileIcon />
+            {!state.blob && !state.failed && <span className="spinner pdf-file-spin" aria-hidden="true" />}
+          </span>
           <label className="pdf-file-name">
             <span className="field-label">Nome do arquivo</span>
             <span className="pdf-file-input">
@@ -205,7 +208,12 @@ export function PdfShareSheet({
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => void send()} disabled={!state.blob || sending}>
+          <button
+            type="button"
+            className={`btn btn-primary ${(!state.blob && !state.failed) || sending ? 'is-busy' : ''}`}
+            onClick={() => void send()}
+            disabled={!state.blob || sending}
+          >
             {state.blob ? 'Enviar' : state.failed ? 'Indisponível' : 'Preparando…'}
           </button>
         </div>

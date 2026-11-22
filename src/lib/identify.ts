@@ -51,13 +51,18 @@ function base64ToBlob(b64: string, type: string): Blob {
   return new Blob([bytes], { type })
 }
 
-export async function identifyFromPhoto(photo: Blob): Promise<IdentifyOutcome> {
+/** Etapas reais da identificação, para a tela mostrar o que está acontecendo. */
+export type IdentifyStep = 'prepare' | 'read' | 'photo'
+
+export async function identifyFromPhoto(photo: Blob, onStep?: (step: IdentifyStep) => void): Promise<IdentifyOutcome> {
   let image: string
+  onStep?.('prepare')
   try {
     image = await downscaleToBase64(photo)
   } catch {
     throw new Error(MESSAGES.invalid_image)
   }
+  onStep?.('read')
   const { data, error } = await supabase.functions.invoke<Wire>('identify-product', { body: { image, mime: 'image/jpeg' } })
   if (error) {
     if (error instanceof FunctionsHttpError) {
@@ -68,6 +73,7 @@ export async function identifyFromPhoto(photo: Blob): Promise<IdentifyOutcome> {
     throw new Error(GENERIC)
   }
   if (!data || !data.found) return { found: false }
+  onStep?.('photo')
   const settled = await Promise.allSettled(
     data.candidates.map(async (c) => {
       const file = await toPackshot(base64ToBlob(c.image, c.mime))

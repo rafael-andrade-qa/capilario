@@ -1,5 +1,6 @@
 // Escolher a marca: todas as marcas do catálogo numa folha, com busca, as mais usadas no topo
 // e o resto de A a Z (com letras para se achar). Tocar escolhe e fecha.
+import { BrandsSkeleton } from './Skeleton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { allBrands, type CatalogBrand } from '../lib/catalog'
 import { SearchField } from './SearchField'
@@ -80,7 +81,7 @@ export function BrandSheet({
         </div>
         <SearchField value={query} onChange={setQuery} placeholder="Buscar marca" label="Buscar marca" />
         <div className="brand-scroll">
-          {brands === null && <p className="muted small center">Carregando marcas…</p>}
+          {brands === null && <BrandsSkeleton />}
           {brands && !q && (
             <>
               <button type="button" className={`brand-row all ${selected ? '' : 'on'}`} aria-pressed={!selected} onClick={() => onPick(null)}>

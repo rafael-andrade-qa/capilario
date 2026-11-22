@@ -212,6 +212,8 @@ PNG de 8 MB (upload retomável), arquivo de 16 MB, GIF e HEIC (recusados por arq
   `anon` não tem acesso. Em `stages`, só `notes` e `is_favorite` podem ser atualizados. Cada um só exclui o que é seu.
 - Chaves estrangeiras compostas `(id, user_id)` garantem que a etapa e o experimento (e a foto e a etapa) tenham o mesmo dono.
 - Storage privado; leitura, envio e exclusão só no prefixo `<auth.uid()>/`. Fotos aparecem por URLs assinadas de 10 min, guardadas só em memória e limpas ao sair.
+- O último histórico (nomes de produto, datas, observações e caminhos das fotos, sem as fotos) fica guardado no
+  aparelho por conta, para o app abrir na hora; é atualizado por trás e apagado ao sair da conta.
 - O service worker guarda só os arquivos estáticos do próprio app; Supabase, imagens privadas e URLs assinadas nunca passam por ele.
 - O repositório usa apenas imagens sintéticas geradas nos testes.
 - Identificar pela foto: a função confere a sessão (pelo RPC `consume_identify_quota`, que também conta o

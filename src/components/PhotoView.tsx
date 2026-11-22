@@ -21,11 +21,21 @@ export function PhotoView({
   fit?: 'cover' | 'contain'
 }) {
   const [failed, setFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   if (!url) return <div className={`photo-frame ${className} loading`} aria-label={`${alt} (carregando)`} />
   if (failed) return <div className={`photo-frame ${className} empty`}>Não foi possível carregar</div>
   return (
     <div className={`photo-frame ${className}${crop ? ' cropped' : ` fit-${fit}`}`}>
-      <img src={url} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} style={crop ? cropStyle(crop) : undefined} />
+      <img
+        src={url}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className={loaded ? 'is-loaded' : 'is-loading'}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+        style={crop ? cropStyle(crop) : undefined}
+      />
     </div>
   )
 }

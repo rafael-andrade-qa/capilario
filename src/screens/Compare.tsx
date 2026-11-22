@@ -1,6 +1,7 @@
 // Comparador: primeiro a etapa (Molhado, Seco, Dia seguinte), depois os dois registros.
 // Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
 // os dois registros têm ficam clicáveis (ver lib/compare.ts).
+import { PageSkeleton } from '../components/Skeleton'
 import { useEffect, useMemo, useState } from 'react'
 import { Dropdown, type DropdownOption } from '../components/Dropdown'
 import { PageHeader } from '../components/PageHeader'
@@ -124,7 +125,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
   ]
   const { urls, error } = useSignedUrls(paths)
 
-  if (experiments === null) return <main className="page muted center">Carregando…</main>
+  if (experiments === null) return <PageSkeleton />
 
   if (entries.size < 2) {
     return (

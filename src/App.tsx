@@ -45,11 +45,16 @@ function UpdateBanner() {
 
 function Gate() {
   const { session, ready } = useSession()
-  if (!ready) return <main className="page center muted">Carregando…</main>
+  if (!ready)
+    return (
+      <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Projeto Capilar">
+        <img src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" />
+      </main>
+    )
   if (!session) return <Login />
   // A chave pelo usuário garante que nada do estado anterior sobreviva a uma troca de conta.
   return (
-    <HistoryProvider key={session.user.id}>
+    <HistoryProvider key={session.user.id} userId={session.user.id}>
       <Screens userId={session.user.id} />
     </HistoryProvider>
   )

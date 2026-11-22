@@ -5,6 +5,7 @@
 //  - Resultados em páginas que cabem na tela sem rolar: a quantidade por página vem da altura
 //    do aparelho (cada linha tem altura fixa), com Anterior e Próxima.
 //  - Não achou: Pela foto ou Cadastrar à mão, sempre no rodapé.
+import { CatalogSkeleton } from '../components/Skeleton'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
 import { CameraIcon } from '../components/ActionIcons'
 import { BrandSheet } from '../components/BrandSheet'
@@ -161,10 +162,11 @@ export function CatalogPicker({
       </div>
 
       <p ref={caption} className="muted small catalog-caption" aria-live="polite">
-        {items === null ? 'Carregando…' : title}
+        {items === null ? 'Buscando…' : title}
         {items && page > 0 && ` · página ${page + 1}`}
       </p>
 
+      {items === null && <CatalogSkeleton rows={pageSize ?? 4} />}
       {items && items.length > 0 && (
         <ul className="card catalog-list" aria-label="Produtos do catálogo">
           {items.map((item) => {

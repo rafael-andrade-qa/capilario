@@ -151,7 +151,7 @@ export function FramingEditor({
           <button type="button" className="btn btn-small" onClick={() => size && crop && setCrop(zoomCrop(crop, 1.15, size.W, size.H))} disabled={!size} aria-label="Aproximar">
             +
           </button>
-          <button type="button" className="btn btn-small" onClick={() => void auto()} disabled={!size || finding}>
+          <button type="button" className={`btn btn-small ${finding ? 'is-busy' : ''}`} onClick={() => void auto()} disabled={!size || finding}>
             {finding ? 'Procurando…' : 'Automático'}
           </button>
           <button type="button" className="btn btn-small" onClick={() => size && setCrop(coverCrop(size.W, size.H))} disabled={!size}>
@@ -162,7 +162,7 @@ export function FramingEditor({
           <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>
             Cancelar
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={!crop || saving}>
+          <button type="button" className={`btn btn-primary ${saving ? 'is-busy' : ''}`} onClick={() => void save()} disabled={!crop || saving}>
             {saving ? 'Salvando…' : 'Salvar'}
           </button>
         </div>

@@ -8,6 +8,7 @@ import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
 import { EditIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
+import { HistorySkeleton } from '../components/Skeleton'
 import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
 import { finalizationOption } from '../lib/finalizationShare'
 import { SearchField } from '../components/SearchField'
@@ -161,7 +162,7 @@ export function History({
         <a className="btn btn-primary" href={href('/produto/novo')}>
           + Novo produto
         </a>
-        <CompareButton total={totalStages} />
+        <CompareButton total={totalStages} loading={experiments === null} />
       </div>
 
       {error && (
@@ -172,7 +173,7 @@ export function History({
           </button>
         </p>
       )}
-      {experiments === null && loading && <p className="muted center">Carregando histórico…</p>}
+      {experiments === null && loading && <HistorySkeleton />}
 
       {experiments !== null && list.length === 0 && (
         <section className="empty-state card">
@@ -339,7 +340,14 @@ function ChevronIcon() {
   )
 }
 
-function CompareButton({ total }: { total: number }) {
+function CompareButton({ total, loading }: { total: number; loading: boolean }) {
+  // Carregando: o botão fica, sem o aviso de "faltam momentos" (ainda não sabemos).
+  if (loading)
+    return (
+      <button className="btn" disabled>
+        Comparar
+      </button>
+    )
   if (total >= 2) {
     return (
       <button className="btn" onClick={() => navigate('/comparar')}>

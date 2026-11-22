@@ -2884,3 +2884,167 @@ body:has(.save-bar) .toasts {
   gap: 8px;
   margin-top: 12px;
 }
+
+/* Esqueletos de carregamento ------------------------------------------------ */
+/* Aparecem só depois de ~300 ms (carregamento rápido não pisca) e pulsam de leve. */
+.sk-region {
+  animation: sk-appear 0.2s ease-out 0.3s both;
+}
+@keyframes sk-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.sk {
+  display: block;
+  border-radius: 8px;
+  background: var(--brand-soft);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+.sk-history .sk-row + .sk-row,
+.sk-catalog .sk-row + .sk-row,
+.sk-brands .sk-row + .sk-row {
+  border-top: 1px solid var(--line);
+}
+.sk-thumb {
+  flex: none;
+  width: 36px;
+  aspect-ratio: 3 / 4;
+}
+.sk-thumb.catalog {
+  width: 42px;
+}
+.sk-lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.sk-line {
+  height: 12px;
+  border-radius: 6px;
+}
+.sk-line.sm {
+  height: 10px;
+}
+.sk-catalog .sk-row {
+  min-height: 72px;
+  padding: 8px 0;
+}
+.sk-brands .sk-row {
+  min-height: 48px;
+  padding: 8px 4px;
+}
+.sk-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sk-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.sk-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+.sk-title {
+  width: 42%;
+  height: 22px;
+}
+.sk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 6px;
+}
+.sk-photo {
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk,
+  .photo-frame.loading {
+    animation: none;
+  }
+}
+
+/* Fotos: surgem suavemente quando chegam (o quadro já está reservado e pulsando) */
+.photo-frame img.is-loading {
+  opacity: 0;
+}
+.photo-frame img.is-loaded {
+  opacity: 1;
+  transition: opacity 0.25s ease-out;
+}
+.photo-frame:has(img.is-loading) {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-frame:has(img.is-loading) {
+    animation: none;
+  }
+  .photo-frame img.is-loaded {
+    transition: none;
+  }
+}
+
+/* Botão esperando: indicador pequeno girando antes do texto */
+.btn.is-busy::before {
+  content: '';
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.is-busy::before {
+    animation-duration: 2.4s;
+  }
+}
+
+/* PDF sendo montado: indicador girando sobre o ícone do arquivo */
+.pdf-file-badge {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+.pdf-file-spin {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  width: 15px;
+  height: 15px;
+  border-width: 2px;
+  color: var(--brand);
+  background: var(--bg);
+}
+
+/* Abertura do app: o ícone, sem texto */
+.splash {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+}
+.splash img {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  animation: sk-appear 0.25s ease-out 0.15s both;
+}

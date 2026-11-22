@@ -9,6 +9,7 @@
 //  * A finalização grava experimento + etapa + fotos numa única transação (finalize_stage),
 //    idempotente. Se a resposta se perder, consultamos o banco antes de declarar falha.
 //  * Arquivos descartados só são apagados depois de confirmar no banco que não foram associados.
+import { PageSkeleton } from '../components/Skeleton'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { DateTimeField } from '../components/DateTimeField'
 import { PageHeader } from '../components/PageHeader'
@@ -56,7 +57,7 @@ export const NO_FINISHER_ID = 'sem-finalizador'
 
 export function StageFormRoute(props: RouteProps) {
   const { experiments } = useHistory()
-  if (experiments === null) return <main className="page muted center">Carregando…</main>
+  if (experiments === null) return <PageSkeleton />
   if (props.kind === 'add') {
     if (props.experimentId === NO_FINISHER_ID) {
       // Sem finalizador: usa o do histórico; se ainda não existe, a primeira finalização o cria.
@@ -671,7 +672,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
           </p>
         )}
         {phase !== 'partial' && (
-          <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save(false)} disabled={busy}>
+          <button type="button" className={`btn btn-primary btn-block btn-large ${busy ? 'is-busy' : ''}`} onClick={() => void save(false)} disabled={busy}>
             {busy ? 'Salvando…' : 'Salvar'}
           </button>
         )}

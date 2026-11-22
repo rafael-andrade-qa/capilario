@@ -20,7 +20,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let alive = true
     supabase.auth.getSession().then(({ data }) => alive && setState({ session: data.session, ready: true }))
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) clearSignedUrlCache()
+      if (!session) {
+        clearSignedUrlCache()
+        clearHistoryCache()
+      }
       setState({ session, ready: true })
     })
     return () => {
@@ -35,6 +38,7 @@ export const useSession = () => useContext(SessionContext)
 
 export async function signOut() {
   clearSignedUrlCache()
+  clearHistoryCache()
   await supabase.auth.signOut()
   window.location.hash = '/'
 }
@@ -53,8 +57,38 @@ interface HistoryState {
 }
 const HistoryContext = createContext<HistoryState | null>(null)
 
-export function HistoryProvider({ children }: { children: ReactNode }) {
-  const [experiments, setExperiments] = useState<Experiment[] | null>(null)
+// O último histórico fica guardado no aparelho (por conta): ao abrir o app ele aparece na hora e
+// é atualizado por trás. Só textos e caminhos; as fotos continuam vindo do servidor, protegidas.
+const CACHE_PREFIX = 'capilar:historico:v1:'
+
+export function readHistoryCache(userId: string): Experiment[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(CACHE_PREFIX + userId) ?? 'null')
+    return Array.isArray(v?.experiments) ? (v.experiments as Experiment[]) : null
+  } catch {
+    return null
+  }
+}
+
+function writeHistoryCache(userId: string, experiments: Experiment[]) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify({ savedAt: Date.now(), experiments }))
+  } catch {
+    // sem espaço ou armazenamento bloqueado: segue sem guardar
+  }
+}
+
+/** Ao sair da conta, nada do histórico fica no aparelho. */
+export function clearHistoryCache() {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith(CACHE_PREFIX)) localStorage.removeItem(k)
+  } catch {
+    // ignora
+  }
+}
+
+export function HistoryProvider({ userId, children }: { userId: string; children: ReactNode }) {
+  const [experiments, setExperiments] = useState<Experiment[] | null>(() => readHistoryCache(userId))
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -88,6 +122,10 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reload()
   }, [reload])
+
+  useEffect(() => {
+    if (experiments) writeHistoryCache(userId, experiments)
+  }, [userId, experiments])
 
   const value = useMemo(
     () => ({ experiments, error, loading, reload, patchStage, removeStage, removeExperiment }),

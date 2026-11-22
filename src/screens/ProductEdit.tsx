@@ -2,6 +2,7 @@
 // Cadastrar não pede foto de cabelo; ao salvar, convida a registrar a primeira finalização
 // (Registrar agora ou Depois). Editar vale para todas as finalizações do produto.
 // No cadastro, "Identificar pela foto" preenche nome e marca e traz a foto oficial padronizada.
+import { PageSkeleton } from '../components/Skeleton'
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { CameraIcon } from '../components/ActionIcons'
 import { PageHeader } from '../components/PageHeader'
@@ -11,7 +12,7 @@ import { useToast } from '../components/Toasts'
 import { createProduct, removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
 import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
-import { identifyFromPhoto, type Candidate } from '../lib/identify'
+import { identifyFromPhoto, type Candidate , type IdentifyStep } from '../lib/identify'
 import { CatalogPicker, type CatalogChoice } from './CatalogPicker'
 import { href, navigate } from '../lib/router'
 import { useHistory, useSession, useSignedUrls } from '../lib/state'
@@ -26,7 +27,7 @@ const normalize = (v: string | null | undefined) =>
 
 export function ProductEditRoute({ experimentId }: { experimentId: string }) {
   const { experiments } = useHistory()
-  if (experiments === null) return <main className="page muted center">Carregando…</main>
+  if (experiments === null) return <PageSkeleton />
   const experiment = experiments.find((e) => e.id === experimentId)
   if (!experiment || experiment.product_mode !== 'named') {
     return (
@@ -37,6 +38,13 @@ export function ProductEditRoute({ experimentId }: { experimentId: string }) {
     )
   }
   return <ProductEdit key={experiment.id} mode="edit" experiment={experiment} others={experiments.filter((e) => e.id !== experiment.id)} />
+}
+
+/** O que aparece em cada etapa real da identificação. */
+const ID_STEP: Record<IdentifyStep, { n: number; label: string }> = {
+  prepare: { n: 1, label: 'Preparando a foto…' },
+  read: { n: 2, label: 'Lendo o rótulo…' },
+  photo: { n: 3, label: 'Buscando a foto oficial…' },
 }
 
 export function ProductNewRoute() {
@@ -53,7 +61,7 @@ export function ProductNewRoute() {
   // Primeiro o catálogo; o formulário vem com o produto escolhido, com a foto para identificar
   // ou vazio (à mão).
   const [step, setStep] = useState<{ kind: 'search' } | { kind: 'form'; initial?: CatalogChoice; identify?: File }>({ kind: 'search' })
-  if (experiments === null) return <main className="page muted center">Carregando…</main>
+  if (experiments === null) return <PageSkeleton />
   if (step.kind === 'search') {
     return (
       <CatalogPicker
@@ -117,6 +125,7 @@ function ProductEdit({
   const input = useRef<HTMLInputElement>(null)
   const idInput = useRef<HTMLInputElement>(null)
   const [identifying, setIdentifying] = useState(false)
+  const [idStep, setIdStep] = useState<IdentifyStep>('prepare')
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [checkNote, setCheckNote] = useState(false)
   const { urls } = useSignedUrls(experiment.photo_path ? [experiment.photo_path] : [])
@@ -163,7 +172,7 @@ function ProductEdit({
     setIdentifying(true)
     setMessage(null)
     try {
-      const r = await identifyFromPhoto(file)
+      const r = await identifyFromPhoto(file, setIdStep)
       if (!r.found) {
         notify('Não reconheci um produto de cabelo nessa foto. Tente outra foto ou preencha à mão.', 'info')
         return
@@ -261,11 +270,11 @@ function ProductEdit({
           <div className="identify">
             <button type="button" className="btn btn-outline-brand btn-block" onClick={() => idInput.current?.click()} disabled={locked} aria-busy={identifying}>
               {identifying ? <span className="spinner" aria-hidden="true" /> : <CameraIcon size={20} />}
-              {identifying ? 'Identificando o produto…' : 'Identificar pela foto'}
+              {identifying ? ID_STEP[idStep].label : 'Identificar pela foto'}
             </button>
             <p className="muted small identify-hint">
               {identifying
-                ? 'Lendo a embalagem e buscando a foto oficial. Leva uns segundos.'
+                ? `Etapa ${ID_STEP[idStep].n} de 3 · leva uns segundos.`
                 : 'Tire uma foto da embalagem: o app preenche o nome e a marca e busca a foto oficial.'}
             </p>
             <input ref={idInput} type="file" accept={INPUT_ACCEPT} hidden onChange={(e) => void onIdentifyPicked(e)} data-testid="identify-input" />
@@ -382,7 +391,7 @@ function ProductEdit({
             {message}
           </p>
         )}
-        <button type="button" className="btn btn-primary btn-block btn-large" onClick={() => void save()} disabled={locked}>
+        <button type="button" className={`btn btn-primary btn-block btn-large ${busy ? 'is-busy' : ''}`} onClick={() => void save()} disabled={locked}>
           {busy ? 'Salvando…' : mode === 'new' ? 'Cadastrar produto' : 'Salvar'}
         </button>
       </section>

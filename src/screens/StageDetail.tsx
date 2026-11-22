@@ -9,6 +9,7 @@ import { PageHeader } from '../components/PageHeader'
 import { TrashIcon } from '../components/TrashIcon'
 import { PhotoView } from '../components/PhotoView'
 import { PhotoViewer } from '../components/PhotoViewer'
+import { PageSkeleton } from '../components/Skeleton'
 import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
@@ -77,11 +78,12 @@ export function StageDetail({ stageId }: { stageId: string }) {
     // só ao trocar de etapa ou quando o servidor mudar a nota
   }, [stage?.id, stage?.notes])
 
+  if ((!found || !stage) && (experiments === null || loading)) return <PageSkeleton />
   if (!found || !stage) {
     return (
       <main className="page">
         <PageHeader title="Momento" back={{ label: 'Voltar ao histórico', href: href('/') }} />
-        <p className="muted">{experiments === null || loading ? 'Carregando…' : 'Momento não encontrado.'}</p>
+        <p className="muted">Momento não encontrado.</p>
       </main>
     )
   }
@@ -105,15 +107,17 @@ export function StageDetail({ stageId }: { stageId: string }) {
     }
   }
 
+  /** A estrela muda na hora; se o servidor recusar, volta e avisa. */
   async function toggleFavorite() {
     if (savingFav || !stage) return
     setSavingFav(true)
     const next = !stage.is_favorite
+    patchStage(stage.id, { is_favorite: next })
     try {
       await updateStage(stage.id, { is_favorite: next })
-      patchStage(stage.id, { is_favorite: next })
     } catch (e) {
-      notify((e as Error).message, 'error')
+      patchStage(stage.id, { is_favorite: !next })
+      notify(`Não foi possível ${next ? 'favoritar' : 'tirar dos favoritos'}: ${(e as Error).message}`, 'error')
     } finally {
       setSavingFav(false)
     }
@@ -264,7 +268,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
           <button
             className={`icon-btn ${stage.is_favorite ? 'on' : ''}`}
             onClick={() => void toggleFavorite()}
-            disabled={savingFav}
             aria-pressed={stage.is_favorite}
             aria-label="Favorita"
             title={stage.is_favorite ? 'Remover dos favoritos' : 'Favoritar'}
@@ -305,7 +308,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
             </span>
             <DateTimeField id="d-data" labelledBy="d-data-label" value={toLocalInputValue(new Date(stage.captured_at))} onChange={(v) => void saveTime(v)} disabled={savingTime} />
           </div>
-          <button type="button" className="btn btn-outline-brand btn-block" onClick={() => void frameAll()} disabled={framing || !!working}>
+          <button type="button" className={`btn btn-outline-brand btn-block ${framing ? 'is-busy' : ''}`} onClick={() => void frameAll()} disabled={framing || !!working}>
             {framing ? 'Enquadrando…' : 'Enquadrar todas automaticamente'}
           </button>
           <p className="muted small edit-hint">Toque numa foto para trocar, ou num ângulo vazio para adicionar. Ângulo errado? Toque no nome dele.</p>
@@ -412,7 +415,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
           <textarea rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} placeholder="Como ficou? Volume, definição, frizz…" />
         </label>
         {notesChanged && (
-          <button className="btn btn-primary btn-block" onClick={() => void saveNotes()} disabled={savingNotes}>
+          <button className={`btn btn-primary btn-block ${savingNotes ? 'is-busy' : ''}`} onClick={() => void saveNotes()} disabled={savingNotes}>
             {savingNotes ? 'Salvando…' : 'Salvar observação'}
           </button>
         )}
