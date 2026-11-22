@@ -225,7 +225,10 @@ test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ 
     await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp(dry[angle].storage_path))
     await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none[angle].storage_path))
   }
-  await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('Ondulando a Gema')
+  // Legenda: produto e marca (a data fica nos seletores lá em cima).
+  await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('A · Ondulando a Gema')
+  await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('Gema Labs')
+  await expect(page.getByTestId('side-A').locator('figcaption')).not.toContainText(':')
   // Observação só ao tocar no balão.
   await expect(page.getByTestId('side-A').locator('figcaption')).not.toContainText('Gostei do volume.')
   await page.getByRole('button', { name: 'Observação de A' }).click()

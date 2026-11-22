@@ -1190,6 +1190,9 @@ button.back {
   min-width: 0;
   min-height: 22px;
 }
+.compare-line .star {
+  flex: none;
+}
 .note-btn {
   flex: none;
   display: inline-grid;
