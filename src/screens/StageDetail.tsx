@@ -18,6 +18,7 @@ import { finalizationOption, productHero } from '../lib/finalizationShare'
 import { momentFileName, momentInfo, momentMessage } from '../lib/share'
 import { deletePhoto, movePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
 import { MoveAngleSheet, SwapIcon } from '../components/MoveAngleSheet'
+import { AnalysisCard, AnalysisSuggestion, AnalyzeButton, AnalyzeStatus, useFinalizationAnalysis } from '../components/FinalizationAnalysis'
 import { analyzeUrl } from '../lib/faces'
 import { momentCrops, type Crop } from '../lib/framing'
 import { INPUT_ACCEPT, canDisplay, detectMime, validateFile } from '../lib/files'
@@ -78,6 +79,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
     // só ao trocar de etapa ou quando o servidor mudar a nota
   }, [stage?.id, stage?.notes])
 
+  const fin = found ? finalizationsOf(found.experiment).find((f) => f.id === found.stage.finalization_id) : undefined
+  const ai = useFinalizationAnalysis(fin, (changes) => changes.forEach((c) => patchStage(c.stageId, { notes: c.notes })))
+
   if ((!found || !stage) && (experiments === null || loading)) return <PageSkeleton />
   if (!found || !stage) {
     return (
@@ -88,7 +92,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
     )
   }
   const { experiment } = found
-  const fin = finalizationsOf(experiment).find((f) => f.id === stage.finalization_id)
   const missing = missingAngles(stage)
   const notesChanged = (notes.trim() || null) !== (stage.notes ?? null)
 
@@ -409,11 +412,18 @@ export function StageDetail({ stageId }: { stageId: string }) {
         </div>
       )}
 
+      {ai.analysis && <AnalysisCard analysis={ai.analysis} />}
+
       <section className="notes-box">
-        <label className="field">
-          <span>Observação</span>
-          <textarea rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} placeholder="Como ficou? Volume, definição, frizz…" />
-        </label>
+        <div className="label-row notes-head">
+          <label className="field-label" htmlFor="d-notes">
+            Observação
+          </label>
+          {fin && <AnalyzeButton api={ai} />}
+        </div>
+        <AnalyzeStatus api={ai} />
+        <textarea id="d-notes" rows={2} value={notes} maxLength={4000} onChange={(e) => setNotes(e.target.value)} placeholder="Como ficou? Volume, definição, frizz…" />
+        {fin && <AnalysisSuggestion api={ai} fin={fin} moment={stage.stage_type} />}
         {notesChanged && (
           <button className={`btn btn-primary btn-block ${savingNotes ? 'is-busy' : ''}`} onClick={() => void saveNotes()} disabled={savingNotes}>
             {savingNotes ? 'Salvando…' : 'Salvar observação'}

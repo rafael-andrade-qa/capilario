@@ -33,6 +33,15 @@ se o produto não estiver lá, da busca pública das lojas (até 3 fotos, padron
 branco). Custa frações de centavo por foto (o log da função registra os tokens de cada chamada). A foto
 tirada só serve para identificar e não é guardada. Limite de 20 identificações por pessoa por dia.
 
+**Analisar finalização com IA.** No detalhe de um momento, o brilho ao lado de **Observação** analisa a
+finalização inteira (molhado, seco e dia seguinte) pela função `analyze-finalization`. Pede confirmação antes,
+porque custa centavos (as fotos vão recortadas como no app, 768×1024, ~1.000 tokens cada; com Claude Opus 5.5 dá
+uns US$ 0,05–0,12 por finalização). Volta a leitura do cabelo (tipo, até 4 características, notas de 0 a 10 para
+definição, controle do frizz, volume e dia seguinte, e um resumo que compara com as análises anteriores), num
+cartão fechado de uma linha que mostra o modelo e quanto custou. Volta também uma observação sugerida por momento:
+**Usar nos N momentos** grava (o seu texto fica; a análise entra no fim, depois de "Análise: ", e analisar de novo
+troca só essa parte) ou o **x** descarta. Uma análise por finalização; limite de 10 por pessoa por dia.
+
 **Nova finalização** fica dentro do produto (o **+**) e é uma tela só: momento (já marcado em Molhado),
 data, fotos e observação, com um único botão fixo no rodapé. **Sem finalizador** está sempre na lista,
 mesmo antes da primeira finalização sem produto.
@@ -95,6 +104,9 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
    guarde-a como segredo das Edge Functions: Dashboard → Edge Functions → Secrets → `ANTHROPIC_API_KEY`
    (ou `npx supabase secrets set ANTHROPIC_API_KEY=...`). Publique a função com
    `npx supabase functions deploy identify-product`. Opcional: `IDENTIFY_MODEL` (padrão `claude-haiku-5-5`).
+   A análise da finalização usa a mesma chave: `npx supabase functions deploy analyze-finalization`. Opcionais:
+   `ANALYZE_MODEL` (padrão `claude-opus-5-5`; ex.: `claude-sonnet-5-5`, `claude-haiku-5-5`) e `ANALYZE_EFFORT`
+   (padrão `medium`), para comparar custo e qualidade sem mudar o código.
    A chave fica só no Supabase; nunca vai para o app, o build ou o repositório.
 7. **Limite de upload:** o bucket `capilar-photos` aceita JPEG/PNG/WebP até 15 MiB. Confira em
    Storage → Settings que o limite global do projeto é ≥ 15 MiB (no plano Free o padrão é 50 MB).
@@ -236,6 +248,10 @@ PNG de 8 MB (reduzido no aparelho antes do envio), arquivo de 16 MB, GIF e HEIC 
   limite diário e não tem tabela acessível pela API), só abre endereços https públicos (sem IP, localhost ou
   nomes internos, conferindo cada redirecionamento) e limita tempo e tamanho de páginas e imagens. A foto da
   embalagem vai para a API da Anthropic só para a identificação.
+- Analisar finalização: a função fala com o banco como a própria pessoa (RLS normal): só analisa finalização dela,
+  consome o limite diário (`consume_analyze_quota`, tabela sem acesso pela API) e grava em
+  `finalization_analyses` (RLS por dono, apagada junto com a finalização). As fotos recortadas vão para a API da
+  Anthropic só para a análise; nada vai para as observações sem a pessoa tocar em **Usar**.
 
 ## Estrutura
 

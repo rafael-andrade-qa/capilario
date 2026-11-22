@@ -432,3 +432,6 @@ enabled = true
 # então o gateway não precisa validar o JWT (as chaves novas do Supabase não são JWT).
 [functions.identify-product]
 verify_jwt = false
+
+[functions.analyze-finalization]
+verify_jwt = false
