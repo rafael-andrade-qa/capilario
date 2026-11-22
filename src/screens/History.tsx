@@ -10,6 +10,7 @@ import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
 import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
 import { finalizationOption } from '../lib/finalizationShare'
+import { AnalyzeSheet, SparkIcon, type AnalyzeChoice } from '../components/FinalizationAnalysis'
 import { SearchField } from '../components/SearchField'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import {
@@ -75,9 +76,10 @@ export function History({
   /** Produto recém-cadastrado (escolheu registrar Depois). */
   created?: string | null
 }) {
-  const { experiments, error, loading, reload } = useHistory()
+  const { experiments, error, loading, reload, patchStage } = useHistory()
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [pdfFor, setPdfFor] = useState<Experiment | null>(null)
+  const [aiFor, setAiFor] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
@@ -270,6 +272,17 @@ export function History({
                         <button
                           type="button"
                           className="icon-btn"
+                          onClick={() => setAiFor(exp)}
+                          aria-label={`Analisar com IA uma finalização de ${productLabel(exp)}`}
+                          title="Analisar com IA"
+                        >
+                          <SparkIcon size={20} />
+                        </button>
+                      )}
+                      {fins.length > 0 && (
+                        <button
+                          type="button"
+                          className="icon-btn"
                           onClick={() => setPdfFor(exp)}
                           aria-label={`Enviar PDF de uma finalização de ${productLabel(exp)}`}
                           title="Enviar PDF de uma finalização"
@@ -318,6 +331,15 @@ export function History({
         />
       )}
 
+      {aiFor && (
+        <AnalyzeSheet
+          product={productLabel(aiFor)}
+          choices={finalizationCards(aiFor, urls)}
+          onNotes={(changes) => changes.forEach((c) => patchStage(c.stageId, { notes: c.notes }))}
+          onClose={() => setAiFor(null)}
+        />
+      )}
+
       {productToDelete && (
         <DeleteProductDialog
           experiment={productToDelete}
@@ -359,14 +381,16 @@ function savedLabel(list: Experiment[], stageId: string): string {
   return 'Salvo.'
 }
 
-/** Opções do PDF: uma por finalização (a mais recente primeiro), com data, momentos e miniaturas. */
-function finalizationChoices(exp: Experiment, urls: Record<string, string>): PdfOption[] {
+/** Cartões das folhas (PDF e análise): um por finalização, a mais recente primeiro. */
+function finalizationCards(exp: Experiment, urls: Record<string, string>): (AnalyzeChoice & { when: string })[] {
   const fins = finalizationsOf(exp)
   return fins.map((f) => {
     const when = fins.some((o) => o !== f && finalizationWhen(o) === finalizationWhen(f)) ? `${finalizationWhen(f)}, ${formatTime(f.start)}` : finalizationWhen(f)
     const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
     return {
-      ...finalizationOption(exp, f, when),
+      fin: f,
+      when,
+      label: when,
       detail: stages.map((st) => STAGE_LABEL[st.stage_type]).join(' · '),
       thumbs: stages.map((st) => {
         const c = coverPhoto(st)
@@ -374,6 +398,11 @@ function finalizationChoices(exp: Experiment, urls: Record<string, string>): Pdf
       }),
     }
   })
+}
+
+/** Opções do PDF: uma por finalização, com data, momentos e miniaturas. */
+function finalizationChoices(exp: Experiment, urls: Record<string, string>): PdfOption[] {
+  return finalizationCards(exp, urls).map(({ fin, when, detail, thumbs }) => ({ ...finalizationOption(exp, fin, when), detail, thumbs }))
 }
 
 /** Uma finalização: os três momentos lado a lado; o que falta vira atalho (nos primeiros dias). */

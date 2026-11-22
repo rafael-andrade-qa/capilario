@@ -1,13 +1,15 @@
-// Análise da finalização pela IA, na tela do momento: o brilho ao lado de "Observação" analisa
-// (com confirmação, porque custa centavos), a leitura do cabelo fica num cartão fechado de uma
-// linha, e a observação sugerida aparece embaixo do campo para usar nos momentos ou descartar.
-import { useCallback, useEffect, useState } from 'react'
+// Análise da finalização inteira pela IA. Começa no brilho da barra do produto (AnalyzeSheet:
+// escolhe a finalização e analisa). A leitura também aparece na tela de cada momento, num cartão
+// fechado de uma linha, com a observação sugerida embaixo do campo para usar ou descartar.
+import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, CloseIcon } from './ActionIcons'
+import { PhotoView } from './PhotoView'
 import { useToast } from './Toasts'
 import {
   analysisPhotos,
   analyzeFinalization,
   analyzeQuotaLeft,
+  analyzedIds,
   applySuggestions,
   costLabel,
   fetchAnalysis,
@@ -16,7 +18,8 @@ import {
   suggestedMoments,
   type FinalizationAnalysis,
 } from '../lib/analysis'
-import { formatShortDateTime, type Finalization, type StageType } from '../lib/domain'
+import { STAGE_LABEL, formatShortDateTime, type Finalization, type StageType } from '../lib/domain'
+import type { Crop } from '../lib/framing'
 
 /** Brilho (análise com IA). */
 export function SparkIcon({ size = 18 }: { size?: number }) {
@@ -30,15 +33,13 @@ export function SparkIcon({ size = 18 }: { size?: number }) {
   )
 }
 
+type NotesChange = { stageId: string; notes: string | null }
+
 export interface AnalysisApi {
   analysis: FinalizationAnalysis | null
   photoCount: number
   busy: boolean
-  /** Pedindo confirmação antes de analisar. */
-  asking: boolean
   quotaLeft: number | null
-  ask: () => void
-  cancel: () => void
   run: () => Promise<void>
   apply: () => Promise<void>
   dismiss: () => Promise<void>
@@ -47,19 +48,18 @@ export interface AnalysisApi {
 
 export function useFinalizationAnalysis(
   fin: Finalization | undefined,
-  onNotes: (changes: { stageId: string; notes: string | null }[]) => void,
+  onNotes: (changes: NotesChange[]) => void,
+  { quota = false }: { quota?: boolean } = {},
 ): AnalysisApi {
   const notify = useToast()
   const [analysis, setAnalysis] = useState<FinalizationAnalysis | null>(null)
   const [busy, setBusy] = useState(false)
-  const [asking, setAsking] = useState(false)
   const [applying, setApplying] = useState(false)
   const [quotaLeft, setQuotaLeft] = useState<number | null>(null)
   const finId = fin?.id
 
   useEffect(() => {
     setAnalysis(null)
-    setAsking(false)
     if (!finId) return
     let alive = true
     fetchAnalysis(finId)
@@ -70,14 +70,12 @@ export function useFinalizationAnalysis(
     }
   }, [finId])
 
-  const ask = useCallback(() => {
-    setAsking(true)
-    void analyzeQuotaLeft().then(setQuotaLeft)
-  }, [])
+  useEffect(() => {
+    if (quota) void analyzeQuotaLeft().then(setQuotaLeft)
+  }, [quota])
 
   async function run() {
     if (!fin || busy) return
-    setAsking(false)
     setBusy(true)
     try {
       const r = await analyzeFinalization(fin)
@@ -125,10 +123,7 @@ export function useFinalizationAnalysis(
     analysis,
     photoCount: fin ? analysisPhotos(fin).length : 0,
     busy,
-    asking,
     quotaLeft,
-    ask,
-    cancel: () => setAsking(false),
     run,
     apply,
     dismiss,
@@ -136,45 +131,146 @@ export function useFinalizationAnalysis(
   }
 }
 
-/** O brilho ao lado de "Observação". */
-export function AnalyzeButton({ api }: { api: AnalysisApi }) {
-  return (
-    <button
-      type="button"
-      className={`icon-btn icon-btn-sm ${api.asking ? 'on-edit' : ''}`}
-      onClick={() => (api.asking ? api.cancel() : api.ask())}
-      disabled={api.busy || api.photoCount === 0}
-      aria-expanded={api.asking}
-      aria-label={api.analysis ? 'Analisar a finalização de novo com IA' : 'Analisar a finalização com IA'}
-      title={api.analysis ? 'Analisar de novo com IA' : 'Analisar com IA'}
-    >
-      <SparkIcon size={17} />
-    </button>
-  )
+/** Uma finalização na folha: miniaturas, data e momentos (como na folha do PDF). */
+export interface AnalyzeChoice {
+  fin: Finalization
+  label: string
+  detail: string
+  thumbs: { url?: string; crop?: Crop | null }[]
 }
 
-/** Confirmação (custa centavos) e o aviso enquanto a IA trabalha: uma linha só. */
-export function AnalyzeStatus({ api }: { api: AnalysisApi }) {
-  if (api.busy) {
-    return (
-      <p className="analysis-line muted small" role="status">
-        <span className="mini-spinner" aria-hidden="true" /> Analisando {api.photoCount} fotos… pode levar até 1 minuto.
-      </p>
-    )
-  }
-  if (!api.asking) return null
+/**
+ * "Analisar com IA" (barra do produto, ao lado do + e do PDF): escolhe a finalização, mostra a
+ * leitura que ela já tem e analisa (ou analisa de novo) a finalização inteira. Tocar em Analisar
+ * aqui já é a confirmação; a linha de baixo diz quantas fotos vão e quantas análises restam.
+ */
+export function AnalyzeSheet({
+  product,
+  choices,
+  onNotes,
+  onClose,
+}: {
+  product: string
+  choices: AnalyzeChoice[]
+  onNotes: (changes: NotesChange[]) => void
+  onClose: () => void
+}) {
+  const [index, setIndex] = useState(0)
+  const [analyzed, setAnalyzed] = useState<Set<string>>(() => new Set())
+  const sheet = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  const fin = choices[index]?.fin
+  const ai = useFinalizationAnalysis(fin, onNotes, { quota: true })
+  const ids = choices.map((c) => c.fin.id).join(',')
+
+  useEffect(() => {
+    let alive = true
+    analyzedIds(ids ? ids.split(',') : [])
+      .then((s) => alive && setAnalyzed(s))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [ids])
+
+  const current = ai.analysis?.finalization_id
+  useEffect(() => {
+    if (current) setAnalyzed((s) => (s.has(current) ? s : new Set(s).add(current)))
+  }, [current])
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    sheet.current?.focus()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
+  const heading = 'Analisar com IA'
+  const n = choices.length
+  const shown = ai.analysis && ai.analysis.finalization_id === fin?.id ? ai.analysis : null
   return (
-    <div className="analysis-line analysis-ask" role="group" aria-label="Confirmar análise">
-      <span className="small">
-        Analisar {api.photoCount} fotos com IA?
-        {api.quotaLeft != null && <span className="muted"> · restam {api.quotaLeft} hoje</span>}
-      </span>
-      <button type="button" className="btn btn-primary btn-small" onClick={() => void api.run()} disabled={api.quotaLeft === 0}>
-        Analisar
-      </button>
-      <button type="button" className="icon-btn icon-btn-sm" onClick={api.cancel} aria-label="Cancelar análise" title="Cancelar">
-        <CloseIcon size={14} />
-      </button>
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div ref={sheet} className="sheet ai-sheet" role="dialog" aria-modal="true" aria-label={heading} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-grip" aria-hidden="true" />
+        <h2 className="sheet-title">{heading}</h2>
+        <p className="muted small pdf-intro">
+          {n > 2 ? `Escolha uma das ${n} finalizações de ${product} (deslize para ver todas):` : n === 2 ? `Escolha a finalização de ${product}:` : `Finalização de ${product}:`}
+        </p>
+        <div className="pdf-strip" role="radiogroup" aria-label="Finalização">
+          {choices.map((c, i) => (
+            <button
+              key={c.fin.id}
+              type="button"
+              role="radio"
+              aria-checked={i === index}
+              className="pdf-card"
+              disabled={ai.busy && i !== index}
+              onClick={(e) => {
+                setIndex(i)
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+              }}
+            >
+              <span className="pdf-card-thumbs" aria-hidden="true">
+                {c.thumbs.map((t, j) => (
+                  <PhotoView key={j} url={t.url} crop={t.crop} alt="" />
+                ))}
+              </span>
+              <strong className="pdf-card-label">
+                {c.label}
+                {analyzed.has(c.fin.id) && (
+                  <span className="ai-card-mark" title="Já analisada">
+                    <SparkIcon size={13} />
+                    <span className="visually-hidden"> · já analisada</span>
+                  </span>
+                )}
+              </strong>
+              <span className="muted pdf-card-detail">{c.detail}</span>
+              {i === index && (
+                <span className="pdf-card-check" aria-hidden="true">
+                  ✓
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {ai.busy ? (
+          <p className="analysis-line muted small" role="status">
+            <span className="mini-spinner" aria-hidden="true" /> Analisando {ai.photoCount} fotos… pode levar até 1 minuto.
+          </p>
+        ) : shown ? (
+          <>
+            <AnalysisCard key={shown.finalization_id + shown.created_at} analysis={shown} defaultOpen />
+            {fin && <AnalysisSuggestions api={ai} fin={fin} />}
+          </>
+        ) : (
+          <p className="muted small ai-empty">A IA olha as fotos de todos os momentos desta finalização, lê o tipo do cabelo, dá notas e sugere as observações.</p>
+        )}
+
+        <p className="muted small ai-foot">
+          {ai.photoCount} {ai.photoCount === 1 ? 'foto' : 'fotos'}
+          {ai.quotaLeft != null && ` · restam ${ai.quotaLeft} ${ai.quotaLeft === 1 ? 'análise' : 'análises'} hoje`}
+        </p>
+        <div className="pdf-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Fechar
+          </button>
+          <button
+            type="button"
+            className={`btn btn-primary ${ai.busy ? 'is-busy' : ''}`}
+            onClick={() => void ai.run()}
+            disabled={ai.busy || ai.photoCount === 0 || ai.quotaLeft === 0}
+          >
+            {ai.busy ? 'Analisando…' : shown ? 'Analisar de novo' : 'Analisar'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -187,11 +283,11 @@ const SCORE_LABEL: [keyof FinalizationAnalysis['result']['scores'], string][] = 
 ]
 
 /** Leitura do cabelo: fechada mostra só o tipo; aberta, notas, características e resumo. */
-export function AnalysisCard({ analysis }: { analysis: FinalizationAnalysis }) {
+export function AnalysisCard({ analysis, defaultOpen = false }: { analysis: FinalizationAnalysis; defaultOpen?: boolean }) {
   const r = analysis.result
   const cost = costLabel(analysis.usage?.cost_usd)
   return (
-    <details className="analysis-card" data-testid="analysis-card">
+    <details className="analysis-card" data-testid="analysis-card" open={defaultOpen}>
       <summary>
         <SparkIcon size={16} />
         <span className="analysis-type one-line">
@@ -235,7 +331,31 @@ export function AnalysisCard({ analysis }: { analysis: FinalizationAnalysis }) {
   )
 }
 
-/** Observação sugerida para este momento, embaixo do campo. */
+/** Na folha: as observações sugeridas de todos os momentos, para usar de uma vez ou descartar. */
+function AnalysisSuggestions({ api, fin }: { api: AnalysisApi; fin: Finalization }) {
+  const a = api.analysis
+  if (!a || a.notes_state !== 'pending') return null
+  const moments = suggestedMoments(fin, a)
+  if (!moments.length) return null
+  const n = moments.length
+  return (
+    <div className="analysis-suggestion" data-testid="analysis-suggestions">
+      <p className="analysis-suggestion-head small">
+        <SparkIcon size={14} /> Observações sugeridas
+      </p>
+      <ul className="analysis-suggestion-list">
+        {moments.map((t) => (
+          <li key={t}>
+            <strong>{STAGE_LABEL[t]}:</strong> {a.result.notes[t].trim()}
+          </li>
+        ))}
+      </ul>
+      <SuggestionActions api={api} label={n > 1 ? `Usar nas ${n} observações` : 'Usar na observação'} />
+    </div>
+  )
+}
+
+/** Na tela do momento: a observação sugerida para ele, embaixo do campo. */
 export function AnalysisSuggestion({ api, fin, moment }: { api: AnalysisApi; fin: Finalization; moment: StageType }) {
   const a = api.analysis
   if (!a || a.notes_state !== 'pending') return null
@@ -247,15 +367,21 @@ export function AnalysisSuggestion({ api, fin, moment }: { api: AnalysisApi; fin
       <p className="analysis-suggestion-text">
         <SparkIcon size={14} /> {text}
       </p>
-      <div className="analysis-suggestion-actions">
-        <button type="button" className={`btn btn-small ${api.applying ? 'is-busy' : ''}`} onClick={() => void api.apply()} disabled={api.applying}>
-          {!api.applying && <CheckIcon size={16} />}
-          {n > 1 ? `Usar nos ${n} momentos` : 'Usar na observação'}
-        </button>
-        <button type="button" className="icon-btn icon-btn-sm" onClick={() => void api.dismiss()} disabled={api.applying} aria-label="Descartar sugestão" title="Descartar">
-          <CloseIcon size={14} />
-        </button>
-      </div>
+      <SuggestionActions api={api} label={n > 1 ? `Usar nos ${n} momentos` : 'Usar na observação'} />
+    </div>
+  )
+}
+
+function SuggestionActions({ api, label }: { api: AnalysisApi; label: string }) {
+  return (
+    <div className="analysis-suggestion-actions">
+      <button type="button" className={`btn btn-small ${api.applying ? 'is-busy' : ''}`} onClick={() => void api.apply()} disabled={api.applying}>
+        {!api.applying && <CheckIcon size={16} />}
+        {label}
+      </button>
+      <button type="button" className="icon-btn icon-btn-sm" onClick={() => void api.dismiss()} disabled={api.applying} aria-label="Descartar sugestão" title="Descartar">
+        <CloseIcon size={14} />
+      </button>
     </div>
   )
 }

@@ -33,14 +33,18 @@ se o produto não estiver lá, da busca pública das lojas (até 3 fotos, padron
 branco). Custa frações de centavo por foto (o log da função registra os tokens de cada chamada). A foto
 tirada só serve para identificar e não é guardada. Limite de 20 identificações por pessoa por dia.
 
-**Analisar finalização com IA.** No detalhe de um momento, o brilho ao lado de **Observação** analisa a
-finalização inteira (molhado, seco e dia seguinte) pela função `analyze-finalization`. Pede confirmação antes,
-porque custa centavos (as fotos vão recortadas como no app, 768×1024, ~1.000 tokens cada; com Claude Opus 5.5 dá
-uns US$ 0,05–0,12 por finalização). Volta a leitura do cabelo (tipo, até 4 características, notas de 0 a 10 para
-definição, controle do frizz, volume e dia seguinte, e um resumo que compara com as análises anteriores), num
-cartão fechado de uma linha que mostra o modelo e quanto custou. Volta também uma observação sugerida por momento:
-**Usar nos N momentos** grava (o seu texto fica; a análise entra no fim, depois de "Análise: ", e analisar de novo
-troca só essa parte) ou o **x** descarta. Uma análise por finalização; limite de 10 por pessoa por dia.
+**Analisar finalização com IA.** No Histórico, o brilho na barra do produto (ao lado do + e do PDF) abre a folha
+**Analisar com IA**: escolhe a finalização (cartões como os do PDF; as já analisadas têm um brilho) e analisa a
+finalização inteira (molhado, seco e dia seguinte) pela função `analyze-finalization`. Só a finalização inteira:
+não há análise de uma etapa sozinha. A folha diz quantas fotos vão e quantas análises restam no dia, porque cada uma
+custa centavos (as fotos vão recortadas como no app, 768×1024, ~1.000 tokens cada; com Claude Opus 5.5 dá uns
+US$ 0,05–0,12 por finalização). Volta a leitura do cabelo (tipo, até 4 características, notas de 0 a 10 para
+definição, controle do frizz, volume e dia seguinte, e um resumo que compara com as análises anteriores), com o
+modelo e quanto custou, e as observações sugeridas de cada momento: **Usar nas N observações** grava (o seu texto
+fica; a análise entra no fim, depois de "Análise: ", e analisar de novo troca só essa parte) ou o **x** descarta.
+No detalhe de cada momento, a leitura aparece num cartão fechado de uma linha e, se ainda não foi usada nem
+descartada, a sugestão daquele momento aparece embaixo da observação. Uma análise por finalização; limite de 10 por
+pessoa por dia.
 
 **Nova finalização** fica dentro do produto (o **+**) e é uma tela só: momento (já marcado em Molhado),
 data, fotos e observação, com um único botão fixo no rodapé. **Sem finalizador** está sempre na lista,

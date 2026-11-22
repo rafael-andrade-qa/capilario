@@ -75,6 +75,14 @@ export async function fetchAnalysis(finalizationId: string): Promise<Finalizatio
   return (data as FinalizationAnalysis | null) ?? null
 }
 
+/** Quais destas finalizações já têm análise (para marcar na folha). */
+export async function analyzedIds(finalizationIds: string[]): Promise<Set<string>> {
+  if (!finalizationIds.length) return new Set()
+  const { data, error } = await supabase.from('finalization_analyses').select('finalization_id').in('finalization_id', finalizationIds)
+  if (error) throw new Error(error.message)
+  return new Set((data ?? []).map((r: { finalization_id: string }) => r.finalization_id))
+}
+
 export async function analyzeQuotaLeft(): Promise<number | null> {
   const { data, error } = await supabase.rpc('analyze_quota_left')
   return error || typeof data !== 'number' ? null : data
