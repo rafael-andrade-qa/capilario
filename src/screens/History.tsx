@@ -340,31 +340,13 @@ function ChevronIcon() {
   )
 }
 
+/** Comparar: habilitado com ao menos dois momentos (o botão já se explica, sem aviso). */
 function CompareButton({ total, loading }: { total: number; loading: boolean }) {
-  // Carregando: o botão fica, sem o aviso de "faltam momentos" (ainda não sabemos).
-  if (loading)
-    return (
-      <button className="btn" disabled>
-        Comparar
-      </button>
-    )
-  if (total >= 2) {
-    return (
-      <button className="btn" onClick={() => navigate('/comparar')}>
-        Comparar
-      </button>
-    )
-  }
-  const missing = 2 - total
+  const ready = !loading && total >= 2
   return (
-    <div className="compare-disabled">
-      <button className="btn" disabled aria-describedby="compare-hint">
-        Comparar
-      </button>
-      <span id="compare-hint" className="muted small">
-        {missing === 2 ? 'Registre dois momentos para comparar.' : 'Falta mais 1 momento para comparar.'}
-      </span>
-    </div>
+    <button className="btn" onClick={() => navigate('/comparar')} disabled={!ready}>
+      Comparar
+    </button>
   )
 }
 
