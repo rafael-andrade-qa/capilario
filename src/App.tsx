@@ -1,12 +1,35 @@
 import { configError } from './lib/supabase'
 import { HistoryProvider, SessionProvider, useSession } from './lib/state'
 import { match, useRoute } from './lib/router'
+import { Suspense, lazy, useEffect } from 'react'
 import { Login } from './screens/Login'
 import { History } from './screens/History'
-import { StageDetail } from './screens/StageDetail'
-import { ProductEditRoute, ProductNewRoute } from './screens/ProductEdit'
-import { StageFormRoute } from './screens/StageForm'
-import { Compare } from './screens/Compare'
+import { PageSkeleton } from './components/Skeleton'
+
+// Cada tela além do histórico é baixada à parte: o app abre mais rápido e, logo depois, as outras
+// telas são buscadas em segundo plano (e ficam guardadas), para a navegação não esperar.
+const loadStageDetail = () => import('./screens/StageDetail')
+const loadProductEdit = () => import('./screens/ProductEdit')
+const loadStageForm = () => import('./screens/StageForm')
+const loadCompare = () => import('./screens/Compare')
+const StageDetail = lazy(() => loadStageDetail().then((m) => ({ default: m.StageDetail })))
+const ProductEditRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductEditRoute })))
+const ProductNewRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductNewRoute })))
+const StageFormRoute = lazy(() => loadStageForm().then((m) => ({ default: m.StageFormRoute })))
+const Compare = lazy(() => loadCompare().then((m) => ({ default: m.Compare })))
+
+function usePrefetchScreens() {
+  useEffect(() => {
+    const run = () => {
+      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare]) void load().catch(() => undefined)
+    }
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+    const id = idle ? idle(run) : window.setTimeout(run, 1500)
+    return () => {
+      if (!idle) window.clearTimeout(id)
+    }
+  }, [])
+}
 import { useNewVersion } from './lib/version'
 import { ToastProvider } from './components/Toasts'
 
@@ -61,6 +84,15 @@ function Gate() {
 }
 
 function Screens({ userId }: { userId: string }) {
+  usePrefetchScreens()
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Route userId={userId} />
+    </Suspense>
+  )
+}
+
+function Route({ userId }: { userId: string }) {
   const { path, params } = useRoute()
   let m: Record<string, string> | null
   // Cadastrar produto (o caminho antigo /novo leva para cá).

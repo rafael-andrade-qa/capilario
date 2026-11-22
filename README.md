@@ -124,15 +124,20 @@ os atalhos *Nova finalização* e *Comparar*.
 
 1. Ao abrir o formulário o app reserva os IDs de experimento e etapa; cada foto escolhida recebe um ID próprio.
    O caminho é `<user_id>/<stage_id>/<photo_id>.<ext>` e não depende do ângulo, então trocar posições não exige reenvio.
-2. As fotos vão direto do navegador ao Storage privado (2 em paralelo). Até 6 MB: upload comum; acima: upload
-   retomável (TUS, blocos de 6 MB). Uploads já confirmados são reaproveitados em **Tentar novamente**.
-3. `finalize_stage` (Postgres, `SECURITY INVOKER`, sujeita ao RLS) grava experimento + etapa + fotos numa transação,
+2. Antes de enviar, o próprio aparelho prepara cada foto (`src/lib/images.ts`): se passa de 2048 px no lado maior
+   ou de 2,5 MB, vira um JPEG de até 2048 px (foto de câmera de 3 a 5 MB fica com ~0,5 MB); foto já leve sobe como
+   está. Também gera a miniatura `<foto>_t.jpg` (720 px, ~40 KB), usada no histórico, onde a foto aparece pequena.
+   O enquadramento é guardado em frações da imagem, então vale para os dois tamanhos.
+3. As fotos vão direto do navegador ao Storage privado (2 em paralelo). Até 6 MB: upload comum; acima: upload
+   retomável (TUS, blocos de 6 MB, biblioteca baixada só quando precisa). Uploads já confirmados são reaproveitados
+   em **Tentar novamente**. Se só a miniatura falhar, a foto é salva e a lista mostra a foto no lugar.
+4. `finalize_stage` (Postgres, `SECURITY INVOKER`, sujeita ao RLS) grava experimento + etapa + fotos numa transação,
    conferindo caminho, dono e existência de cada objeto. Repetir a chamada devolve o mesmo resultado.
    Se a resposta se perde, o app consulta o banco antes de declarar falha.
-4. Toque repetido em **Salvar** é ignorado enquanto o envio corre; a restrição única `(stage_id, angle)` protege
+5. Toque repetido em **Salvar** é ignorado enquanto o envio corre; a restrição única `(stage_id, angle)` protege
    contra duplicatas mesmo com duas abas.
-5. Se uma foto falhar, o formulário continua preenchido e oferece **Tentar novamente** e **Salvar só as fotos concluídas**.
-6. Arquivos descartados são apagados só depois de confirmar no banco que não foram associados; a política do
+6. Se uma foto falhar, o formulário continua preenchido e oferece **Tentar novamente** e **Salvar só as fotos concluídas**.
+7. Arquivos descartados são apagados só depois de confirmar no banco que não foram associados; a política do
    Storage também impede apagar uma foto publicada.
 
 ## Enviar em PDF
@@ -167,11 +172,20 @@ sem a linha em `photos`, a política de exclusão libera o objeto para o dono. N
 Fotos de produto ficam em `<user_id>/produto-<experiment_id>/<foto>.<ext>`; a que está em uso não pode ser apagada.
 
 Se a aba fechar entre o upload e a finalização (ou a rede cair logo depois de excluir uma etapa), o arquivo fica no bucket sem registro. Para listar e remover
-(considera só objetos com mais de 24 h):
+(considera só objetos com mais de 24 h; a miniatura de uma foto em uso conta como em uso):
 
 ```bash
 SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<secret> node scripts/clean-orphans.mjs           # lista
 SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<secret> node scripts/clean-orphans.mjs --apagar  # remove
+```
+
+### Miniaturas de fotos antigas
+
+Fotos enviadas antes das miniaturas ganham a sua com `scripts/make-thumbs.mjs` (as fotos passam só pela memória):
+
+```bash
+SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<secret> node scripts/make-thumbs.mjs           # lista o que falta
+SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=<secret> node scripts/make-thumbs.mjs --gravar  # gera e envia
 ```
 
 ## Catálogo de produtos (como é montado)
@@ -203,7 +217,7 @@ servem para uso pessoal e em teste; antes de abrir o app ao público, troque por
 
 O `accept` do seletor lista só JPEG/PNG/WebP. Com isso o iPhone costuma converter HEIC para JPEG na hora
 de entregar o arquivo. **Testado:** Chrome desktop em viewport de celular (Pixel 7), com JPEG/PNG pequenos,
-PNG de 8 MB (upload retomável), arquivo de 16 MB, GIF e HEIC (recusados por arquivo).
+PNG de 8 MB (reduzido no aparelho antes do envio), arquivo de 16 MB, GIF e HEIC (recusados por arquivo).
 **Ainda falta testar em aparelho real:** o arquivo que o seletor do iPhone/Safari entrega e a instalação na tela inicial.
 
 ## Segurança e privacidade
@@ -211,10 +225,12 @@ PNG de 8 MB (upload retomável), arquivo de 16 MB, GIF e HEIC (recusados por arq
 - RLS ativo em `experiments`, `stages` e `photos`: cada usuário só lê/grava os próprios registros.
   `anon` não tem acesso. Em `stages`, só `notes` e `is_favorite` podem ser atualizados. Cada um só exclui o que é seu.
 - Chaves estrangeiras compostas `(id, user_id)` garantem que a etapa e o experimento (e a foto e a etapa) tenham o mesmo dono.
-- Storage privado; leitura, envio e exclusão só no prefixo `<auth.uid()>/`. Fotos aparecem por URLs assinadas de 10 min, guardadas só em memória e limpas ao sair.
+- Storage privado; leitura, envio e exclusão só no prefixo `<auth.uid()>/`. Fotos aparecem por URLs assinadas de 1 h. Elas ficam guardadas no aparelho
+  enquanto valem, para reabrir o app sem baixar as fotos de novo (o navegador reaproveita a cópia), e são apagadas ao sair.
 - O último histórico (nomes de produto, datas, observações e caminhos das fotos, sem as fotos) fica guardado no
   aparelho por conta, para o app abrir na hora; é atualizado por trás e apagado ao sair da conta.
-- O service worker guarda só os arquivos estáticos do próprio app; Supabase, imagens privadas e URLs assinadas nunca passam por ele.
+- O service worker guarda só os arquivos estáticos do próprio app (incluindo o motor e os modelos do enquadramento
+  automático); Supabase, imagens privadas e URLs assinadas nunca passam por ele.
 - O repositório usa apenas imagens sintéticas geradas nos testes.
 - Identificar pela foto: a função confere a sessão (pelo RPC `consume_identify_quota`, que também conta o
   limite diário e não tem tabela acessível pela API), só abre endereços https públicos (sem IP, localhost ou

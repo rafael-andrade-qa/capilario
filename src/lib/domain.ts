@@ -241,3 +241,6 @@ export const MOMENT_SLUG: Record<StageType, string> = { wet: 'molhado', dry: 'se
 export function momentFromSlug(slug: string): StageType | null {
   return STAGE_TYPES.find((t) => MOMENT_SLUG[t] === slug) ?? null
 }
+
+/** Endereço do produto fixo "Sem finalizador" (existe mesmo antes da primeira finalização). */
+export const NO_FINISHER_ID = 'sem-finalizador'

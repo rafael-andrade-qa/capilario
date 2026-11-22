@@ -3,6 +3,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { adminClient, testUser, type TestUser } from '../integration/helpers'
 import { BACK, FRONT, LEFT, RIGHT, noisyPng, type TestFile } from './images'
+import { thumbPath } from '../../src/lib/images'
 
 const BUCKET = 'capilar-photos'
 const admin = adminClient()
@@ -63,10 +64,12 @@ async function saveAndGetStage(page: Page): Promise<string> {
 }
 
 async function photosOf(stageId: string) {
-  const { data, error } = await admin.from('photos').select('id, angle, storage_path').eq('stage_id', stageId)
+  const { data, error } = await admin.from('photos').select('id, angle, storage_path, mime_type').eq('stage_id', stageId)
   if (error) throw error
-  return Object.fromEntries((data ?? []).map((p) => [p.angle, p])) as Record<string, { id: string; storage_path: string }>
+  return Object.fromEntries((data ?? []).map((p) => [p.angle, p])) as Record<string, { id: string; storage_path: string; mime_type: string }>
 }
+
+const isThumb = (url: string) => new URL(url).pathname.endsWith('_t.jpg')
 
 async function bytesOf(path: string): Promise<Buffer> {
   const { data, error } = await admin.storage.from(BUCKET).download(path)
@@ -287,7 +290,8 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
   const before = await counts(me.id)
   let posts = 0
   await page.route('**/storage/v1/object/capilar-photos/**', async (route) => {
-    if (route.request().method() === 'POST' && ++posts === 2) return route.abort('failed')
+    // Conta só as fotos (a miniatura sobe junto e, se falhar, não impede salvar).
+    if (route.request().method() === 'POST' && !isThumb(route.request().url()) && ++posts === 2) return route.abort('failed')
     return route.continue()
   })
 
@@ -343,7 +347,7 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
   let posts = 0
   await page.route('**/storage/v1/object/capilar-photos/**', async (route) => {
     // A partir do terceiro envio, tudo falha: a terceira foto nunca chega.
-    if (route.request().method() === 'POST' && ++posts > 2) return route.abort('failed')
+    if (route.request().method() === 'POST' && !isThumb(route.request().url()) && ++posts > 2) return route.abort('failed')
     return route.continue()
   })
   await noFinisherFinalization(page)
@@ -357,7 +361,7 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
   expect(Object.keys(await photosOf(stageId))).toHaveLength(2)
 })
 
-test('A9: arquivo grande, formato não aceito e upload retomável', async ({ page }) => {
+test('A9: arquivo grande, formato não aceito; foto pesada é reduzida no aparelho, com miniatura', async ({ page }) => {
   await login(page, me)
   await noFinisherFinalization(page)
   await stageRadio(page, 'Seco').click()
@@ -365,7 +369,6 @@ test('A9: arquivo grande, formato não aceito e upload retomável', async ({ pag
   const gif: TestFile = { name: 'animado.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') }
   const heic: TestFile = { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: Buffer.from('fake') }
   const resumable: TestFile = { name: 'grande-ok.png', mimeType: 'image/png', buffer: noisyPng(8 * 1024 * 1024) }
-  expect(resumable.buffer.length).toBeGreaterThan(6 * 1024 * 1024)
   await pick(page, [resumable, big, gif, heic])
 
   await expect(slot(page, 'left')).toContainText('grande demais')
@@ -387,7 +390,12 @@ test('A9: arquivo grande, formato não aceito e upload retomável', async ({ pag
   const stageId = await saveAndGetStage(page)
   const photos = await photosOf(stageId)
   expect(Object.keys(photos).sort()).toEqual(['back', 'front', 'right'])
-  expect((await bytesOf(photos.front.storage_path)).equals(resumable.buffer)).toBe(true)
+  // A foto pesada sobe reduzida, em JPEG; a leve sobe como estava. Cada uma ganha a miniatura.
+  expect(photos.front.storage_path).toMatch(/\.jpg$/)
+  expect(photos.front.mime_type).toBe('image/jpeg')
+  expect((await bytesOf(photos.front.storage_path)).length).toBeLessThan(resumable.buffer.length / 2)
+  expect((await bytesOf(photos.right.storage_path)).equals(RIGHT.buffer)).toBe(true)
+  for (const p of Object.values(photos)) expect((await bytesOf(thumbPath(p.storage_path))).subarray(0, 2).toString('hex')).toBe('ffd8')
 })
 
 test('A7: outra conta não vê os registros da conta pessoal', async ({ page }) => {

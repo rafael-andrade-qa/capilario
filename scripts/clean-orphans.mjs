@@ -1,5 +1,6 @@
 // Recupera arquivos órfãos: objetos do bucket que não estão ligados a uma foto de etapa nem à foto de um produto
-// (ex.: a aba foi fechada no meio do envio). Roda na SUA máquina, nunca no app.
+// (ex.: a aba foi fechada no meio do envio). A miniatura de uma foto (<foto>_t.jpg) conta como
+// associada enquanto a foto estiver. Roda na SUA máquina, nunca no app.
 //
 //   SUPABASE_URL=https://xxx.supabase.co SUPABASE_SECRET_KEY=sb_secret_... node scripts/clean-orphans.mjs
 //   ... node scripts/clean-orphans.mjs --apagar      # apaga de fato (padrão: só lista)
@@ -48,7 +49,11 @@ for (let i = 0; i < objects.length; i += 200) {
   for (const r of prods) linked.add(r.photo_path)
 }
 
-const orphans = objects.filter((o) => !linked.has(o.path) && o.created < cutoff)
+// Miniatura: associada se a foto dela (mesmo nome, qualquer extensão) estiver associada.
+const stem = (p) => p.replace(/\.[a-z0-9]+$/i, '')
+const linkedStems = new Set([...linked].map(stem))
+const isLinked = (p) => linked.has(p) || (p.endsWith('_t.jpg') && linkedStems.has(p.slice(0, -'_t.jpg'.length)))
+const orphans = objects.filter((o) => !isLinked(o.path) && o.created < cutoff)
 console.log(`${objects.length} objetos, ${linked.size} associados, ${orphans.length} órfãos com mais de 24 h.`)
 for (const o of orphans) console.log('  ', o.path)
 if (apply && orphans.length) {

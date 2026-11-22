@@ -1,7 +1,7 @@
 // Service worker mínimo: só guarda os arquivos estáticos do próprio app.
 // Requisições ao Supabase (outra origem), imagens privadas, URLs assinadas e
 // blobs NÃO passam por aqui: o handler ignora tudo que não for da mesma origem.
-const CACHE = 'capilar-static-v2'
+const CACHE = 'capilar-static-v3'
 const scopeUrl = new URL(self.registration.scope)
 
 self.addEventListener('install', (event) => {
@@ -39,6 +39,30 @@ self.addEventListener('fetch', (event) => {
           return res
         })
         .catch(() => caches.match(scopeUrl.href)),
+    )
+    return
+  }
+
+  // Motor do enquadramento automático (~15 MB, numa pasta com a versão): cache primeiro.
+  // Modelos (.tflite): o guardado na hora e uma cópia nova por trás, para a próxima vez.
+  const models = url.pathname.startsWith(scopeUrl.pathname + 'models/')
+  if (url.pathname.startsWith(scopeUrl.pathname + 'mediapipe/') || models) {
+    event.respondWith(
+      caches.match(req).then((hit) => {
+        if (hit && !models) return hit
+        const update = fetch(req).then((res) => {
+          if (res.ok) {
+            const copy = res.clone()
+            caches.open(CACHE).then((c) => c.put(req, copy))
+          }
+          return res
+        })
+        if (hit) {
+          update.catch(() => undefined)
+          return hit
+        }
+        return update
+      }),
     )
     return
   }

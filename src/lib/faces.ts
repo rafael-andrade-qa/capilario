@@ -15,7 +15,7 @@ let detector: Promise<FaceDetector | null> | null = null
 let segmenter: Promise<ImageSegmenter | null> | null = null
 
 function vision() {
-  fileset ??= import('@mediapipe/tasks-vision').then(({ FilesetResolver }) => FilesetResolver.forVisionTasks(`${base}mediapipe`))
+  fileset ??= import('@mediapipe/tasks-vision').then(({ FilesetResolver }) => FilesetResolver.forVisionTasks(`${base}mediapipe/${import.meta.env.VITE_MEDIAPIPE_VERSION}`))
   return fileset
 }
 
@@ -154,6 +154,15 @@ async function findHair(bmp: ImageBitmap, canvas: HTMLCanvasElement): Promise<Bo
 }
 
 /** Tamanho da imagem, o rosto mais confiável e o cabelo (caixas na escala original). */
+/**
+ * Adianta o download e a preparação dos modelos (≈5 MB na primeira vez, depois ficam guardados),
+ * para o enquadramento ficar pronto assim que a pessoa escolher as fotos.
+ */
+export function warmUpAnalysis(): void {
+  void loadFaces()
+  void loadHair()
+}
+
 export async function analyzePhoto(image: Blob): Promise<Analysis | null> {
   let bmp: ImageBitmap
   try {

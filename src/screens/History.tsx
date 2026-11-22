@@ -3,7 +3,6 @@
 // próximo. O produto mais recente começa aberto; o que você abre/fecha é lembrado na sessão.
 import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
-import { NO_FINISHER_ID } from './StageForm'
 import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
 import { EditIcon, PlusIcon } from '../components/ActionIcons'
@@ -32,9 +31,10 @@ import {
   type Experiment,
   type Finalization,
   type Stage,
+  NO_FINISHER_ID,
 } from '../lib/domain'
 import { href, navigate } from '../lib/router'
-import { signOut, useHistory, useSignedUrls } from '../lib/state'
+import { signOut, useHistory, useThumbUrls } from '../lib/state'
 
 /** A partir de quantos produtos a busca aparece. */
 const SEARCH_FROM = 6
@@ -138,7 +138,7 @@ export function History({
     }
     return [...out]
   }, [list, open])
-  const { urls } = useSignedUrls(paths)
+  const { urls } = useThumbUrls(paths) // miniaturas: aqui as fotos aparecem pequenas
 
   function toggle(id: string) {
     setOpen((prev) => {

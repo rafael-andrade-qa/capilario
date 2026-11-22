@@ -4,6 +4,7 @@ import type { Angle, Experiment, ProductMode, StageType } from './domain'
 import type { Crop } from './framing'
 import { EXT_BY_MIME, type AcceptedMime } from './files'
 import { uploadPhoto } from './upload'
+import { prepareImage, thumbPath } from './images'
 import { uuid } from './uuid'
 
 const HISTORY_SELECT =
@@ -95,9 +96,8 @@ export async function deleteStage(stageId: string, paths: string[]): Promise<voi
   }
   // O servidor devolve também a foto do produto quando o produto inteiro saiu.
   paths = [...new Set([...paths, ...(((result as { paths?: string[] } | null)?.paths) ?? [])])]
-  for (const p of paths) signedCache.delete(p)
   // Arquivo que sobrar aqui (rede caiu) vira órfão e sai com scripts/clean-orphans.mjs.
-  if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch(() => undefined)
+  await removeFiles(paths)
 }
 
 /** Exclui o produto inteiro (todas as etapas e fotos) e depois os arquivos. */
@@ -109,29 +109,26 @@ export async function deleteExperiment(experimentId: string, paths: string[]): P
     if (checkErr || data?.length) throw new Error('Não foi possível excluir. Verifique a conexão e tente de novo.')
   }
   paths = [...new Set([...paths, ...(((result as { paths?: string[] } | null)?.paths) ?? [])])]
-  for (const p of paths) signedCache.delete(p)
-  if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch(() => undefined)
+  await removeFiles(paths)
 }
 
 /**
  * Envia a foto do produto e a liga ao experimento. A foto anterior (se houver) é apagada
  * depois que deixa de estar em uso. Devolve o novo caminho.
  */
-export async function setProductPhoto(userId: string, experimentId: string, file: File, mime: string): Promise<string> {
-  const ext = EXT_BY_MIME[mime as AcceptedMime]
-  if (!ext) throw new Error('Formato não aceito. Use JPEG, PNG ou WebP.')
-  const path = `${userId}/produto-${experimentId}/${uuid()}.${ext}`
-  await uploadPhoto({ path, file, contentType: mime })
+export async function setProductPhoto(userId: string, experimentId: string, file: Blob, mime: string): Promise<string> {
+  if (!EXT_BY_MIME[mime as AcceptedMime]) throw new Error('Formato não aceito. Use JPEG, PNG ou WebP.')
+  const ready = await prepareImage(file, mime)
+  const path = `${userId}/produto-${experimentId}/${uuid()}.${EXT_BY_MIME[ready.mime as AcceptedMime]}`
+  await uploadPhoto({ path, file: ready.file, contentType: ready.mime })
+  await uploadThumb(path, ready.thumb)
   const { data, error } = await supabase.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: path })
   if (error) {
-    await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined)
+    await removeFiles([path])
     throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar a foto do produto: ${error.message}`)
   }
   const old = (data as { old_path?: string | null } | null)?.old_path
-  if (old) {
-    signedCache.delete(old)
-    await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
-  }
+  if (old) await removeFiles([old])
   return path
 }
 
@@ -166,36 +163,31 @@ export async function removeProductPhoto(experimentId: string): Promise<void> {
   const { data, error } = await supabase.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: null })
   if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível remover a foto: ${error.message}`)
   const old = (data as { old_path?: string | null } | null)?.old_path
-  if (old) {
-    signedCache.delete(old)
-    await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
-  }
+  if (old) await removeFiles([old])
 }
 
 /**
  * Troca a foto de um ângulo do momento (ou põe num ângulo vazio): envia o arquivo novo,
  * liga no banco numa transação e só então apaga o arquivo antigo.
  */
-export async function replacePhoto(userId: string, stageId: string, angle: Angle, file: File, mime: string, onProgress?: (f: number) => void): Promise<void> {
-  const ext = EXT_BY_MIME[mime as AcceptedMime]
-  if (!ext) throw new Error('Formato não aceito. Use JPEG, PNG ou WebP.')
+export async function replacePhoto(userId: string, stageId: string, angle: Angle, file: Blob, mime: string, onProgress?: (f: number) => void): Promise<void> {
+  if (!EXT_BY_MIME[mime as AcceptedMime]) throw new Error('Formato não aceito. Use JPEG, PNG ou WebP.')
+  const ready = await prepareImage(file, mime)
   const id = uuid()
-  const path = `${userId}/${stageId}/${id}.${ext}`
-  await uploadPhoto({ path, file, contentType: mime, onProgress })
+  const path = `${userId}/${stageId}/${id}.${EXT_BY_MIME[ready.mime as AcceptedMime]}`
+  await uploadPhoto({ path, file: ready.file, contentType: ready.mime, onProgress })
+  await uploadThumb(path, ready.thumb)
   const { data, error } = await supabase.rpc('replace_photo', {
     p_stage_id: stageId,
     p_angle: angle,
-    p_photo: { id, storage_path: path, mime_type: mime, size_bytes: file.size },
+    p_photo: { id, storage_path: path, mime_type: ready.mime, size_bytes: ready.file.size },
   })
   if (error) {
-    await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined)
+    await removeFiles([path])
     throw new Error(FRIENDLY[error.message] ?? `Não foi possível trocar a foto: ${error.message}`)
   }
   const old = (data as { old_path?: string | null } | null)?.old_path
-  if (old) {
-    signedCache.delete(old)
-    await supabase.storage.from(BUCKET).remove([old]).catch(() => undefined)
-  }
+  if (old) await removeFiles([old])
 }
 
 /** Leva a foto para outro ângulo; se ele tiver foto, as duas trocam de lugar. */
@@ -210,10 +202,7 @@ export async function deletePhoto(photoId: string): Promise<void> {
   const { data, error } = await supabase.rpc('delete_photo', { p_photo_id: photoId })
   if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível remover a foto: ${error.message}`)
   const path = (data as { path?: string | null } | null)?.path
-  if (path) {
-    signedCache.delete(path)
-    await supabase.storage.from(BUCKET).remove([path]).catch(() => undefined)
-  }
+  if (path) await removeFiles([path])
 }
 
 /** Quais destas fotos já estão registradas no banco (para respostas perdidas e limpeza). */
@@ -236,38 +225,146 @@ export async function removeUnlinkedObjects(items: { photoId: string; path: stri
   } catch {
     return // sem confirmação do banco, não apaga nada
   }
-  const paths = items.filter((i) => !linked.has(i.photoId)).map((i) => i.path)
+  const paths = items.filter((i) => !linked.has(i.photoId)).flatMap((i) => [i.path, thumbPath(i.path)])
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
 }
 
 // ---------------------------------------------------------------------------
-// URLs assinadas de curta duração, em memória (limpas ao sair).
+// Arquivos: miniaturas e remoção
 // ---------------------------------------------------------------------------
-const SIGNED_TTL = 600 // segundos
-const signedCache = new Map<string, { url: string; expiresAt: number }>()
 
-export async function signedUrls(paths: string[]): Promise<Record<string, string>> {
+/** Envia a miniatura ao lado da foto. Se falhar, segue: a lista mostra a foto no lugar. */
+export async function uploadThumb(path: string, thumb: Blob | null): Promise<void> {
+  if (!thumb) return
+  await uploadPhoto({ path: thumbPath(path), file: thumb, contentType: 'image/jpeg' }).catch(() => undefined)
+}
+
+/** Apaga fotos do armazenamento, com as miniaturas, e esquece os endereços delas. */
+async function removeFiles(paths: string[]): Promise<void> {
+  const all = [...new Set(paths.flatMap((p) => [p, thumbPath(p)]))]
+  if (!all.length) return
+  forgetSignedUrls(all)
+  await supabase.storage.from(BUCKET).remove(all).catch(() => undefined)
+}
+
+// ---------------------------------------------------------------------------
+// URLs assinadas (endereços temporários das fotos privadas)
+//
+// Cada endereço vale 1 hora e fica guardado no aparelho (apagado ao sair da conta). Assim, ao
+// reabrir o app, as fotos usam o MESMO endereço e o navegador mostra a cópia que já baixou, em vez
+// de baixar tudo de novo. Um endereço só é reaproveitado se ainda tiver 10 minutos de validade,
+// para a foto na tela nunca ficar com endereço vencido.
+// Também guarda quais arquivos não existem (miniatura que não foi gerada), para a lista usar a foto.
+// ---------------------------------------------------------------------------
+export const SIGNED_TTL = 3600 // segundos
+const REUSE_MARGIN = 10 * 60 * 1000
+const URLS_KEY = 'capilar:fotos:v1'
+
+interface SignedEntry {
+  /** null = o arquivo não existe. */
+  url: string | null
+  expiresAt: number
+}
+let signedCache: Map<string, SignedEntry> | null = null
+const inFlight = new Map<string, Promise<void>>()
+
+function cache(): Map<string, SignedEntry> {
+  if (signedCache) return signedCache
+  signedCache = new Map()
+  try {
+    const saved = JSON.parse(localStorage.getItem(URLS_KEY) ?? 'null') as Record<string, SignedEntry> | null
+    const now = Date.now()
+    for (const [p, e] of Object.entries(saved ?? {})) if (e && e.expiresAt - now > REUSE_MARGIN) signedCache.set(p, e)
+  } catch {
+    // sem armazenamento: só em memória
+  }
+  return signedCache
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+function persist() {
+  if (saveTimer) return
+  saveTimer = setTimeout(() => {
+    saveTimer = null
+    try {
+      const now = Date.now()
+      const out: Record<string, SignedEntry> = {}
+      for (const [p, e] of cache()) if (e.expiresAt > now) out[p] = e
+      if (Object.keys(out).length) localStorage.setItem(URLS_KEY, JSON.stringify(out))
+      else localStorage.removeItem(URLS_KEY)
+    } catch {
+      // sem espaço ou bloqueado: segue só em memória
+    }
+  }, 200)
+}
+
+function fresh(e: SignedEntry | undefined, now: number): e is SignedEntry {
+  return !!e && e.expiresAt - now > REUSE_MARGIN
+}
+
+/** Endereços já guardados e ainda bons (sem ir ao servidor), para a tela abrir com as fotos. */
+export function cachedSignedUrls(paths: string[]): Record<string, string> {
   const now = Date.now()
   const out: Record<string, string> = {}
-  const missing: string[] = []
-  for (const p of new Set(paths)) {
-    const hit = signedCache.get(p)
-    if (hit && hit.expiresAt - now > 60_000) out[p] = hit.url
-    else missing.push(p)
-  }
-  if (missing.length) {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(missing, SIGNED_TTL)
-    if (error) throw new Error(`Não foi possível carregar as fotos: ${error.message}`)
-    for (const item of data ?? []) {
-      if (item.signedUrl && item.path) {
-        signedCache.set(item.path, { url: item.signedUrl, expiresAt: now + SIGNED_TTL * 1000 })
-        out[item.path] = item.signedUrl
-      }
-    }
+  for (const p of paths) {
+    const e = cache().get(p)
+    if (fresh(e, now) && e.url) out[p] = e.url
   }
   return out
 }
 
+/** O servidor já disse que este arquivo não existe? */
+export function isMissingFile(path: string): boolean {
+  const e = cache().get(path)
+  return fresh(e, Date.now()) && e.url === null
+}
+
+export async function signedUrls(paths: string[]): Promise<Record<string, string>> {
+  const now = Date.now()
+  const missing: string[] = []
+  const waiting: Promise<void>[] = []
+  for (const p of new Set(paths)) {
+    if (fresh(cache().get(p), now)) continue
+    const pending = inFlight.get(p)
+    if (pending) waiting.push(pending)
+    else missing.push(p)
+  }
+  if (missing.length) {
+    const job = (async () => {
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(missing, SIGNED_TTL)
+      if (error) throw new Error(`Não foi possível carregar as fotos: ${error.message}`)
+      const at = Date.now()
+      for (const item of data ?? []) {
+        if (!item.path) continue
+        // Sem endereço = o arquivo não existe (ou não é seu): lembrado só por alguns minutos.
+        cache().set(item.path, item.signedUrl ? { url: item.signedUrl, expiresAt: at + SIGNED_TTL * 1000 } : { url: null, expiresAt: at + REUSE_MARGIN + 5 * 60 * 1000 })
+      }
+      persist()
+    })()
+    for (const p of missing) inFlight.set(p, job)
+    waiting.push(job)
+    job
+      .finally(() => {
+        for (const p of missing) if (inFlight.get(p) === job) inFlight.delete(p)
+      })
+      .catch(() => undefined)
+  }
+  await Promise.all(waiting)
+  return cachedSignedUrls(paths)
+}
+
+function forgetSignedUrls(paths: string[]) {
+  for (const p of paths) cache().delete(p)
+  persist()
+}
+
+/** Ao sair da conta: nenhum endereço fica no aparelho. */
 export function clearSignedUrlCache(): void {
-  signedCache.clear()
+  cache().clear()
+  inFlight.clear()
+  try {
+    localStorage.removeItem(URLS_KEY)
+  } catch {
+    // ignora
+  }
 }

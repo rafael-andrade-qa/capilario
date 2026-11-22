@@ -14,9 +14,9 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { DateTimeField } from '../components/DateTimeField'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
-import { AmbiguousError, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, setPhotoCrops, type FinalizePhoto } from '../lib/api'
+import { AmbiguousError, uploadThumb, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, setPhotoCrops, type FinalizePhoto } from '../lib/api'
 import { medianDate, photoTakenAt } from '../lib/exif'
-import { analyzePhoto, type Analysis } from '../lib/faces'
+import { analyzePhoto, warmUpAnalysis, type Analysis } from '../lib/faces'
 import { cropStyle, momentCrops, type Crop } from '../lib/framing'
 import {
   ANGLES,
@@ -39,12 +39,14 @@ import {
   type Finalization,
   type Stage,
   type StageType,
+  NO_FINISHER_ID,
 } from '../lib/domain'
 import { EXT_BY_MIME, INPUT_ACCEPT, canDisplay, detectMime, validateFile, type AcceptedMime } from '../lib/files'
 import { href, navigate } from '../lib/router'
 import { assignInOrder, clearSlot, emptySlots, filledAngles, setSlot, swapSlots, type Slots } from '../lib/slots'
 import { findStage, useHistory, useSignedUrls } from '../lib/state'
 import { uploadPhoto } from '../lib/upload'
+import { prepareImage, type PreparedImage } from '../lib/images'
 import { uuid } from '../lib/uuid'
 
 type RouteProps =
@@ -52,8 +54,7 @@ type RouteProps =
   | { kind: 'complete'; userId: string; stageId: string }
   | { kind: 'moment'; userId: string; finalizationId: string; moment: string }
 
-/** Endereço do produto fixo "Sem finalizador" (existe mesmo antes da primeira finalização). */
-export const NO_FINISHER_ID = 'sem-finalizador'
+export { NO_FINISHER_ID }
 
 export function StageFormRoute(props: RouteProps) {
   const { experiments } = useHistory()
@@ -114,7 +115,14 @@ interface Item {
   takenAt?: Date | null
   /** Tamanho e rosto, para o enquadramento automático; undefined = ainda analisando. */
   analysis?: Analysis | null
+  /** O que sobe de fato: a foto reduzida (se era grande) e a miniatura. */
+  ready?: PreparedImage
 }
+
+/** Formato do arquivo que sobe (a foto reduzida vira JPEG). */
+const uploadMime = (it: Item) => it.ready?.mime ?? it.mime
+const filePath = (userId: string, stageId: string, it: Item) =>
+  `${userId}/${stageId}/${it.key}.${EXT_BY_MIME[uploadMime(it) as AcceptedMime] ?? 'bin'}`
 
 type Phase = 'editing' | 'uploading' | 'partial' | 'finalizing' | 'error'
 
@@ -180,7 +188,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
   const slotTarget = useRef<Angle | null>(null)
 
   const pathFor = useCallback(
-    (item: Item) => `${userId}/${stageId}/${item.key}.${EXT_BY_MIME[item.mime as AcceptedMime] ?? 'bin'}`,
+    (item: Item) => filePath(userId, stageId, item),
     [userId, stageId],
   )
 
@@ -216,13 +224,20 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
       const pending = [...discardedRef.current]
       if (!finalizedRef.current) {
         for (const it of Object.values(itemsRef.current)) {
-          if (it.status !== 'idle') pending.push({ photoId: it.key, path: `${userId}/${stageId}/${it.key}.${EXT_BY_MIME[it.mime as AcceptedMime] ?? 'bin'}` })
+          if (it.status !== 'idle') pending.push({ photoId: it.key, path: filePath(userId, stageId, it) })
         }
       }
       for (const it of Object.values(itemsRef.current)) if (it.preview) URL.revokeObjectURL(it.preview)
       if (pending.length) void removeUnlinkedObjects(pending)
     }
   }, [userId, stageId])
+
+  // Começa a baixar os modelos do enquadramento automático enquanto a pessoa escolhe as fotos.
+  useEffect(() => {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+    if (idle) idle(warmUpAnalysis)
+    else window.setTimeout(warmUpAnalysis, 800)
+  }, [])
 
   // Aviso do navegador ao fechar a aba no meio de um envio.
   useEffect(() => {
@@ -411,15 +426,18 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
         setPhase('uploading')
         const pending = entries.filter((e) => itemsRef.current[e.key]?.status !== 'done')
         await runPool(pending, 2, async ({ key }) => {
-          const it = itemsRef.current[key]
           updateItem(key, { status: 'uploading', progress: 0, uploadError: null })
           try {
+            // Reduz a foto grande e gera a miniatura no aparelho (uma vez só, mesmo tentando de novo).
+            if (!itemsRef.current[key].ready) updateItem(key, { ready: await prepareImage(itemsRef.current[key].file, itemsRef.current[key].mime) })
+            const it = itemsRef.current[key]
             await uploadPhoto({
               path: pathFor(it),
-              file: it.file,
-              contentType: it.mime,
+              file: it.ready!.file,
+              contentType: uploadMime(it),
               onProgress: (f) => updateItem(key, { progress: f }),
             })
+            await uploadThumb(pathFor(it), it.ready!.thumb)
             updateItem(key, { status: 'done', progress: 1 })
           } catch (err) {
             updateItem(key, { status: 'error', uploadError: (err as Error).message || 'Falha no envio' })
@@ -438,7 +456,7 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
       finalizeAttemptedRef.current = true
       const photos: FinalizePhoto[] = done.map(({ angle, key }) => {
         const it = itemsRef.current[key]
-        return { id: key, angle, storage_path: pathFor(it), mime_type: it.mime, size_bytes: it.file.size }
+        return { id: key, angle, storage_path: pathFor(it), mime_type: uploadMime(it), size_bytes: (it.ready?.file ?? it.file).size }
       })
       try {
         await finalizeStage({

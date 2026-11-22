@@ -2,7 +2,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { clearSignedUrlCache, fetchHistory, signedUrls } from './api'
+import { cachedSignedUrls, clearSignedUrlCache, fetchHistory, isMissingFile, signedUrls } from './api'
+import { thumbPath } from './images'
 import type { Experiment, Stage } from './domain'
 
 // ---------------------------------------------------------------------------
@@ -127,6 +128,13 @@ export function HistoryProvider({ userId, children }: { userId: string; children
     if (experiments) writeHistoryCache(userId, experiments)
   }, [userId, experiments])
 
+  // Já pede os endereços de todas as fotos (e miniaturas) num pedido só: ao abrir um momento,
+  // as fotos começam a baixar na hora, sem esperar mais uma ida ao servidor.
+  const allPaths = useMemo(() => (experiments ? historyPaths(experiments).sort().join('|') : ''), [experiments])
+  useEffect(() => {
+    if (allPaths) void signedUrls(allPaths.split('|')).catch(() => undefined)
+  }, [allPaths])
+
   const value = useMemo(
     () => ({ experiments, error, loading, reload, patchStage, removeStage, removeExperiment }),
     [experiments, error, loading, reload, patchStage, removeStage, removeExperiment],
@@ -151,8 +159,21 @@ export function findStage(experiments: Experiment[] | null, stageId: string): { 
 // ---------------------------------------------------------------------------
 // URLs assinadas para um conjunto de caminhos
 // ---------------------------------------------------------------------------
+
+/** Todos os arquivos do histórico: fotos, fotos de produto e as miniaturas de cada um. */
+export function historyPaths(experiments: Experiment[]): string[] {
+  const out: string[] = []
+  for (const e of experiments) {
+    if (e.photo_path) out.push(e.photo_path, thumbPath(e.photo_path))
+    for (const s of e.stages) for (const p of s.photos) out.push(p.storage_path, thumbPath(p.storage_path))
+  }
+  return [...new Set(out)]
+}
+
 export function useSignedUrls(paths: string[]): { urls: Record<string, string>; error: string | null } {
   const key = [...new Set(paths)].sort().join('|')
+  // Endereços já guardados no aparelho entram no primeiro desenho da tela (sem piscar).
+  const cached = useMemo(() => (key ? cachedSignedUrls(key.split('|')) : {}), [key])
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -164,11 +185,28 @@ export function useSignedUrls(paths: string[]): { urls: Record<string, string>; 
         .then((u) => alive && (setUrls(u), setError(null)))
         .catch((e: Error) => alive && setError(e.message))
     void load()
-    const timer = window.setInterval(load, 8 * 60 * 1000) // renova antes de expirar (10 min)
+    // Renova antes de vencer (cada endereço vale 1 h e é trocado quando faltam 10 min).
+    const timer = window.setInterval(load, 5 * 60 * 1000)
     return () => {
       alive = false
       window.clearInterval(timer)
     }
   }, [key])
-  return { urls, error }
+  const merged = useMemo(() => ({ ...cached, ...urls }), [cached, urls])
+  return { urls: merged, error }
+}
+
+/**
+ * Para fotos que aparecem pequenas (listas): devolve, por caminho da foto, o endereço da
+ * miniatura; se a miniatura não existir, o da foto.
+ */
+export function useThumbUrls(paths: string[]): { urls: Record<string, string>; error: string | null } {
+  const unique = [...new Set(paths)]
+  const { urls, error } = useSignedUrls([...unique, ...unique.map(thumbPath)])
+  const out: Record<string, string> = {}
+  for (const p of unique) {
+    const t = urls[thumbPath(p)] ?? (isMissingFile(thumbPath(p)) ? urls[p] : undefined)
+    if (t) out[p] = t
+  }
+  return { urls: out, error }
 }
