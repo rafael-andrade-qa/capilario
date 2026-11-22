@@ -55,6 +55,16 @@ function compareUrl(type: StageType, a?: string, b?: string, angle?: Angle) {
   return `/comparar?${q.toString()}`
 }
 
+/** Balão de fala: ver a observação do registro. */
+function NoteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M8 10h8M8 13h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function Compare({ params }: { params: URLSearchParams }) {
   const { experiments } = useHistory()
   const groups = useMemo(() => sortHistory(experiments ?? []), [experiments])
@@ -78,6 +88,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
   }, [recent])
 
   const [pdfOpen, setPdfOpen] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const aId = params.get('a')
   const bId = params.get('b')
   const angleParam = params.get('angulo')
@@ -304,13 +315,29 @@ export function Compare({ params }: { params: URLSearchParams }) {
                   ) : (
                     <div className="photo-frame compare-frame empty">Sem foto deste ângulo</div>
                   )}
+                  {/* Sempre duas linhas (data e produto), iguais dos dois lados; a observação só ao tocar. */}
                   <figcaption className="compare-meta">
-                    <strong>
-                      {label} · {formatShortDateTime(e.stage.captured_at)} {e.stage.is_favorite && <span className="star">★</span>}
-                    </strong>
-                    <span className="clamp-2">{productLabel(e.experiment)}</span>
-                    {brandLabel(e.experiment) && <span className="muted one-line">{brandLabel(e.experiment)}</span>}
-                    {e.stage.notes && <span className="notes clamp-2">{e.stage.notes}</span>}
+                    <span className="compare-line">
+                      <strong className="one-line">
+                        {label} · {formatShortDateTime(e.stage.captured_at)} {e.stage.is_favorite && <span className="star">★</span>}
+                      </strong>
+                      {e.stage.notes && (
+                        <button
+                          type="button"
+                          className={`note-btn ${showNotes ? 'on' : ''}`}
+                          onClick={() => setShowNotes((v) => !v)}
+                          aria-expanded={showNotes}
+                          aria-label={`Observação de ${label}`}
+                          title={showNotes ? 'Esconder observação' : 'Ver observação'}
+                        >
+                          <NoteIcon />
+                        </button>
+                      )}
+                    </span>
+                    <span className="one-line" title={productLabel(e.experiment)}>
+                      {productLabel(e.experiment)}
+                    </span>
+                    {showNotes && e.stage.notes && <span className="notes">{e.stage.notes}</span>}
                   </figcaption>
                 </figure>
               )
