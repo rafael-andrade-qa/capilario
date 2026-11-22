@@ -1049,6 +1049,16 @@ button.back {
   align-items: center;
   justify-content: center;
 }
+.pv-zoom {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transform-origin: 0 0;
+  will-change: transform;
+}
 .pv-slide img {
   pointer-events: none;
   -webkit-user-drag: none;

@@ -112,3 +112,39 @@ test('foto no ângulo errado: move para o vazio ou troca com a outra', async ({ 
   const after = Object.fromEntries((await me.client.from('photos').select('id, angle').eq('stage_id', stageId)).data!.map((p) => [p.angle, p.id]))
   expect(after).toEqual({ front: id('left'), right: id('front') })
 })
+
+test('zoom só para olhar: toque duplo, rodinha e volta ao trocar de foto', async ({ page }) => {
+  await open(page)
+  const zoom = page.getByTestId('viewer-zoom')
+  const box = (await page.getByTestId('viewer-stage').boundingBox())!
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  const tap = async () => {
+    await page.mouse.move(cx, cy)
+    await page.mouse.down()
+    await page.mouse.up()
+  }
+  await expect(zoom).toHaveAttribute('data-scale', '1.00')
+  await tap()
+  await tap()
+  await expect(zoom).toHaveAttribute('data-scale', '2.50')
+  // com zoom, as setas somem e arrastar move a foto (não troca de ângulo)
+  await expect(page.getByRole('button', { name: 'Próxima foto' })).toHaveCount(0)
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx - 150, cy, { steps: 6 })
+  await page.mouse.up()
+  await expect(page.getByRole('dialog', { name: 'Foto: Frente' })).toBeVisible()
+  // toque duplo de novo: volta ao normal
+  await page.waitForTimeout(400)
+  await tap()
+  await tap()
+  await expect(zoom).toHaveAttribute('data-scale', '1.00')
+  // rodinha do mouse aproxima; trocar de foto volta ao normal
+  await page.mouse.move(cx, cy)
+  await page.mouse.wheel(0, -300)
+  await expect(zoom).not.toHaveAttribute('data-scale', '1.00')
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByRole('dialog')).toContainText('2 de 2')
+  await expect(page.getByTestId('viewer-zoom')).toHaveAttribute('data-scale', '1.00')
+})
