@@ -4181,3 +4181,21 @@ body::before {
 .compare-changes {
   margin: 16px 0 0;
 }
+
+/* O que mudou: cada linha da tabela numa linha só; o resumo também. */
+.changes-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.changes-table tbody th {
+  white-space: nowrap;
+}
+.compare-changes-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

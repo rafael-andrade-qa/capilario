@@ -371,50 +371,62 @@ function CompareChanges({ a, b }: { a: Stage; b: Stage }) {
   const ra = draftOf(routines[a.finalization_id], list)
   const rb = draftOf(routines[b.finalization_id], list)
   if (!ra.length && !rb.length) return null
-  // De B para A: cada linha mostra o que A e B usaram.
+  // De B para A: cada etapa diz o que A e B usaram.
   const { changed, same } = diffRoutine(rb, ra, list)
+  // Trocou (tem produto nos dois): uma linha na tabela. Só de um lado: uma frase corrida.
+  const swapped = changed.filter((c) => c.before.length && c.after.length)
+  const onlyA = changed.filter((c) => !c.before.length).map((c) => stepLabel(c.step).toLowerCase())
+  const onlyB = changed.filter((c) => !c.after.length).map((c) => stepLabel(c.step).toLowerCase())
   const air = (s: Stage) => (s.humidity != null ? `${s.humidity}% · ${Math.round(s.temperature ?? 0)}°C` : '—')
   const climate = a.humidity != null || b.humidity != null
-  // Uma linha só, acima das fotos; tocar abre a tabela.
-  const parts = [changed.length ? `Mudou: ${changed.map((c) => stepLabel(c.step).toLowerCase()).join(', ')}` : 'Mesma rotina']
+  // Resumo numa linha: até duas etapas pelo nome; mais que isso, a conta.
+  const parts = [
+    !changed.length
+      ? 'Mesma rotina'
+      : changed.length <= 2
+        ? `Mudou: ${changed.map((c) => stepLabel(c.step).toLowerCase()).join(', ')}`
+        : `Mudaram ${changed.length} etapas`,
+  ]
   if (a.humidity != null && b.humidity != null) parts.push(`umidade ${a.humidity}% × ${b.humidity}%`)
   return (
     <section className="compare-changes" aria-label="O que mudou">
       <details className="card compare-changes-box">
-        <summary className="compare-changes-summary">{parts.join(' · ')}</summary>
-      {(changed.length > 0 || climate) && (
-        <table className="changes-table">
-          <thead>
-            <tr>
-              <th scope="col">
-                <span className="visually-hidden">Etapa</span>
-              </th>
-              <th scope="col">A</th>
-              <th scope="col">B</th>
-            </tr>
-          </thead>
-          <tbody>
-            {changed.map((c) => (
-              <tr key={c.step}>
-                <th scope="row">{stepLabel(c.step)}</th>
-                <td>{c.after.join(', ') || '—'}</td>
-                <td>{c.before.join(', ') || '—'}</td>
-              </tr>
-            ))}
-            {climate && (
+        <summary className="compare-changes-summary">
+          <span className="compare-changes-text">{parts.join(' · ')}</span>
+        </summary>
+        {(swapped.length > 0 || climate) && (
+          <table className="changes-table">
+            <thead>
               <tr>
-                <th scope="row">Clima</th>
-                <td>{air(a)}</td>
-                <td>{air(b)}</td>
+                <th scope="col">
+                  <span className="visually-hidden">Etapa</span>
+                </th>
+                <th scope="col">A</th>
+                <th scope="col">B</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-      {changed.length > 0 && same.length > 0 && (
-        <p className="muted small compare-same">Igual nos dois: {same.map((s) => stepLabel(s).toLowerCase()).join(', ')}.</p>
-      )}
-      {changed.length > 1 && <p className="muted small compare-same">Mudou mais de uma coisa: para saber o efeito de um produto, troque só ele de uma vez.</p>}
+            </thead>
+            <tbody>
+              {swapped.map((c) => (
+                <tr key={c.step}>
+                  <th scope="row">{stepLabel(c.step)}</th>
+                  <td title={c.after.join(', ')}>{c.after.join(', ')}</td>
+                  <td title={c.before.join(', ')}>{c.before.join(', ')}</td>
+                </tr>
+              ))}
+              {climate && (
+                <tr>
+                  <th scope="row">Clima</th>
+                  <td>{air(a)}</td>
+                  <td>{air(b)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+        {onlyA.length > 0 && <p className="small compare-same">Só em A: {onlyA.join(', ')}.</p>}
+        {onlyB.length > 0 && <p className="small compare-same">Só em B: {onlyB.join(', ')}.</p>}
+        {changed.length > 0 && same.length > 0 && <p className="muted small compare-same">Igual nos dois: {same.map((x) => stepLabel(x).toLowerCase()).join(', ')}.</p>}
+        {changed.length > 1 && <p className="muted small compare-same">Mudou mais de uma coisa: para saber o efeito de um produto, troque só ele de uma vez.</p>}
       </details>
     </section>
   )
