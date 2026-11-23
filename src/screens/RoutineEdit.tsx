@@ -3,6 +3,7 @@
 // finalizador; sem ele, Sem finalizador). Finalização que já existe: edita a rotina dela.
 // Produto que ainda não está cadastrado: o catálogo abre aqui mesmo, sem sair da rotina.
 import { useMemo, useState } from 'react'
+import { CloseIcon } from '../components/ActionIcons'
 import { PageHeader } from '../components/PageHeader'
 import { PageSkeleton } from '../components/Skeleton'
 import { ProductThumb, productThumbPath } from '../components/ProductThumb'
@@ -210,7 +211,7 @@ function RoutineEdit({
 
   return (
     <main className="page routine-page">
-      <PageHeader title={edit ? `Rotina de ${edit.when.toLowerCase() === 'hoje' ? 'hoje' : edit.when}` : 'O que você usou?'} back={{ label: 'Voltar ao histórico', href: href('/') }} />
+      <PageHeader title={edit ? `Rotina de ${['Hoje', 'Ontem'].includes(edit.when) ? edit.when.toLowerCase() : edit.when}` : 'O que você usou?'} back={{ label: 'Voltar ao histórico', href: href('/') }} />
 
       {!edit && baseLabel && items.length > 0 && (
         <p className="routine-banner">
@@ -235,18 +236,28 @@ function RoutineEdit({
                   const isNew = !!baseLabel && !baseIds.has(`${item.step}|${item.experimentId}|${item.maskKind ?? ''}`)
                   return (
                     <div key={item.experimentId} className="routine-item-wrap">
-                      <button
-                        type="button"
-                        className={`routine-item ${isNew ? 'changed' : ''}`}
-                        onClick={() => !locked && setPicking({ step: s.id, current: item })}
-                        aria-label={locked ? `${s.label}: ${itemName(e)} (produto desta finalização)` : `${s.label}: ${itemName(e)}. Trocar`}
-                        aria-disabled={locked || undefined}
-                      >
-                        <span className="routine-item-name">{e ? productLabel(e) : 'Produto'}</span>
-                        {e && brandLabel(e) && <span className="routine-item-brand">{brandLabel(e)}</span>}
-                        {isNew && <span className="routine-tag">trocado</span>}
-                        {locked && <span className="routine-tag">principal</span>}
-                      </button>
+                      <div className="routine-item-row">
+                        <button
+                          type="button"
+                          className={`routine-item ${isNew ? 'changed' : ''}`}
+                          onClick={() =>
+                            locked
+                              ? notify('Este é o produto principal desta finalização: ele fica na rotina. Para usar outro, registre uma nova finalização.')
+                              : setPicking({ step: s.id, current: item })
+                          }
+                          aria-label={locked ? `${s.label}: ${itemName(e)} (produto desta finalização)` : `${s.label}: ${itemName(e)}. Trocar`}
+                        >
+                          <span className="routine-item-name">{e ? productLabel(e) : 'Produto'}</span>
+                          {e && brandLabel(e) && <span className="routine-item-brand">{brandLabel(e)}</span>}
+                          {isNew && <span className="routine-tag">trocado</span>}
+                          {locked && <span className="routine-tag">principal</span>}
+                        </button>
+                        {!locked && (
+                          <button type="button" className="routine-remove" onClick={() => choose(s.id, item, null)} aria-label={`Tirar ${itemName(e)} de ${s.label}`} title="Tirar da rotina">
+                            <CloseIcon size={14} />
+                          </button>
+                        )}
+                      </div>
                       {item.step === 'mask' && (
                         <div className="routine-kinds" role="radiogroup" aria-label="Tipo da máscara">
                           {MASK_KINDS.map((k) => (
@@ -369,6 +380,11 @@ function PickSheet({
       <div ref={sheet} className="sheet pick-sheet" role="dialog" aria-modal="true" aria-label={`${info.label}: qual produto?`} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" aria-hidden="true" />
         <h2 className="sheet-title">{info.label}: qual produto?</h2>
+        {current && (
+          <button type="button" className="btn btn-ghost btn-block danger-text pick-remove" onClick={() => onPick(null)}>
+            Tirar desta etapa
+          </button>
+        )}
         {mine.length > 0 && <ul className="pick-list">{mine.map(row)}</ul>}
         {mine.length === 0 && !others.length && <p className="muted small">Você ainda não tem produtos cadastrados para esta etapa.</p>}
         {others.length > 0 &&
@@ -385,11 +401,6 @@ function PickSheet({
         <button type="button" className="btn btn-outline-brand btn-block pick-new" onClick={onNew}>
           + Cadastrar produto
         </button>
-        {current && (
-          <button type="button" className="btn btn-ghost btn-block danger-text" onClick={() => onPick(null)}>
-            Tirar desta etapa
-          </button>
-        )}
       </div>
     </div>
   )

@@ -166,4 +166,14 @@ test('produto que não está cadastrado: cadastra no meio da rotina e volta com 
   // O resto da rotina continua como estava.
   await expect(page.getByRole('button', { name: 'Fixar: Geleia G. Trocar' })).toBeVisible()
   await expect(page.getByTestId('routine-summary')).toHaveText('Mudou: finalizar.')
+
+  // O × ao lado de cada produto tira ele da rotina na hora.
+  await page.getByRole('button', { name: 'Tirar Óleo Pontas de Finalizar' }).click()
+  await expect(page.getByRole('group', { name: 'Finalizar' }).getByRole('button', { name: /Óleo Pontas/ })).toHaveCount(0)
+  await expect(page.getByTestId('routine-summary')).toHaveCount(0)
+  // O principal não tem ×: tocar nele explica por quê.
+  await page.goto(`./#/rotina/${firstFin}`)
+  await expect(page.getByRole('button', { name: /Tirar Geleia G/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Fixar: Geleia G (produto desta finalização)' }).click()
+  await expect(page.getByText(/Este é o produto principal desta finalização/)).toBeVisible()
 })

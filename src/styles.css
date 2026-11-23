@@ -3534,9 +3534,6 @@ body:has(.save-bar) .toasts {
   text-align: left;
   cursor: pointer;
 }
-.routine-item[aria-disabled='true'] {
-  cursor: default;
-}
 .routine-item.changed {
   border-color: var(--brand);
 }
@@ -4097,4 +4094,28 @@ body::before {
 .moment-time,
 .moment-humidity {
   white-space: nowrap;
+}
+
+.routine-item-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.routine-item-row .routine-item {
+  flex: 1;
+  min-width: 0;
+}
+.routine-remove {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pick-remove {
+  margin: -4px 0 6px;
 }
