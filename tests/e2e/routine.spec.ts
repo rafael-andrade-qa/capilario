@@ -107,7 +107,11 @@ test('nova finalização: igual à última, troca o shampoo e a máscara, e segu
 
   // Em Dias, a mais nova destaca o que mudou; o cronograma ganha o N.
   const newest = page.getByRole('listitem', { name: /^Finalização de / }).first()
-  await expect(newest.locator('.day-chip.changed')).toHaveText(['Shampoo B', 'Máscara M · N'])
+  await expect(newest.locator('.day-chip.changed')).toHaveText(['Shampoo', 'Máscara · N'])
+  // Os selos ficam numa linha só, mesmo com muitas etapas.
+  const chips = newest.locator('.day-chip')
+  const tops = await chips.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)))
+  expect(new Set(tops).size).toBe(1)
   await expect(page.getByLabel('Cronograma capilar').locator('li')).toHaveText(['H', 'N'])
 })
 

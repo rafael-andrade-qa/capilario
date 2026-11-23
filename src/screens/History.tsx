@@ -731,8 +731,8 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
                 {items.map((it) => {
                   const e = byId.get(it.experiment_id)
                   const isChanged = changed.has(it.step)
-                  // Curto: o tipo ("Shampoo"); no que mudou, o nome, para saber o que entrou.
-                  const label = isChanged || !e ? itemName(e) : (productType(e.category)?.label ?? itemName(e))
+                  // Sempre curto (o tipo: "Shampoo"); o nome inteiro aparece ao editar a rotina (lápis).
+                  const label = e ? (productType(e.category)?.label ?? itemName(e)) : itemName(e)
                   return (
                     <li key={it.experiment_id} className={`day-chip ${isChanged ? 'changed' : ''}`} title={`${stepLabel(it.step)}: ${itemName(e)}`}>
                       {label}
