@@ -47,7 +47,7 @@ const toItem = (e: Entry): CompareItem => ({
   id: e.stage.id,
   type: e.stage.stage_type,
   capturedAt: e.stage.captured_at,
-  noFinisher: e.experiment.product_mode === 'none',
+  finalizationId: e.stage.finalization_id,
 })
 const anglesOf = (e?: Entry): Angle[] => (e ? e.stage.photos.map((p) => p.angle) : [])
 

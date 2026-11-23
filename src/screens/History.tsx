@@ -42,7 +42,6 @@ import { ProductAbout } from '../components/ProductGuide'
 import { productType } from '../lib/productGuide'
 import { signOut, useHistory, useThumbUrls } from '../lib/state'
 import { allFinalizations, diffRoutine, draftOf, finalizationsWith, itemName, routineExtra, schedule, sortRoutine, stepLabel, type Routines, type RoutineStep } from '../lib/routine'
-import { compareUrl } from '../lib/compare'
 
 /** A partir de quantos produtos a busca aparece. */
 const SEARCH_FROM = 6
@@ -682,7 +681,6 @@ function DaysView({
             : finalizationWhen(f)
           const weather = (['dry', 'wet', 'next_day'] as const).map((t) => f.moments[t]).find((s) => s?.humidity != null)
           const latest = finalizationsOf(experiment)[0]?.id === f.id
-          const pair = prev ? comparePair(f, prev.finalization) : null
           return (
             <li key={f.id} className="card day-card" aria-label={`Finalização de ${when}`}>
               <div className="day-head">
@@ -696,7 +694,6 @@ function DaysView({
                   when={when}
                   items={[
                     { label: 'Editar rotina', href: `/rotina/${f.id}` },
-                    ...(pair ? [{ label: 'Comparar com a anterior', href: compareUrl(pair.type, pair.a, pair.b) }] : []),
                     { label: 'Analisar com IA', onClick: () => onAction('ai', experiment, f, when) },
                     { label: 'Enviar PDF', onClick: () => onAction('pdf', experiment, f, when) },
                     { label: 'Excluir finalização', onClick: () => onAction('delete', experiment, f, when), danger: true },
@@ -727,15 +724,6 @@ function DaysView({
   )
 }
 
-/** Mesmo momento nas duas finalizações (Seco de preferência), para comparar. */
-function comparePair(a: Finalization, b: Finalization): { type: 'dry' | 'wet' | 'next_day'; a: string; b: string } | null {
-  for (const t of ['dry', 'wet', 'next_day'] as const) {
-    const x = a.moments[t]
-    const y = b.moments[t]
-    if (x && y) return { type: t, a: x.id, b: y.id }
-  }
-  return null
-}
 
 interface MenuItem {
   label: string

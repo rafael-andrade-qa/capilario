@@ -121,8 +121,8 @@ test('nova finalização: igual à última, troca o shampoo e a máscara, e segu
 
 test('comparar com a anterior mostra o que mudou', async ({ page }) => {
   await login(page)
-  await page.getByRole('listitem', { name: /^Finalização de / }).first().getByRole('button', { name: /^Ações da finalização de / }).click()
-  await page.getByRole('menuitem', { name: 'Comparar com a anterior' }).click()
+  // O Comparar já abre com a última finalização contra a penúltima.
+  await page.getByRole('button', { name: 'Comparar' }).click()
   const changes = page.getByRole('region', { name: 'O que mudou' })
   // Recolhido numa linha embaixo das fotos; tocar abre a tabela.
   await expect(changes.locator('summary')).toHaveText('Mudou: lavar, máscara')

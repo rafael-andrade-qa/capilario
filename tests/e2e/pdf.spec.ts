@@ -77,11 +77,11 @@ async function downloadPdf(page: Page, dialogName: string) {
   return { name: dl.suggestedFilename(), bytes }
 }
 
-test('comparador: Sem finalizador já vem no A', async ({ page }) => {
+test('comparador abre com a última finalização (A) contra a penúltima (B)', async ({ page }) => {
   await login(page)
   await page.goto('./#/comparar')
-  await expect(page.getByTestId('select-a')).toContainText('Sem finalizador')
-  await expect(page.getByTestId('select-b')).toContainText('Gelatina PDF')
+  await expect(page.getByTestId('select-a')).toContainText('Gelatina PDF')
+  await expect(page.getByTestId('select-b')).toContainText('Sem finalizador')
 })
 
 test('PDF do momento: mensagem pronta e arquivo com as fotos', async ({ page }) => {
@@ -109,10 +109,10 @@ test('PDF do comparativo: A e B lado a lado', async ({ page }) => {
   await page.getByRole('button', { name: 'Enviar PDF do comparativo' }).click()
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF do comparativo' })
   // Duas finalizações: o dia e o que foi usado em cada uma (aqui, a gelatina e nada).
-  await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/em duas finalizações:\n• à esquerda \(A\), em 17\/11 às 10:23, sem finalizador;\n• à direita \(B\), em 19\/11 às 10:23, com Gelatina PDF\.\n\nO que mudou: Só em B: fixar\./)
-  await expect(dialog.getByRole('textbox', { name: 'Nome do arquivo' })).toHaveValue('Comparativo Seco 17-11 x 19-11')
+  await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/em duas finalizações:\n• à esquerda \(A\), em 19\/11 às 10:23, com Gelatina PDF;\n• à direita \(B\), em 17\/11 às 10:23, sem finalizador\.\n\nO que mudou: Só em A: fixar\./)
+  await expect(dialog.getByRole('textbox', { name: 'Nome do arquivo' })).toHaveValue('Comparativo Seco 19-11 x 17-11')
   const { name, bytes } = await downloadPdf(page, 'Enviar PDF do comparativo')
-  expect(name).toBe('Comparativo Seco 17-11 x 19-11.pdf')
+  expect(name).toBe('Comparativo Seco 19-11 x 17-11.pdf')
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.length).toBeGreaterThan(12_000)
 })

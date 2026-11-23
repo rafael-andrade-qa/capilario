@@ -173,12 +173,19 @@ describe('etapas comparáveis', () => {
     expect(defaultPair([items[0]], 'wet')).toBeNull()
   })
 
-  it('Sem finalizador vai no A (é a referência); B = o com produto mais recente', () => {
-    const withNone = [...items, { ...item('nf', 'dry', 5), noFinisher: true }, item('d3', 'dry', 20)]
-    expect(defaultPair(withNone, 'dry')).toEqual({ a: 'nf', b: 'd3' })
-    // Dois Sem finalizador e nenhum com produto: compara os dois.
-    const onlyNone = [{ ...item('x1', 'wet', 1), noFinisher: true }, { ...item('x2', 'wet', 2), noFinisher: true }]
-    expect(defaultPair(onlyNone, 'wet')).toEqual({ a: 'x2', b: 'x1' })
+  it('o par padrão é de duas finalizações diferentes', () => {
+    const f = (id: string, type: CompareItem['type'], h: number, fin: string): CompareItem => ({ ...item(id, type, h), finalizationId: fin })
+    expect(defaultPair([f('a', 'dry', 3, 'F2'), f('b', 'dry', 2, 'F2'), f('c', 'dry', 1, 'F1')], 'dry')).toEqual({ a: 'a', b: 'c' })
+  })
+
+  it('abre com a última finalização contra a penúltima, no momento que as duas têm', () => {
+    const f = (id: string, type: CompareItem['type'], h: number, fin: string): CompareItem => ({ ...item(id, type, h), finalizationId: fin })
+    // Penúltima (F2) tem molhado e seco; a última (F3) só molhado: compara os molhados das duas.
+    const list = [f('w1', 'wet', 1, 'F1'), f('d1', 'dry', 2, 'F1'), f('w2', 'wet', 5, 'F2'), f('d2', 'dry', 6, 'F2'), f('w3', 'wet', 9, 'F3')]
+    expect(initialType(list)).toBe('wet')
+    expect(defaultPair(list, 'wet')).toEqual({ a: 'w3', b: 'w2' })
+    // As duas têm seco: Seco primeiro.
+    expect(initialType([...list, f('d3', 'dry', 10, 'F3')])).toBe('dry')
   })
 
   it('ângulos comparáveis: só os que os dois têm', () => {

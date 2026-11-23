@@ -41,30 +41,37 @@ export interface CompareItem {
   id: string
   type: StageType
   capturedAt: string
-  /** Registro do "Sem finalizador" (vai no A quando existe: é a referência). */
-  noFinisher?: boolean
+  /** Finalização a que o momento pertence (o par padrão é de duas finalizações diferentes). */
+  finalizationId?: string
 }
 
 const byRecent = (x: CompareItem, y: CompareItem) => Date.parse(y.capturedAt) - Date.parse(x.capturedAt)
 
-/**
- * Sugestão para um tipo. Se houver "Sem finalizador" nesse momento, ele vai no A (é a
- * referência: o cabelo sem produto) e o B é o registro com produto mais recente. Sem ele:
- * A = mais recente, B = o anterior.
- */
+const finOf = (i: CompareItem) => i.finalizationId ?? i.id
+
+/** Sugestão para um tipo: A = a mais recente, B = a anterior (de outra finalização). */
 export function defaultPair(items: CompareItem[], type: StageType): { a: string; b: string } | null {
   const same = items.filter((i) => i.type === type).sort(byRecent)
   if (same.length < 2) return null
-  const base = same.find((i) => i.noFinisher)
-  if (base) {
-    const other = same.find((i) => !i.noFinisher) ?? same.find((i) => i.id !== base.id)!
-    return { a: base.id, b: other.id }
-  }
-  return { a: same[0].id, b: same[1].id }
+  const b = same.find((i) => finOf(i) !== finOf(same[0])) ?? same[1]
+  return { a: same[0].id, b: b.id }
 }
 
-/** Tipo inicial: o da etapa mais recente que tenha com quem comparar. */
+/**
+ * Tipo inicial: a última finalização contra a penúltima, no momento que as duas têm (Seco de
+ * preferência, depois Molhado e Dia seguinte). Sem momento em comum: o da etapa mais recente
+ * que tenha com quem comparar.
+ */
 export function initialType(items: CompareItem[]): StageType | null {
+  const latest = new Map<string, number>()
+  for (const i of items) latest.set(finOf(i), Math.max(latest.get(finOf(i)) ?? 0, Date.parse(i.capturedAt)))
+  const [f1, f2] = [...latest.entries()].sort((x, y) => y[1] - x[1]).map(([f]) => f)
+  if (f1 && f2) {
+    for (const t of ['dry', 'wet', 'next_day'] as StageType[]) {
+      const has = (f: string) => items.some((i) => finOf(i) === f && i.type === t)
+      if (has(f1) && has(f2)) return t
+    }
+  }
   for (const i of [...items].sort(byRecent)) if (defaultPair(items, i.type)) return i.type
   return null
 }
