@@ -730,9 +730,11 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
         {all.map(({ experiment, finalization: f }, i) => {
           const prev = all[i + 1]
           const items = sortRoutine(routines[f.id] ?? [])
-          const changed = prev
-            ? new Set<RoutineStep>(diffRoutine(draftOf(routines[prev.finalization.id], experiments), draftOf(routines[f.id], experiments), experiments).changed.map((c) => c.step))
-            : new Set<RoutineStep>()
+          // Destaca o que mudou só quando as duas têm rotina (contra um dia sem rotina, tudo seria "novo").
+          const before = prev ? draftOf(routines[prev.finalization.id], experiments) : []
+          const now = draftOf(routines[f.id], experiments)
+          const changed =
+            before.length && now.length ? new Set<RoutineStep>(diffRoutine(before, now, experiments).changed.map((c) => c.step)) : new Set<RoutineStep>()
           const when = all.some((o) => o.finalization !== f && finalizationWhen(o.finalization) === finalizationWhen(f))
             ? `${finalizationWhen(f)}, ${formatTime(f.start)}`
             : finalizationWhen(f)

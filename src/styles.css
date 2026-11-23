@@ -4053,3 +4053,17 @@ body:has(.home-cta) .toasts {
 .compare-changes-box[open] {
   padding-bottom: 10px;
 }
+
+/* iPhone (app na tela de início): a faixa do relógio e da bateria fica com o fundo do app, e o
+   conteúdo rola por baixo dela sem aparecer atrás do relógio. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: env(safe-area-inset-top);
+  background: var(--bg);
+  pointer-events: none;
+}
