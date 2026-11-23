@@ -5,6 +5,7 @@
 // Uso: node scripts/catalog/build.mjs <saida.json> <coleta1.jsonl> [coleta2.jsonl ...]
 // Opcional: RANKS=ranks1.json,ranks2.json (posições de mais vendidos, ver topsellers.mjs).
 import { readFileSync, writeFileSync } from 'node:fs'
+import { withManual } from './manual.mjs'
 import { CATEGORIES, audienceOf, brandDisplay, classify, cleanName, isHairProduct, mergeKey, plain, slug, vtexSized } from './normalize.mjs'
 
 const [out, ...inputs] = process.argv.slice(2)
@@ -209,7 +210,8 @@ for (const p of finalProducts) {
   if (p.audience === 'unissex' && (ba === 'masculino' || ba === 'feminino')) p.audience = ba
 }
 
-writeFileSync(out, JSON.stringify({ brands: brandRows, products: finalProducts }))
+// Mais os cadastrados à mão (data/manual.json).
+writeFileSync(out, JSON.stringify(withManual({ brands: brandRows, products: finalProducts })))
 const byCat = {}
 for (const p of finalProducts) byCat[p.category] = (byCat[p.category] ?? 0) + 1
 console.log(`linhas ${rows.length}, fora ${dropped}, produtos ${finalProducts.length}, marcas ${brandRows.length}`)

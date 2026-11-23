@@ -1,0 +1,39 @@
+{
+  "brands": [{ "id": "zacca", "name": "Zacca", "audience": "masculino" }],
+  "products": [
+    {
+      "id": "zacca-cera-modeladora-efeito-brilho",
+      "brand_id": "zacca",
+      "name": "Cera Modeladora Efeito Brilho",
+      "retail_name": "Zacca Cera Modeladora Alta Fixação Efeito Brilho/Molhado 70g",
+      "line": null,
+      "category": "cera",
+      "audience": "masculino",
+      "hair_types": ["Normal ou todos os tipos"],
+      "eans": ["7908943500843"],
+      "sizes": ["70g"],
+      "image_src": "https://acdn-us.mitiendanube.com/stores/004/569/254/products/pomada-efeito-brilho-tampa-fcaac687534bd3756317696170204036-1024-1024.webp",
+      "image_bg": "#ececec",
+      "source": "zaccabrasil.com.br",
+      "source_url": "https://zaccabrasil.com.br/produtos/cera-modeladora-efeito-brilho/",
+      "popularity": 500
+    },
+    {
+      "id": "zacca-leave-in-hidratacao-instantanea-e-controle-do-frizz",
+      "brand_id": "zacca",
+      "name": "Leave-in Hidratação Instantânea e Controle do Frizz",
+      "retail_name": "Zacca Leave-in Creme Capilar Hidratação Instantânea e Controle do Frizz 150g",
+      "line": null,
+      "category": "leave_in",
+      "audience": "masculino",
+      "hair_types": ["Normal ou todos os tipos", "Cabelos Com Frizz"],
+      "eans": ["7908943502069"],
+      "sizes": ["150g"],
+      "image_src": "https://acdn-us.mitiendanube.com/stores/004/569/254/products/leave-in-44f25bc8e43432c08517690275042791-1024-1024.webp",
+      "image_bg": "#ececec",
+      "source": "zaccabrasil.com.br",
+      "source_url": "https://zaccabrasil.com.br/produtos/leave-in-zacca/",
+      "popularity": 500
+    }
+  ]
+}

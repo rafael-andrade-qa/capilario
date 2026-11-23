@@ -1,13 +1,12 @@
-// Fotos do catálogo "do nosso jeito": baixa a foto de vitrine de cada produto, corta o fundo
-// branco sobrando e centraliza num retrato 3:4 (480x640) de fundo branco, com a mesma margem
-// (8%) que o app usa nas fotos encontradas pela IA. Grava WebP pequeno, um por produto.
+// Fotos do catálogo "do nosso jeito": baixa a foto de vitrine de cada produto e passa por
+// packshot.mjs (retrato 3:4 480x640, fundo branco, margem de 8%). Grava WebP pequeno, um por
+// produto. Foto de estúdio com fundo colorido: o produto diz a cor em "image_bg".
 // Retoma de onde parou (pula o que já existe).
 //
 // Uso: node scripts/catalog/photos.mjs <catalogo.json> <pasta-saida>
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import https from 'node:https'
-import { readFileSync } from 'node:fs'
-import sharp from 'sharp'
+import { packshot } from './packshot.mjs'
 
 const [catalogFile, outDir] = process.argv.slice(2)
 if (!catalogFile || !outDir) {
@@ -16,9 +15,6 @@ if (!catalogFile || !outDir) {
 }
 mkdirSync(outDir, { recursive: true })
 
-export const W = 480
-export const H = 640
-const MARGIN = Math.round(W * 0.08)
 const UA = 'Mozilla/5.0 (compatible; ProjetoCapilar/1.0)'
 const CONCURRENCY = 6
 const MAX_BYTES = 8 * 1024 * 1024
@@ -51,26 +47,6 @@ function download(url, hops = 0) {
   })
 }
 
-/** Corta a sobra branca e encaixa no retrato com margem. */
-export async function packshot(input) {
-  const flat = await sharp(input).rotate().flatten({ background: '#ffffff' }).toBuffer()
-  let trimmed
-  try {
-    trimmed = await sharp(flat).trim({ background: '#ffffff', threshold: 18 }).toBuffer()
-  } catch {
-    trimmed = flat // imagem toda de uma cor: sem corte
-  }
-  const fitted = await sharp(trimmed)
-    .resize(W - 2 * MARGIN, H - 2 * MARGIN, { fit: 'inside', withoutEnlargement: false, kernel: 'lanczos3' })
-    .toBuffer({ resolveWithObject: true })
-  const left = Math.round((W - fitted.info.width) / 2)
-  const top = Math.round((H - fitted.info.height) / 2)
-  return sharp({ create: { width: W, height: H, channels: 3, background: '#ffffff' } })
-    .composite([{ input: fitted.data, left, top }])
-    .webp({ quality: 78, effort: 5 })
-    .toBuffer()
-}
-
 const { products } = JSON.parse(readFileSync(catalogFile, 'utf8'))
 const queue = products.filter((p) => p.image_src && !existsSync(`${outDir}/${p.id}.webp`))
 console.log(`${products.length} produtos, ${queue.length} fotos a fazer`)
@@ -84,7 +60,7 @@ async function worker() {
     if (!p) return
     try {
       const img = await download(p.image_src)
-      const out = await packshot(img)
+      const out = await packshot(img, { background: p.image_bg })
       writeFileSync(`${outDir}/${p.id}.webp`, out)
       done++
     } catch (e) {

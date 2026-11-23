@@ -4,7 +4,9 @@
 //
 // Precisa da chave secreta (só no ambiente, nunca no repositório):
 //   SUPABASE_URL=... SUPABASE_SECRET_KEY=... node scripts/catalog/upload.mjs <catalogo.json> <pasta-fotos> [limite]
+// Só alguns (ex.: os cadastrados à mão), sem apagar nada: ONLY=id1,id2 antes do comando.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { gunzipSync } from 'node:zlib'
 import { createClient } from '@supabase/supabase-js'
 
 const [catalogFile, photoDir, limitArg] = process.argv.slice(2)
@@ -16,13 +18,16 @@ if (!catalogFile || !photoDir || !url || !key) {
 }
 const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 
-const catalog = JSON.parse(readFileSync(catalogFile, 'utf8'))
-let products = catalog.products.filter((p) => existsSync(`${photoDir}/${p.id}.webp`))
+const raw = readFileSync(catalogFile)
+const catalog = JSON.parse(catalogFile.endsWith('.gz') ? gunzipSync(raw) : raw)
+const only = process.env.ONLY ? new Set(process.env.ONLY.split(',').map((s) => s.trim())) : null
+let products = catalog.products.filter((p) => (!only || only.has(p.id)) && existsSync(`${photoDir}/${p.id}.webp`))
+if (only && products.length !== only.size) throw new Error(`ONLY: ${only.size - products.length} id(s) sem produto ou sem foto`)
 if (limitArg) products = products.sort((a, b) => b.popularity - a.popularity).slice(0, Number(limitArg))
 const brandIds = new Set(products.map((p) => p.brand_id))
 const counts = new Map()
 for (const p of products) counts.set(p.brand_id, (counts.get(p.brand_id) ?? 0) + 1)
-const brands = catalog.brands.filter((b) => brandIds.has(b.id)).map((b) => ({ ...b, product_count: counts.get(b.id) ?? 0 }))
+const brands = catalog.brands.filter((b) => brandIds.has(b.id)).map((b) => ({ ...b, product_count: only ? b.product_count : (counts.get(b.id) ?? 0) })) // com ONLY, a contagem do catálogo inteiro
 console.log(`${products.length} produtos com foto, ${brands.length} marcas`)
 
 // 1) Fotos (retoma pelo registro local do que já subiu para este destino).
@@ -66,11 +71,15 @@ await upsert(
   'catalog_products',
   products
     .filter((p) => sent.has(p.id))
-    .map(({ brand: _brand, image_src: _src, ...p }) => ({ ...p, image_path: `p/${p.id}.webp`, updated_at: new Date().toISOString() })),
+    .map(({ brand: _brand, image_src: _src, image_bg: _bg, ...p }) => ({ ...p, image_path: `p/${p.id}.webp`, updated_at: new Date().toISOString() })),
 )
 console.log('linhas ok')
 
-// 3) O que saiu do catálogo.
+// 3) O que saiu do catálogo (não quando sobe só alguns).
+if (only) {
+  console.log(`fim: ${products.length} produto(s) enviados`)
+  process.exit(0)
+}
 const keep = new Set(products.filter((p) => sent.has(p.id)).map((p) => p.id))
 const stale = []
 for (let from = 0; ; from += 1000) {

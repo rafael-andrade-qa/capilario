@@ -225,8 +225,14 @@ por vez. Os scripts ficam em `scripts/catalog/`:
 | 1 | `vtex-harvest.mjs <loja> <categorias> <saida.jsonl>` | Coleta (divide por subcategoria e marca para passar do limite de 2.500 por consulta) |
 | 2 | `topsellers.mjs <loja> <categorias> <ranks.json>` | Posição de mais vendidos (ordena a busca) |
 | 3 | `RANKS=... build.mjs <catalogo.json> <coletas...>` | Filtra (sem kits, coloração, alisamento, acessórios, rosto/corpo/barba), classifica o tipo, marca o público, tira marca e tamanho do nome e junta o mesmo produto de lojas diferentes |
-| 4 | `photos.mjs <catalogo.json> <pasta>` | Foto padronizada (WebP 480x640) com `sharp` |
-| 5 | `SUPABASE_URL=... SUPABASE_SECRET_KEY=... upload.mjs <catalogo.json> <pasta>` | Sobe fotos e linhas; apaga o que saiu do catálogo |
+| 4 | `photos.mjs <catalogo.json> <pasta>` | Foto padronizada (WebP 480x640, fundo branco) com `sharp` (`packshot.mjs`) |
+| 5 | `SUPABASE_URL=... SUPABASE_SECRET_KEY=... upload.mjs <catalogo.json> <pasta>` | Sobe fotos e linhas; apaga o que saiu do catálogo. Com `ONLY=id1,id2`, sobe só esses e não apaga nada |
+
+**Cadastro à mão.** Produto que não está nas lojas coletadas (ex.: Zacca) entra em `data/manual.json`, já no
+formato final, com foto e dados do site oficial da marca e o código de barras do rótulo. O `build.mjs` junta esses
+produtos toda vez que roda; para um catálogo pronto, `node scripts/catalog/manual.mjs data/catalogo.json.gz`.
+Foto de estúdio com fundo colorido leva a cor em `image_bg` (ex.: `#ececec`): o fundo é clareado até o branco,
+como numa correção de exposição. Depois, `photos.mjs` só com esses itens e `upload.mjs` com `ONLY`.
 
 As regras de limpeza estão em `normalize.mjs` (com testes). As fotos são da vitrine das lojas e das marcas:
 servem para uso pessoal e em teste; antes de abrir o app ao público, troque por fotos com licença aberta
