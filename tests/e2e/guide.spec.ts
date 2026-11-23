@@ -32,36 +32,44 @@ async function login(page: Page) {
 
 const card = (page: Page, name: string) => page.locator('.experiment', { hasText: name })
 
-test('produto aberto diz o que ele é; a explicação e o guia completo', async ({ page }) => {
+test('produto aberto mostra o tipo; a explicação e o guia por etapa', async ({ page }) => {
   await login(page)
   await card(page, 'Geleia Seladora').locator('.product-toggle').click()
   const about = card(page, 'Geleia Seladora').getByRole('button', { name: 'O que é geleia' })
-  await expect(about).toContainText('Geleia')
-  await expect(about).toContainText('Define e controla o frizz, com fixação média.')
+  await expect(about).toHaveText('Geleia')
 
   await about.click()
   const sheet = page.getByRole('dialog', { name: 'Geleia' })
+  await expect(sheet).toContainText('Etapa: Fixar')
   await expect(sheet).toContainText('O que é')
   await expect(sheet).toContainText('Como usar')
   await expect(sheet).toContainText('Combina com')
-  await expect(sheet).toContainText('Etapa: Fixar.')
   await sheet.getByRole('link', { name: 'Ver todos os tipos' }).click()
 
+  // Abre direto na etapa do produto, só com os tipos dela.
   await expect(page.getByRole('heading', { name: 'Tipos de produto' })).toBeVisible()
-  const route = page.getByRole('list', { name: 'Ordem da rotina' }).getByRole('listitem')
-  await expect(route.first()).toHaveText('Lavar')
-  await expect(route).toHaveCount(9)
-  const hold = page.getByRole('region', { name: 'Fixar' })
-  await expect(hold.locator('summary')).toHaveCount(4)
-  await hold.locator('summary', { hasText: 'Mousse' }).click()
-  await expect(hold).toContainText('Agite, faça uma bola de espuma')
-  await expect(page.getByText('O cabelo só lavado, para comparar.')).toBeVisible()
+  const tabs = page.getByRole('tablist', { name: 'Etapas da rotina' }).getByRole('tab')
+  await expect(tabs).toHaveCount(9)
+  await expect(tabs.first()).toHaveText('1Lavar')
+  await expect(page.getByRole('tab', { name: /Fixar/ })).toHaveAttribute('aria-selected', 'true')
+  const panel = page.getByRole('tabpanel')
+  await expect(panel.locator('.guide-row')).toHaveCount(4)
+  await panel.getByRole('button', { name: /Mousse/ }).click()
+  const mousse = page.getByRole('dialog', { name: 'Mousse' })
+  await expect(mousse).toContainText('Agite, faça uma bola de espuma')
+  await expect(mousse.getByRole('link', { name: 'Ver todos os tipos' })).toHaveCount(0)
+  await mousse.getByRole('button', { name: 'Entendi' }).click()
+
+  await page.getByRole('tab', { name: /Lavar/ }).click()
+  await expect(panel.getByRole('button', { name: /Shampoo/ }).first()).toBeVisible()
+  await page.getByRole('button', { name: /Próxima etapa: Tratar/ }).click()
+  await expect(page.getByRole('tab', { name: /Tratar/ })).toHaveAttribute('aria-selected', 'true')
 })
 
 test('sem tipo: convida a escolher; o campo Tipo explica e grava', async ({ page }) => {
   await login(page)
   await card(page, 'Creme Misterioso').locator('.product-toggle').click()
-  await card(page, 'Creme Misterioso').getByRole('link', { name: /Que tipo de produto é este\?/ }).click()
+  await card(page, 'Creme Misterioso').getByRole('link', { name: 'Escolher o tipo do produto' }).click()
 
   await expect(page.getByRole('heading', { name: 'Editar produto' })).toBeVisible()
   const type = page.getByRole('combobox', { name: 'Tipo' })

@@ -3271,46 +3271,50 @@ body:has(.save-bar) .toasts {
   margin: 0;
 }
 
-/* Tipo do produto: a linha "Geleia · define..." no produto aberto, a folha e o guia. */
-.product-about {
-  display: flex;
+/* Tipo do produto: o selo no produto aberto, a folha e o guia. */
+.type-tag {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg);
-  color: inherit;
+  gap: 6px;
+  min-height: 32px;
+  margin: 0 0 12px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
   font: inherit;
-  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 700;
   text-decoration: none;
   cursor: pointer;
 }
-.product-about-text {
-  flex: 1;
-  min-width: 0;
+.type-tag svg {
+  opacity: 0.8;
 }
-.product-about-more {
-  flex-shrink: 0;
-  color: var(--brand);
+.type-tag-missing {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
   font-weight: 600;
 }
 .type-chip {
-  flex-shrink: 0;
-  padding: 2px 9px;
+  display: inline-block;
+  padding: 2px 10px;
   border-radius: 999px;
   background: var(--brand-soft);
   color: var(--brand);
   font-size: 0.78rem;
   font-weight: 700;
 }
+.guide-sheet-sub {
+  margin: -4px 0 4px;
+}
 .guide-body {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
 }
 .guide-body dt {
-  margin-top: 10px;
+  margin-top: 12px;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -3319,9 +3323,6 @@ body:has(.save-bar) .toasts {
 }
 .guide-body dd {
   margin: 2px 0 0;
-}
-.guide-step-note {
-  margin: 0 0 14px;
 }
 .guide-link {
   margin: 14px 0 0;
@@ -3336,67 +3337,101 @@ body:has(.save-bar) .toasts {
 .guide-intro {
   margin: 0 0 12px;
 }
-.guide-route {
+.guide-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 16px;
-  padding: 0;
-  list-style: none;
-  counter-reset: route;
-}
-.guide-route li {
-  counter-increment: route;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.guide-route li::before {
-  content: counter(route) '. ';
-}
-.guide-group {
-  margin-bottom: 12px;
-}
-.guide-group-title {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  margin: 0 0 2px;
-  font-size: 1rem;
+  margin: 0 -16px 12px;
+  padding: 2px 16px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
 }
-.guide-n {
+.guide-tabs::-webkit-scrollbar {
+  display: none;
+}
+.guide-tab {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 4px 14px 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: center;
+}
+.guide-tab-n {
   display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
-  background: var(--brand);
-  color: var(--brand-ink);
+  background: var(--line);
   font-size: 0.75rem;
 }
-.guide-group-text {
-  margin: 0 0 6px;
+.guide-tab.on {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
-.guide-item {
-  border-top: 1px solid var(--line);
+.guide-tab.on .guide-tab-n {
+  background: var(--brand);
+  color: var(--brand-ink);
 }
-.guide-item summary {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 10px 0;
-  cursor: pointer;
+.guide-step-text {
+  margin: 0 0 4px;
+}
+.guide-list {
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
-.guide-item summary::-webkit-details-marker {
-  display: none;
+.guide-list li + li {
+  border-top: 1px solid var(--line);
 }
-.guide-item[open] summary .muted {
-  display: none;
+.guide-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.guide-item .guide-body {
-  margin-top: -6px;
+.guide-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.guide-row-chev {
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.guide-next {
+  display: block;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 600;
+  text-align: right;
+  cursor: pointer;
 }

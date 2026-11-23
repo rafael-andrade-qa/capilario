@@ -75,3 +75,14 @@ export function CloseIcon({ size = 16 }: { size?: number }) {
     </svg>
   )
 }
+
+/** Saber mais (i num círculo). */
+export function InfoIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 11v6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="7.6" r="1.3" fill="currentColor" />
+    </svg>
+  )
+}

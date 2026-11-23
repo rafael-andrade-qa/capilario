@@ -1,20 +1,19 @@
-// O que é cada tipo de produto: a linha "Geleia · define e controla o frizz" dentro do produto
-// aberto e a folha com a explicação inteira (o que é, etapa, como usar, combina com).
+// O tipo do produto: o selo "Geleia ⓘ" dentro do produto aberto e a folha com a explicação
+// inteira (o que é, como usar, combina com, etapa).
 import { useState } from 'react'
+import { InfoIcon, PlusIcon } from './ActionIcons'
 import { useSheet } from './FinalizationStrip'
 import { NO_FINISHER_GUIDE, productType, stepOf, type ProductType } from '../lib/productGuide'
 import { href } from '../lib/router'
 
-/** Linha do tipo no produto aberto; tocar abre a explicação. Sem tipo: convida a escolher. */
+/** Selo do tipo no produto aberto; tocar abre a explicação. Sem tipo: um selo para escolher. */
 export function ProductAbout({ experimentId, mode, category }: { experimentId: string; mode: 'named' | 'none' | 'unspecified'; category?: string | null }) {
   const [open, setOpen] = useState(false)
   if (mode === 'none') {
     return (
       <>
-        <button type="button" className="product-about" onClick={() => setOpen(true)} aria-label="O que é Sem finalizador">
-          <span className="type-chip">Referência</span>
-          <span className="muted small product-about-text">{NO_FINISHER_GUIDE.short}</span>
-          <span className="product-about-more small">O que é?</span>
+        <button type="button" className="type-tag" onClick={() => setOpen(true)} aria-label="O que é Sem finalizador">
+          Referência <InfoIcon />
         </button>
         {open && <NoFinisherSheet onClose={() => setOpen(false)} />}
       </>
@@ -24,25 +23,23 @@ export function ProductAbout({ experimentId, mode, category }: { experimentId: s
   if (!type) {
     if (mode !== 'named') return null
     return (
-      <a className="product-about product-about-missing" href={href(`/produto/${experimentId}/editar`)}>
-        <span className="muted small">Que tipo de produto é este? Escolha para ver pra que serve.</span>
-        <span className="product-about-more small">Escolher</span>
+      <a className="type-tag type-tag-missing" href={href(`/produto/${experimentId}/editar`)} aria-label="Escolher o tipo do produto">
+        <PlusIcon size={13} /> Tipo do produto
       </a>
     )
   }
   return (
     <>
-      <button type="button" className="product-about" onClick={() => setOpen(true)} aria-label={`O que é ${type.label.toLowerCase()}`}>
-        <span className="type-chip">{type.label}</span>
-        <span className="muted small product-about-text">{type.short}</span>
-        <span className="product-about-more small">O que é?</span>
+      <button type="button" className="type-tag" onClick={() => setOpen(true)} aria-label={`O que é ${type.label.toLowerCase()}`}>
+        {type.label} <InfoIcon />
       </button>
       {open && <TypeSheet type={type} onClose={() => setOpen(false)} />}
     </>
   )
 }
 
-export function TypeSheet({ type, onClose }: { type: ProductType; onClose: () => void }) {
+/** A explicação de um tipo. No guia (inGuide) não precisa do link para o guia. */
+export function TypeSheet({ type, onClose, inGuide = false }: { type: ProductType; onClose: () => void; inGuide?: boolean }) {
   const sheet = useSheet(onClose)
   const step = stepOf(type.step)
   return (
@@ -50,15 +47,17 @@ export function TypeSheet({ type, onClose }: { type: ProductType; onClose: () =>
       <div ref={sheet} className="sheet guide-sheet" role="dialog" aria-modal="true" aria-label={type.label} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" aria-hidden="true" />
         <h2 className="sheet-title">{type.label}</h2>
-        <TypeBody type={type} />
-        <p className="small guide-step-note muted">
-          <strong>Etapa: {step.label}.</strong> {step.text}
+        <p className="guide-sheet-sub">
+          <span className="type-chip">Etapa: {step.label}</span>
         </p>
+        <TypeBody type={type} />
         <div className="pdf-actions">
-          <a className="btn btn-ghost" href={href('/guia')} onClick={onClose}>
-            Ver todos os tipos
-          </a>
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          {!inGuide && (
+            <a className="btn btn-ghost" href={href(`/guia?etapa=${type.step}`)} onClick={onClose}>
+              Ver todos os tipos
+            </a>
+          )}
+          <button type="button" className={`btn btn-primary ${inGuide ? 'btn-block' : ''}`} onClick={onClose}>
             Entendi
           </button>
         </div>
@@ -67,7 +66,7 @@ export function TypeSheet({ type, onClose }: { type: ProductType; onClose: () =>
   )
 }
 
-/** O que é, como usar e combina com (na folha e no guia). */
+/** O que é, como usar e combina com. */
 export function TypeBody({ type }: { type: ProductType }) {
   return (
     <dl className="guide-body">

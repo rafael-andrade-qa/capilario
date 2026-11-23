@@ -109,7 +109,7 @@ function Route({ userId }: { userId: string }) {
   if ((m = match('/etapa/:id/completar', path))) return <StageFormRoute kind="complete" userId={userId} stageId={m.id} />
   if ((m = match('/etapa/:id', path))) return <StageDetail stageId={m.id} />
   if (path === '/comparar') return <Compare params={params} />
-  if (path === '/guia') return <Guide />
+  if (path === '/guia') return <Guide params={params} />
   return (
     <History
       saved={params.get('salvo')}
