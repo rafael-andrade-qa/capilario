@@ -2,8 +2,9 @@
 // Sem compartilhamento de arquivos (como num computador), o PDF é baixado e a mensagem copiada.
 import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
+import { inflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
-import { photoPath, testUser, type TestUser } from '../integration/helpers'
+import { adminClient, photoPath, testUser, type TestUser } from '../integration/helpers'
 import { FRONT, LEFT } from './images'
 
 const BUCKET = 'capilar-photos'
@@ -108,6 +109,90 @@ test('PDF do comparativo: A e B lado a lado', async ({ page }) => {
   expect(name).toBe('Comparativo Seco 17-11 x 19-11 - Sem finalizador x Gelatina PDF.pdf')
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.length).toBeGreaterThan(12_000)
+})
+
+/** Texto do PDF: abre os blocos comprimidos (o jsPDF escreve o texto como "(...) Tj"). */
+function pdfText(bytes: Buffer): string {
+  const raw = bytes.toString('latin1')
+  let out = ''
+  const re = /stream\r?\n/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(raw))) {
+    const start = m.index + m[0].length
+    const end = raw.indexOf('endstream', start)
+    try {
+      out += inflateSync(bytes.subarray(start, end)).toString('latin1')
+    } catch {
+      /* imagem ou bloco sem compressão */
+    }
+  }
+  return out
+}
+
+test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', async ({ page }) => {
+  const experimentId = randomUUID()
+  const finalizationId = randomUUID()
+  await seed({ product_mode: 'named', product_name: 'Geleia IA', brand: 'Marca G' }, 'Análise: Ondas no molhado.', 22, {
+    experimentId,
+    finalizationId,
+    stageType: 'wet',
+    hour: '09:00',
+  })
+  const dry = await seed(null, 'Macio e solto.\n\nAnálise: Ondas 2B uniformes.', 22, { experimentId, finalizationId, stageType: 'dry', hour: '12:30' })
+  const { error } = await adminClient()
+    .from('finalization_analyses')
+    .insert({
+      finalization_id: finalizationId,
+      user_id: me.id,
+      model: 'claude-opus-5-5',
+      notes_state: 'applied',
+      result: {
+        product: 'Geleia IA (Marca G)',
+        hair_type: 'Ondulado 2B',
+        tendency: 'tende a 2C/3A',
+        traits: ['fio medio'],
+        scores: { definition: 8, frizz_control: 7, volume: 6, day2: null },
+        summary: 'Bom equilibrio.',
+        notes: { wet: 'Ondas no molhado.', dry: 'Ondas 2B uniformes.', next_day: '' },
+      },
+    })
+  if (error) throw error
+
+  await login(page)
+  const card = page.locator('.experiment', { hasText: 'Geleia IA' })
+  await card.locator('.product-toggle').click()
+  await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Geleia IA' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Enviar PDF da finalização' })
+  const toggle = dialog.getByRole('checkbox', { name: 'Incluir a análise da IA' })
+  await expect(toggle).toBeChecked()
+  const message = dialog.getByRole('textbox', { name: 'Mensagem' })
+  await expect(message).toHaveValue(/com as minhas observações e a análise da IA\.$/)
+  const withAi = (await downloadPdf(page, 'Enviar PDF da finalização')).bytes
+  let text = pdfText(withAi)
+  expect(text).toContain('(Leitura da IA)')
+  expect(text).toContain('Ondulado 2B')
+  expect(text).toContain('8/10')
+  expect(text).toContain('Seco: Macio e solto.')
+  expect(text).toMatch(/an.lise da IA: Ondas 2B uniformes\./)
+
+  // Sem a análise: some a leitura e a observação da IA; o texto da pessoa fica.
+  await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Geleia IA' }).click()
+  await toggle.uncheck()
+  await expect(message).toHaveValue(/com as minhas observações\.$/)
+  text = pdfText((await downloadPdf(page, 'Enviar PDF da finalização')).bytes)
+  expect(text).not.toContain('Leitura da IA')
+  expect(text).not.toContain('Ondas 2B uniformes')
+  expect(text).toContain('Seco: Macio e solto.')
+
+  // Momento: "Minha observação" é só o texto da pessoa; a análise vai no PDF com rótulo.
+  await page.goto(`./#/etapa/${dry}`)
+  await page.getByRole('button', { name: 'Enviar PDF' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Enviar PDF' })
+  await expect(sheet.getByRole('checkbox', { name: 'Incluir a análise da IA' })).toBeChecked()
+  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/Minha observação: Macio e solto\.\n\nAs fotos estão no PDF, com a análise da IA\.$/)
+  text = pdfText((await downloadPdf(page, 'Enviar PDF')).bytes)
+  expect(text).toMatch(/An.lise da IA: Ondas 2B uniformes\./)
+  expect(text).not.toContain('Leitura da IA')
 })
 
 test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', async ({ page }) => {

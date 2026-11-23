@@ -3255,3 +3255,18 @@ body:has(.save-bar) .toasts {
 .delete-product-row .text-action {
   margin-top: 0;
 }
+/* PDF: incluir ou não a análise da IA (uma linha, marcada por padrão) */
+.pdf-ai-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.pdf-ai-toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}

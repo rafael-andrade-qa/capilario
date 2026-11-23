@@ -31,6 +31,16 @@ describe('mensagens prontas', () => {
     )
     expect(momentMessage({ ...none, stageType: 'next_day' })).toBe('Olha como ficou meu cabelo no dia seguinte, sem finalizador, em 18/11 às 09:05.\n\nAs fotos estão no PDF.')
   })
+  it('momento com análise da IA: "Minha observação" é só o texto da pessoa; o fim avisa da análise', () => {
+    const notes = 'Muita definição.\n\nAnálise: Ondas 2B uniformes.'
+    expect(momentMessage({ ...gel, notes, ai: true })).toBe(
+      'Olha como ficou meu cabelo seco, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nMinha observação: Muita definição.\n\nAs fotos estão no PDF, com a análise da IA.',
+    )
+    // Sem a análise no PDF, ela também não aparece na mensagem.
+    expect(momentMessage({ ...gel, notes: 'Análise: Ondas 2B uniformes.', ai: false })).toBe(
+      'Olha como ficou meu cabelo seco, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nAs fotos estão no PDF.',
+    )
+  })
   it('comparativo: esquerda e direita', () => {
     expect(compareMessage(none, gel)).toBe(
       'Comparando meu cabelo seco:\n• à esquerda, sem finalizador, em 18/11 às 09:05;\n• à direita, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nAs fotos estão lado a lado no PDF.',
@@ -56,6 +66,13 @@ describe('finalização inteira', () => {
     expect(finalizationMessage({ ...fin, noFinisher: true, moments: fin.moments.slice(0, 1) })).toBe(
       'Olha como meu cabelo evoluiu sem finalizador, na finalização de 19/11:\n• molhado às 10:23.\n\nAs fotos estão lado a lado no PDF.',
     )
+  })
+  it('mensagem com a análise da IA', () => {
+    const tail = (f: FinalizationInfo) => finalizationMessage(f).split('\n').pop()
+    expect(tail({ ...fin, ai: true })).toBe('As fotos estão lado a lado no PDF, com as minhas observações e a análise da IA.')
+    const onlyAi = { ...fin, moments: fin.moments.map((m) => ({ ...m, notes: m.notes ? 'Análise: Ondas.' : null })) }
+    expect(tail({ ...onlyAi, ai: true })).toBe('As fotos estão lado a lado no PDF, com a análise da IA.')
+    expect(tail({ ...onlyAi, ai: false })).toBe('As fotos estão lado a lado no PDF.')
   })
   it('nome do arquivo', () => {
     expect(finalizationFileName(fin)).toBe('Finalização 19-11 - Gelatina Modeladora Supervolume')

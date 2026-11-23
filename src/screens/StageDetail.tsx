@@ -13,9 +13,7 @@ import { PageSkeleton } from '../components/Skeleton'
 import { DateTimeField } from '../components/DateTimeField'
 import { FramingEditor } from '../components/FramingEditor'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
-import { momentPdf } from '../lib/pdf'
-import { finalizationOption, productHero } from '../lib/finalizationShare'
-import { momentFileName, momentInfo, momentMessage } from '../lib/share'
+import { finalizationOption, momentOption } from '../lib/finalizationShare'
 import { deletePhoto, movePhoto, replacePhoto, setPhotoCrops, updateStage } from '../lib/api'
 import { MoveAngleSheet, SwapIcon } from '../components/MoveAngleSheet'
 import { AnalysisCard, AnalysisSuggestion, useFinalizationAnalysis } from '../components/FinalizationAnalysis'
@@ -455,28 +453,10 @@ export function StageDetail({ stageId }: { stageId: string }) {
         <PdfShareSheet
           heading="Enviar PDF"
           onClose={() => setPdfOpen(false)}
-          options={[{
-          label: 'Este momento',
-          summary: `${present.length} ${present.length === 1 ? 'foto' : 'fotos'} do ${STAGE_LABEL[stage.stage_type]}`,
-          message: momentMessage(momentInfo(experiment, stage)),
-          fileName: momentFileName(momentInfo(experiment, stage)),
-          build: async () =>
-            momentPdf({
-              banner: {
-                kicker: `Momento · ${STAGE_LABEL[stage.stage_type]}`,
-                title: productLabel(experiment),
-                brand: brandLabel(experiment) || null,
-                pill: formatDateTime(stage.captured_at),
-                heroes: [await productHero(experiment)],
-              },
-              notes: stage.notes,
-              photos: present.map((ang) => {
-                const p = photoByAngle(stage, ang)!
-                return { label: ANGLE_LABEL[ang], url: urls[p.storage_path], crop: p.crop }
-              }),
-            }),
-          },
-          ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin)] : [])]}
+          options={[
+            momentOption(experiment, stage, present, urls),
+            ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin, undefined, ai.analysis)] : []),
+          ]}
         />
       )}
 

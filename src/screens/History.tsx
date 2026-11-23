@@ -10,6 +10,7 @@ import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
 import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
 import { finalizationOption } from '../lib/finalizationShare'
+import { fetchAnalyses, type FinalizationAnalysis } from '../lib/analysis'
 import { AnalyzeSheet, SparkIcon } from '../components/FinalizationAnalysis'
 import { DeleteFinalizationSheet } from '../components/DeleteFinalizationSheet'
 import type { FinalizationChoice } from '../components/FinalizationStrip'
@@ -81,6 +82,15 @@ export function History({
   const { experiments, error, loading, reload, patchStage } = useHistory()
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [pdfFor, setPdfFor] = useState<Experiment | null>(null)
+  // Análises das finalizações do produto do PDF (buscadas ao tocar, antes de abrir a folha).
+  const [pdfAnalyses, setPdfAnalyses] = useState<Map<string, FinalizationAnalysis>>(() => new Map())
+  const openPdf = (exp: Experiment) =>
+    void fetchAnalyses(finalizationsOf(exp).map((f) => f.id))
+      .catch(() => new Map<string, FinalizationAnalysis>())
+      .then((m) => {
+        setPdfAnalyses(m)
+        setPdfFor(exp)
+      })
   const [aiFor, setAiFor] = useState<Experiment | null>(null)
   const [deleteFor, setDeleteFor] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
@@ -286,7 +296,7 @@ export function History({
                         <button
                           type="button"
                           className="icon-btn"
-                          onClick={() => setPdfFor(exp)}
+                          onClick={() => openPdf(exp)}
                           aria-label={`Enviar PDF de uma finalização de ${productLabel(exp)}`}
                           title="Enviar PDF de uma finalização"
                         >
@@ -329,7 +339,7 @@ export function History({
             return n > 2 ? `Escolha uma das ${n} finalizações de ${productLabel(pdfFor)} (deslize para ver todas):` : `Escolha a finalização de ${productLabel(pdfFor)}:`
           })()}
           pick="list"
-          options={finalizationChoices(pdfFor, urls)}
+          options={finalizationChoices(pdfFor, urls, pdfAnalyses)}
           onClose={() => setPdfFor(null)}
         />
       )}
@@ -420,8 +430,8 @@ function finalizationCards(exp: Experiment, urls: Record<string, string>): (Fina
 }
 
 /** Opções do PDF: uma por finalização, com data, momentos e miniaturas. */
-function finalizationChoices(exp: Experiment, urls: Record<string, string>): PdfOption[] {
-  return finalizationCards(exp, urls).map(({ fin, when, detail, thumbs }) => ({ ...finalizationOption(exp, fin, when), detail, thumbs }))
+function finalizationChoices(exp: Experiment, urls: Record<string, string>, analyses: Map<string, FinalizationAnalysis>): PdfOption[] {
+  return finalizationCards(exp, urls).map(({ fin, when, detail, thumbs }) => ({ ...finalizationOption(exp, fin, when, analyses.get(fin.id) ?? null), detail, thumbs }))
 }
 
 /** Uma finalização: os três momentos lado a lado; o que falta vira atalho (nos primeiros dias). */

@@ -165,6 +165,12 @@ no detalhe do momento) vira uma página com uma coluna por momento (molhado → 
 linha, e as observações no fim. A mensagem já vem pronta (dá para editar) e **Enviar** abre o compartilhamento do aparelho
 (WhatsApp, e-mail…). Onde não há compartilhamento de arquivos (computador), o PDF é baixado e a mensagem copiada.
 
+**Análise da IA no PDF.** Quando a finalização tem análise, ela vai junto por padrão: no PDF da finalização, um
+bloco **Leitura da IA** (tipo e tendência, características, as 4 notas em barrinha, o resumo e quem fez) antes das
+observações; nos dois PDFs, a observação da IA de cada momento aparece com rótulo ("Seco · análise da IA"),
+separada do que a pessoa escreveu. Na mensagem pronta, "Minha observação" leva só o texto da pessoa. A folha mostra
+**Incluir a análise da IA** (marcado); desmarcar troca o PDF e a mensagem por uma versão sem a análise.
+
 ## Avisos
 
 Confirmações ("Seco salvo.", "Momento excluído.", "Produto atualizado.", "Foto trocada.") e erros de ações

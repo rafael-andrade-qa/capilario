@@ -1,5 +1,6 @@
 // Enviar em PDF: textos prontos (mensagem que acompanha o arquivo e nome do arquivo) e o
 // compartilhamento do aparelho. Os textos são funções puras (testadas em share.test.ts).
+import { splitNote } from './analysisText'
 import { STAGE_LABEL, STAGE_TYPES, brandLabel, productLabel, type Experiment, type Finalization, type Stage, type StageType } from './domain'
 
 export interface MomentInfo {
@@ -9,6 +10,8 @@ export interface MomentInfo {
   stageType: StageType
   capturedAt: string
   notes?: string | null
+  /** O PDF leva a análise da IA (a mensagem avisa). */
+  ai?: boolean
 }
 
 export function momentInfo(experiment: Experiment, stage: Stage): MomentInfo {
@@ -46,11 +49,12 @@ export function productPhrase(m: MomentInfo): string {
 
 /** Mensagem pronta para mandar junto com o PDF de um momento. */
 export function momentMessage(m: MomentInfo): string {
-  const notes = m.notes?.trim()
+  // "Minha observação" é só o que a pessoa escreveu; a análise da IA vai no PDF, com rótulo.
+  const notes = splitNote(m.notes).own
   return [
     `Olha como ficou meu cabelo ${MOMENT_WORD[m.stageType]}, ${productPhrase(m)}, em ${whenText(m.capturedAt)}.`,
     notes ? `Minha observação: ${notes}` : null,
-    'As fotos estão no PDF.',
+    m.ai ? 'As fotos estão no PDF, com a análise da IA.' : 'As fotos estão no PDF.',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -73,6 +77,8 @@ export interface FinalizationInfo {
   noFinisher: boolean
   /** Momentos registrados, na ordem molhado → seco → dia seguinte. */
   moments: { stageType: StageType; capturedAt: string; notes?: string | null }[]
+  /** O PDF leva a análise da IA (a mensagem avisa). */
+  ai?: boolean
 }
 
 export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, 'moments'>): FinalizationInfo {
@@ -104,12 +110,13 @@ export function finalizationMessage(f: FinalizationInfo): string {
     const word = m.stageType === 'next_day' ? 'no dia seguinte,' : MOMENT_WORD[m.stageType]
     return `• ${word} ${when}${i === f.moments.length - 1 ? '.' : ';'}`
   })
-  const notes = f.moments.some((m) => m.notes?.trim())
+  const notes = f.moments.some((m) => splitNote(m.notes).own)
+  const extra = notes && f.ai ? ', com as minhas observações e a análise da IA' : notes ? ', com as minhas observações' : f.ai ? ', com a análise da IA' : ''
   return [
     `Olha como meu cabelo evoluiu ${product}, na finalização de ${whenText(start).split(' às ')[0]}:`,
     ...lines,
     '',
-    notes ? 'As fotos estão lado a lado no PDF, com as minhas observações.' : 'As fotos estão lado a lado no PDF.',
+    `As fotos estão lado a lado no PDF${extra}.`,
   ].join('\n')
 }
 

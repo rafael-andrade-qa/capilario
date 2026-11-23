@@ -36,6 +36,8 @@ export interface PdfOption {
   /** Só na lista: linha de baixo e miniaturas. */
   detail?: string
   thumbs?: { url?: string; crop?: Crop | null }[]
+  /** Versão sem a análise da IA: com ela, a folha mostra "Incluir a análise da IA" (marcado). */
+  noAi?: Pick<PdfOption, 'message' | 'build'>
 }
 
 type Built = { blob: Blob | null; failed: boolean }
@@ -69,26 +71,32 @@ export function PdfShareSheet({
 }) {
   const notify = useToast()
   const [index, setIndex] = useState(0)
-  const [messages, setMessages] = useState(() => options.map((o) => o.message))
+  const [withAi, setWithAi] = useState(true)
+  // Cada versão (opção, com ou sem a análise da IA) tem a sua mensagem e o seu PDF, montado uma vez.
+  const [messages, setMessages] = useState<Record<string, string>>({})
   const [names, setNames] = useState(() => options.map((o) => o.fileName))
-  const [built, setBuilt] = useState<Record<number, Built>>({})
+  const [built, setBuilt] = useState<Record<string, Built>>({})
   const [sending, setSending] = useState(false)
   const sheet = useRef<HTMLDivElement>(null)
-  const started = useRef(new Set<number>())
+  const started = useRef(new Set<string>())
   const closeRef = useRef(onClose)
   closeRef.current = onClose
-  const option = options[index]
-  const state = built[index] ?? { blob: null, failed: false }
+  const base = options[index]
+  const plain = !withAi && !!base.noAi
+  const key = plain ? `${index}:sem-ia` : String(index)
+  const option: PdfOption = plain ? { ...base, ...base.noAi! } : base
+  const message = messages[key] ?? option.message
+  const state = built[key] ?? { blob: null, failed: false }
 
   useEffect(() => {
-    if (started.current.has(index)) return
-    started.current.add(index)
-    const i = index
-    options[i]
+    if (started.current.has(key)) return
+    started.current.add(key)
+    const k = key
+    option
       .build()
-      .then((blob) => setBuilt((b) => ({ ...b, [i]: { blob, failed: false } })))
-      .catch(() => setBuilt((b) => ({ ...b, [i]: { blob: null, failed: true } })))
-  }, [index, options])
+      .then((blob) => setBuilt((b) => ({ ...b, [k]: { blob, failed: false } })))
+      .catch(() => setBuilt((b) => ({ ...b, [k]: { blob: null, failed: true } })))
+  }, [key, option])
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -106,7 +114,7 @@ export function PdfShareSheet({
     if (!state.blob || sending) return
     setSending(true)
     const file = new File([state.blob], `${cleanFileName(names[index])}.pdf`, { type: 'application/pdf' })
-    const result = await shareFile(file, messages[index], heading)
+    const result = await shareFile(file, message, heading)
     setSending(false)
     if (result === 'cancelled') return
     notify(result === 'shared' ? 'PDF enviado.' : 'PDF baixado. A mensagem foi copiada: é só colar.', 'success')
@@ -160,6 +168,12 @@ export function PdfShareSheet({
             ))}
           </div>
         )}
+        {base.noAi && (
+          <label className="pdf-ai-toggle">
+            <input type="checkbox" checked={withAi} onChange={(e) => setWithAi(e.target.checked)} />
+            <span>Incluir a análise da IA</span>
+          </label>
+        )}
         <div className={`pdf-file ${state.blob ? 'ready' : ''}`}>
           <span className="pdf-file-badge">
             <PdfFileIcon />
@@ -196,11 +210,11 @@ export function PdfShareSheet({
           <span className="field-label">Mensagem</span>
           <textarea
             rows={5}
-            value={messages[index]}
+            value={message}
             maxLength={1000}
             onChange={(e) => {
               const v = e.target.value
-              setMessages((m) => m.map((x, i) => (i === index ? v : x)))
+              setMessages((m) => ({ ...m, [key]: v }))
             }}
           />
         </label>

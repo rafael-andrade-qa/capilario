@@ -2,6 +2,7 @@
 // analyze-finalization e cuida das sugestões de observação (usar nos momentos ou descartar).
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
 import { signedUrls, updateStage } from './api'
+import { mergeNote } from './analysisText'
 import { ANGLES, STAGE_TYPES, type Angle, type Finalization, type StageType } from './domain'
 import { coverCrop, type Crop } from './framing'
 import { supabase } from './supabase'
@@ -34,39 +35,19 @@ export interface FinalizationAnalysis {
   notes_state: 'pending' | 'applied' | 'dismissed'
 }
 
-/** Marca que separa o que a pessoa escreveu da análise da IA, dentro da observação. */
-export const ANALYSIS_MARK = 'Análise: '
-
-/**
- * Observação com a análise: o texto da pessoa fica e a análise vai no fim, depois de
- * "Análise: ". Uma análise anterior (do fim em diante) é trocada pela nova.
- */
-export function mergeNote(current: string | null | undefined, suggestion: string): string | null {
-  const text = suggestion.trim()
-  const base = current ?? ''
-  const i = base.startsWith(ANALYSIS_MARK) ? 0 : base.indexOf(`\n\n${ANALYSIS_MARK}`)
-  const own = (i < 0 ? base : base.slice(0, i)).trim()
-  if (!text) return own || null
-  return own ? `${own}\n\n${ANALYSIS_MARK}${text}` : `${ANALYSIS_MARK}${text}`
-}
+export { ANALYSIS_MARK, costLabel, mergeNote, modelLabel, splitNote } from './analysisText'
 
 /** Momentos da finalização que receberiam observação (têm sugestão). */
 export function suggestedMoments(fin: Pick<Finalization, 'moments'>, a: Pick<FinalizationAnalysis, 'result'>): StageType[] {
   return STAGE_TYPES.filter((t) => fin.moments[t] && a.result.notes?.[t]?.trim())
 }
 
-/** Nome curto do modelo para a tela ("claude-opus-5-5" → "Opus 5.5"). */
-export function modelLabel(model: string): string {
-  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(model)
-  if (!m) return model
-  return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ''}`
-}
-
-/** Custo em dólares para a tela ("US$ 0,07"; abaixo de 1 centavo, "< US$ 0,01"). */
-export function costLabel(usd: number | null | undefined): string | null {
-  if (usd == null) return null
-  if (usd < 0.01) return '< US$ 0,01'
-  return `US$ ${usd.toFixed(2).replace('.', ',')}`
+/** Análises destas finalizações (para o PDF), por id da finalização. */
+export async function fetchAnalyses(finalizationIds: string[]): Promise<Map<string, FinalizationAnalysis>> {
+  if (!finalizationIds.length) return new Map()
+  const { data, error } = await supabase.from('finalization_analyses').select('*').in('finalization_id', finalizationIds)
+  if (error) throw new Error(error.message)
+  return new Map(((data ?? []) as FinalizationAnalysis[]).map((a) => [a.finalization_id, a]))
 }
 
 export async function fetchAnalysis(finalizationId: string): Promise<FinalizationAnalysis | null> {
