@@ -3,6 +3,7 @@
 // produto também está na rotina. As etapas e o mapa por tipo são os mesmos do banco
 // (supabase/migrations/20261124000100_routine.sql).
 import { finalizationsOf, productLabel, type Experiment, type Finalization } from './domain'
+import { productType } from './productGuide'
 
 export type RoutineStep = 'wash' | 'condition' | 'mask' | 'prep' | 'shape' | 'hold' | 'finish'
 export type MaskKind = 'H' | 'N' | 'R'
@@ -229,4 +230,46 @@ export function productScores(
 /** Rotina em texto só quando tem mais que o produto principal (senão repete o título do PDF). */
 export function routineExtra(items: RoutineItem[] | undefined, experiments: Experiment[]): string | null {
   return items && items.length > 1 ? routineText(items, experiments) : null
+}
+
+/** Rotina em selos curtos: "Shampoo · Máscara N · Mousse" (tipo de cada produto). Vazia: null. */
+export function routineShort(items: RoutineItem[] | undefined, experiments: Experiment[]): string | null {
+  if (!items?.length) return null
+  const byId = new Map(experiments.map((e) => [e.id, e]))
+  return sortRoutine(items)
+    .map((i) => {
+      const e = byId.get(i.experiment_id)
+      const label = e ? (productType(e.category)?.label ?? productLabel(e)) : 'Produto'
+      return i.mask_kind ? `${label} ${i.mask_kind}` : label
+    })
+    .join(' · ')
+}
+
+export interface RoutineDiff {
+  /** Etapas com produto nos dois lados, mas diferentes: o que A e B usaram. */
+  swapped: { step: RoutineStep; a: string[]; b: string[] }[]
+  onlyA: RoutineStep[]
+  onlyB: RoutineStep[]
+  same: RoutineStep[]
+}
+
+/** Diferença entre as rotinas de A e B, separada em trocas e no que só um lado tem. */
+export function compareRoutines(a: DraftItem[], b: DraftItem[], experiments: Experiment[]): RoutineDiff {
+  const { changed, same } = diffRoutine(b, a, experiments)
+  return {
+    swapped: changed.filter((c) => c.before.length && c.after.length).map((c) => ({ step: c.step, a: c.after, b: c.before })),
+    onlyA: changed.filter((c) => !c.before.length).map((c) => c.step),
+    onlyB: changed.filter((c) => !c.after.length).map((c) => c.step),
+    same,
+  }
+}
+
+/** O que mudou em frases curtas (PDF e mensagem): "Fixar: Mousse × Gelatina", "Só em A: lavar, máscara". */
+export function compareLines(d: RoutineDiff): string[] {
+  const steps = (s: RoutineStep[]) => s.map((x) => stepLabel(x).toLowerCase()).join(', ')
+  return [
+    ...d.swapped.map((s) => `${stepLabel(s.step)}: ${s.a.join(', ')} × ${s.b.join(', ')}`),
+    ...(d.onlyA.length ? [`Só em A: ${steps(d.onlyA)}`] : []),
+    ...(d.onlyB.length ? [`Só em B: ${steps(d.onlyB)}`] : []),
+  ]
 }

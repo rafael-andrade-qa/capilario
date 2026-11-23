@@ -40,12 +40,13 @@ describe('buildContent', () => {
       ],
       past: [{ product: 'Creme (Widi)', when: '18/11', hair_type: 'Ondulado 2B', scores: { definition: 4, frizz_control: 9, volume: 5, day2: 6 }, summary: 'Alinha.' }],
     }) as { type: string; text?: string }[]
-    expect(content[0].text).toContain('Geleia Seladora (Widi Care)')
+    // Com rotina, ela é o contexto (o produto principal já está dentro dela).
+    expect(content[0].text).not.toContain('Produto desta finalização')
     expect(content[0].text).toContain('Rotina do dia, por etapa: Lavar: Shampoo X · Fixar: Geleia Seladora (Widi Care).')
     expect(content[0].text).toContain('Observação da pessoa: "Toalha e dedos."')
     expect(content[0].text).toContain('- Seco (no mesmo dia), 20/11 15:38 (clima: 82% de umidade, 24°C): 1 foto(s).')
     expect(content[0].text).not.toMatch(/Molhado[^\n]*clima/)
-    expect(content[0].text).toContain('Creme (Widi) (18/11): Ondulado 2B; definição 4')
+    expect(content[0].text).toContain('18/11 (Creme (Widi)): Ondulado 2B; definição 4')
     const labels = content.filter((c) => c.type === 'text').slice(1, -1).map((c) => c.text)
     expect(labels).toEqual(['Molhado (logo depois de finalizar) · frente:', 'Molhado (logo depois de finalizar) · trás:', 'Seco (no mesmo dia) · lado esquerdo:'])
     expect(content.filter((c) => c.type === 'image')).toHaveLength(3)

@@ -174,10 +174,11 @@ Deno.serve(async (req) => {
     )
     if (!stages.length) return reply(404, { error: 'not_found' })
     const [experiment] = await getJson<ExperimentRow[]>(headers, `experiments?id=eq.${stages[0].experiment_id}&select=product_mode,product_name,brand`)
-    const past = await getJson<{ created_at: string; result: Record<string, unknown> }[]>(
+    const past = await getJson<{ finalization_id: string; created_at: string; result: Record<string, unknown> }[]>(
       headers,
-      `finalization_analyses?finalization_id=neq.${input.finalization_id}&select=created_at,result&order=created_at.desc&limit=8`,
+      `finalization_analyses?finalization_id=neq.${input.finalization_id}&select=finalization_id,created_at,result&order=created_at.desc&limit=8`,
     )
+    const pastRoutines = await Promise.all(past.map((p) => routineOf(headers, p.finalization_id).catch(() => null)))
     const product = productOf(experiment)
     const routine = await routineOf(headers, input.finalization_id)
     const present = new Set<Moment>(input.images.map((i) => i.moment))
@@ -186,8 +187,9 @@ Deno.serve(async (req) => {
       routine,
       moments: stages.map((s) => ({ moment: s.stage_type, when: WHEN.format(new Date(s.captured_at)), notes: ownNotes(s.notes), weather: weatherOf(s) })),
       past: past.map(
-        (p): PastAnalysis => ({
+        (p, i): PastAnalysis => ({
           product: String(p.result.product ?? ''),
+          routine: pastRoutines[i],
           when: DAY.format(new Date(p.created_at)),
           hair_type: String(p.result.hair_type ?? ''),
           scores: p.result.scores as PastAnalysis['scores'],

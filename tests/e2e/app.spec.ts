@@ -230,15 +230,16 @@ test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ 
     await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp(dry[angle].storage_path))
     await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none[angle].storage_path))
   }
-  // Legenda: o produto; embaixo data, horário e marca na mesma linha.
-  await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('A · Ondulando a Gema')
+  // Legenda: a finalização (o dia), sem produto; embaixo data e horário.
+  await expect(page.getByTestId('side-A').locator('figcaption strong')).toHaveText(/^A · (Hoje|Ontem|\d{2}\/\d{2})$/)
   await expect(page.getByTestId('side-A').locator('.compare-sub')).toContainText(/\d{2}\/\d{2} \d{2}:\d{2}/)
-  await expect(page.getByTestId('side-A').locator('.compare-sub')).toContainText('· Gema Labs')
+  // O seletor diz o que foi usado (sem rotina registrada, o produto).
+  await expect(page.getByTestId('select-a')).toContainText('Ondulando a Gema')
   // Observação só ao tocar no balão.
   await expect(page.getByTestId('side-A').locator('figcaption')).not.toContainText('Gostei do volume.')
   await page.getByRole('button', { name: 'Observação de A' }).click()
   await expect(page.getByTestId('side-A').locator('figcaption')).toContainText('Gostei do volume.')
-  await expect(page.getByTestId('side-B').locator('figcaption')).toContainText('Sem finalizador')
+  await expect(page.getByTestId('select-b')).toContainText('Sem finalizador')
   await noHorizontalScroll(page)
 
   // Recarregar o comparador mantém etapa, seleção e ângulo (A8).

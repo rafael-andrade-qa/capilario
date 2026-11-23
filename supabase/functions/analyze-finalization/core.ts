@@ -67,6 +67,8 @@ export interface MomentContext {
 }
 export interface PastAnalysis {
   product: string
+  /** Rotina daquela finalização, se registrada (para dizer o que mudou). */
+  routine?: string | null
   when: string
   hair_type: string
   scores: Scores
@@ -104,7 +106,7 @@ Como avaliar:
   frizz_control = 10 é sem frizz;
   volume = 10 é muito volume (não é bom nem ruim, só intensidade);
   day2 = quanto a finalização segura no dia seguinte (use -1 se não houver fotos do dia seguinte).
-- summary: 1 a 2 frases sobre o produto nesta finalização; se houver análises anteriores, compare com elas pelo nome do produto.
+- summary: 1 a 2 frases sobre esta finalização (o resultado da rotina do dia); se houver análises anteriores, compare com elas pela data, dizendo o que mudou na rotina entre uma e outra.
 - notes: uma observação por momento que tem fotos (2 a 3 frases curtas, até ~300 caracteres), no estilo de anotação de diário. Não repita o nome do produto. Para momento sem fotos, texto vazio.
 - Leve em conta as observações que a própria pessoa escreveu (rotina, sensação ao toque), sem repeti-las.
 - Quando vier a rotina do dia (os produtos de cada etapa), o resultado é da combinação, não só do finalizador. Ao comparar com análises anteriores, se a rotina mudou numa etapa (outro shampoo, outra máscara), diga que a diferença pode vir dali.
@@ -165,8 +167,8 @@ function scoreLine(s: Scores): string {
 
 /** Conteúdo da mensagem: contexto em texto e cada foto com o rótulo antes dela. */
 export function buildContent(images: InputImage[], ctx: AnalyzeContext): unknown[] {
-  const lines = [`Produto desta finalização: ${ctx.product}.`]
-  if (ctx.routine) lines.push(`Rotina do dia, por etapa: ${ctx.routine}.`)
+  // A finalização é a rotina do dia; sem rotina registrada, vale o produto principal.
+  const lines = ctx.routine ? [`Rotina do dia, por etapa: ${ctx.routine}.`] : [`Produto desta finalização: ${ctx.product}.`]
   for (const m of MOMENTS) {
     const mc = ctx.moments.find((x) => x.moment === m)
     const n = images.filter((i) => i.moment === m).length
@@ -175,7 +177,7 @@ export function buildContent(images: InputImage[], ctx: AnalyzeContext): unknown
   }
   if (ctx.past.length) {
     lines.push('', 'Análises anteriores (outras finalizações), para comparar:')
-    for (const p of ctx.past) lines.push(`- ${p.product} (${p.when}): ${p.hair_type}; ${scoreLine(p.scores)}. ${p.summary}`)
+    for (const p of ctx.past) lines.push(`- ${p.when} (${p.routine ? `rotina: ${p.routine}` : p.product}): ${p.hair_type}; ${scoreLine(p.scores)}. ${p.summary}`)
   }
   const content: unknown[] = [{ type: 'text', text: lines.join('\n') }]
   const ordered = [...images].sort((a, b) => MOMENTS.indexOf(a.moment) - MOMENTS.indexOf(b.moment) || ANGLES.indexOf(a.angle) - ANGLES.indexOf(b.angle))

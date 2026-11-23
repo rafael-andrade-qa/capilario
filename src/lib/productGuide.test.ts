@@ -57,11 +57,10 @@ describe('mensagens com o tipo', () => {
     const fin = finalizationMessage({ ...base, moments: [{ stageType: 'wet', capturedAt: '2026-11-19T10:00:00' }] })
     expect(fin).toContain('às 10:00.\n\nGeleia: define e controla o frizz, com fixação média.\n\nAs fotos estão lado a lado no PDF.')
   })
-  it('comparativo explica os dois, sem repetir', () => {
+  it('comparativo compara finalizações: não explica produto por produto', () => {
     const none: MomentInfo = { ...base, noFinisher: true, about: 'Sem finalizador: o cabelo só lavado, para comparar.' }
     const msg = compareMessage(none, base)
-    expect(msg).toContain('\n\nSem finalizador: o cabelo só lavado, para comparar.\nGeleia: define e controla o frizz, com fixação média.\n\nAs fotos')
-    expect(compareMessage(base, base).match(/Geleia: define/g)).toHaveLength(1)
-    expect(compareMessage({ ...base, about: null }, { ...base, about: null })).toContain('.\n\nAs fotos')
+    expect(msg).not.toContain('Geleia: define')
+    expect(msg).toContain('sem finalizador')
   })
 })

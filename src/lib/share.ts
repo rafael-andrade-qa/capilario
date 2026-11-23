@@ -15,6 +15,8 @@ export interface MomentInfo {
   ai?: boolean
   /** "Geleia: define e controla o frizz..." (pra quem recebe saber o que é o produto). */
   about?: string | null
+  /** Rotina em selos curtos ("Shampoo · Máscara N · Mousse"), quando registrada. */
+  routine?: string | null
 }
 
 export function momentInfo(experiment: Experiment, stage: Stage): MomentInfo {
@@ -66,14 +68,18 @@ export function momentMessage(m: MomentInfo): string {
 }
 
 /** Mensagem pronta para mandar junto com o PDF do comparativo. */
-export function compareMessage(a: MomentInfo, b: MomentInfo): string {
+/**
+ * Mensagem do comparativo: duas finalizações (o dia e o que foi usado), e o que mudou entre elas.
+ * Sem rotina registrada, diz o produto (ou "sem finalizador").
+ */
+export function compareMessage(a: MomentInfo, b: MomentInfo, changes: string[] = []): string {
+  const used = (m: MomentInfo) => (m.routine ? `com ${m.routine}` : productPhrase(m))
   return [
-    `Comparando meu cabelo ${MOMENT_WORD[a.stageType]}:`,
-    `• à esquerda, ${productPhrase(a)}, em ${whenText(a.capturedAt)};`,
-    `• à direita, ${productPhrase(b)}, em ${whenText(b.capturedAt)}.`,
+    `Comparando meu cabelo ${MOMENT_WORD[a.stageType]} em duas finalizações:`,
+    `• à esquerda (A), em ${whenText(a.capturedAt)}, ${used(a)};`,
+    `• à direita (B), em ${whenText(b.capturedAt)}, ${used(b)}.`,
     '',
-    ...[...new Set([a.about, b.about].filter(Boolean))].map((t) => `${t}`),
-    ...(a.about || b.about ? [''] : []),
+    ...(changes.length ? [`O que mudou: ${changes.join('; ')}.`, ''] : []),
     'As fotos estão lado a lado no PDF.',
   ].join('\n')
 }
@@ -164,9 +170,7 @@ export function momentFileName(m: MomentInfo): string {
 
 /** "Comparativo Seco 18-11 x 19-11 - Sem finalizador x Gelatina Supervolume" */
 export function compareFileName(a: MomentInfo, b: MomentInfo): string {
-  const pa = productName(a)
-  const pb = productName(b)
-  return cleanFileName(`Comparativo ${STAGE_LABEL[a.stageType]} ${day(a.capturedAt)} x ${day(b.capturedAt)} - ${pa === pb ? pa : `${pa} x ${pb}`}`)
+  return cleanFileName(`Comparativo ${STAGE_LABEL[a.stageType]} ${day(a.capturedAt)} x ${day(b.capturedAt)}`)
 }
 
 /** "Finalização 19-11 - Gelatina Supervolume" */

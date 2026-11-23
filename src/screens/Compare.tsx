@@ -2,7 +2,7 @@
 // Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
 // os dois registros têm ficam clicáveis (ver lib/compare.ts).
 import { PageSkeleton } from '../components/Skeleton'
-import { diffRoutine, draftOf, stepLabel } from '../lib/routine'
+import { compareLines, compareRoutines, diffRoutine, draftOf, routineShort, stepLabel } from '../lib/routine'
 import { DropIcon } from '../components/ActionIcons'
 import { weatherLong, withHumidity } from '../lib/weather'
 import { useEffect, useMemo, useState } from 'react'
@@ -10,17 +10,17 @@ import { Dropdown, type DropdownOption } from '../components/Dropdown'
 import { PageHeader } from '../components/PageHeader'
 import { PdfIcon, PdfShareSheet } from '../components/PdfShareSheet'
 import { comparePdf } from '../lib/pdf'
-import { dayMonth, productHero } from '../lib/finalizationShare'
-import { compareFileName, compareMessage, momentInfo, productTitle } from '../lib/share'
+import { dayMonth } from '../lib/finalizationShare'
+import { compareFileName, compareMessage, momentInfo } from '../lib/share'
 import { PhotoView } from '../components/PhotoView'
-import { ProductThumb, productThumbPath } from '../components/ProductThumb'
+import { coverPhoto } from '../components/ProductThumb'
 import { commonAngles, compareUrl, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
 import {
   ANGLES,
   ANGLE_LABEL,
   STAGE_LABEL,
   STAGE_TYPES,
-  brandLabel,
+  finalizationWhen,
   formatDateTime,
   formatShortDate,
   formatShortDateTime,
@@ -63,7 +63,7 @@ function NoteIcon() {
 }
 
 export function Compare({ params }: { params: URLSearchParams }) {
-  const { experiments } = useHistory()
+  const { experiments, routines } = useHistory()
   const groups = useMemo(() => sortHistory(experiments ?? []), [experiments])
   const entries = useMemo(() => {
     const map = new Map<string, Entry>()
@@ -117,7 +117,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
   const paths = [
     ...[a, b].flatMap((e) => (e ? e.stage.photos.map((p) => p.storage_path) : [])),
-    ...recent.map((e) => productThumbPath(e.experiment, e.stage)).filter((p): p is string => !!p),
+    ...recent.map((e) => coverPhoto(e.stage)?.storage_path).filter((p): p is string => !!p),
   ]
   const { urls, error } = useSignedUrls(paths)
 
@@ -161,12 +161,23 @@ export function Compare({ params }: { params: URLSearchParams }) {
   }
 
   const optionsOf = (t: StageType) => recent.filter((e) => e.stage.stage_type === t)
+  // Cada lado é uma finalização: a rotina em selos curtos (sem rotina, o produto ou "Sem finalizador").
+  const routineOf = (e: Entry) =>
+    routineShort(routines[e.stage.finalization_id], groups) ?? (e.experiment.product_mode === 'named' ? productLabel(e.experiment) : 'Sem finalizador')
+  const heroOf = (e: Entry, label: string) => {
+    const c = coverPhoto(e.stage)
+    return { label, photo: c ? { label, url: urls[c.storage_path], crop: c.crop } : null }
+  }
+  const changeLines =
+    a && b && a.stage.finalization_id !== b.stage.finalization_id
+      ? compareLines(compareRoutines(draftOf(routines[a.stage.finalization_id], groups), draftOf(routines[b.stage.finalization_id], groups), groups))
+      : []
   const toOption = (e: Entry): DropdownOption => ({
     value: e.stage.id,
     // O dia primeiro (com a rotina, é ele que identifica a finalização); o produto embaixo.
     label: optionWhen(e),
-    sublabel: productLabel(e.experiment),
-    thumb: <ProductThumb experiment={e.experiment} stage={e.stage} urls={urls} className="dd-thumb" />,
+    sublabel: routineOf(e),
+    thumb: <PhotoView className="dd-thumb" url={urls[coverPhoto(e.stage)?.storage_path ?? '']} crop={coverPhoto(e.stage)?.crop} alt="" />,
   })
   // Aviso só quando não há nenhum ângulo em comum (os outros nem dá para escolher).
   const missing = a && b && !common.length ? missingSide(anglesOf(a), anglesOf(b), angle) : null
@@ -273,22 +284,24 @@ export function Compare({ params }: { params: URLSearchParams }) {
               options={[{
               label: 'Comparativo',
               summary: `${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`,
-              message: compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
+              message: compareMessage(
+                { ...momentInfo(a.experiment, a.stage), routine: routineShort(routines[a.stage.finalization_id], groups) },
+                { ...momentInfo(b.experiment, b.stage), routine: routineShort(routines[b.stage.finalization_id], groups) },
+                changeLines,
+              ),
               fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
               build: async () =>
                 comparePdf({
                   banner: {
                     kicker: `Comparativo · ${STAGE_LABEL[type]}`,
-                    title: a.experiment.id === b.experiment.id ? productLabel(a.experiment) : `${productLabel(a.experiment)} × ${productLabel(b.experiment)}`,
-                    brand: a.experiment.id === b.experiment.id ? brandLabel(a.experiment) || null : null,
-                    pill: `${dayMonth(a.stage.captured_at)} × ${dayMonth(b.stage.captured_at)} · mesmos ângulos lado a lado`,
-                    heroes:
-                      a.experiment.id === b.experiment.id
-                        ? [await productHero(a.experiment)]
-                        : [await productHero(a.experiment, 'A'), await productHero(b.experiment, 'B')],
+                    title: `Finalizações ${dayMonth(a.stage.captured_at)} × ${dayMonth(b.stage.captured_at)}`,
+                    brand: null,
+                    pill: 'mesmos ângulos lado a lado',
+                    heroes: [heroOf(a, 'A'), heroOf(b, 'B')],
                   },
-                  a: { title: productTitle(a.experiment), subtitle: withHumidity(formatDateTime(a.stage.captured_at), a.stage) },
-                  b: { title: productTitle(b.experiment), subtitle: withHumidity(formatDateTime(b.stage.captured_at), b.stage) },
+                  a: { title: routineOf(a), subtitle: withHumidity(formatDateTime(a.stage.captured_at), a.stage) },
+                  b: { title: routineOf(b), subtitle: withHumidity(formatDateTime(b.stage.captured_at), b.stage) },
+                  notes: changeLines.length ? [{ title: 'O que mudou', text: changeLines.join('. ') + '.' }] : [],
                   rows: common.map((ang) => {
                     const pa = photoByAngle(a.stage, ang)!
                     const pb = photoByAngle(b.stage, ang)!
@@ -313,12 +326,12 @@ export function Compare({ params }: { params: URLSearchParams }) {
                   ) : (
                     <div className="photo-frame compare-frame empty">Sem foto deste ângulo</div>
                   )}
-                  {/* Sempre duas linhas, iguais dos dois lados: o produto; embaixo data, horário e marca
-                      (a data nunca corta; marca comprida ganha reticências). Observação só ao tocar. */}
+                  {/* Sempre duas linhas, iguais dos dois lados: a finalização (dia); embaixo horário e
+                      umidade. A rotina está no seletor e no "O que mudou". Observação só ao tocar. */}
                   <figcaption className="compare-meta">
                     <span className="compare-line">
-                      <strong className="one-line" title={productLabel(e.experiment)}>
-                        {label} · {productLabel(e.experiment)}
+                      <strong className="one-line">
+                        {label} · {finalizationWhen({ start: e.stage.captured_at })}
                       </strong>
                       {e.stage.is_favorite && <span className="star" aria-label="Favorito">★</span>}
                       {e.stage.notes && (
@@ -341,11 +354,6 @@ export function Compare({ params }: { params: URLSearchParams }) {
                           {' · '}
                           <DropIcon />
                           {e.stage.humidity}%
-                        </span>
-                      )}
-                      {brandLabel(e.experiment) && (
-                        <span className="one-line" title={brandLabel(e.experiment) ?? undefined}>
-                          · {brandLabel(e.experiment)}
                         </span>
                       )}
                     </span>

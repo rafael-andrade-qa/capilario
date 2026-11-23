@@ -43,7 +43,11 @@ describe('mensagens prontas', () => {
   })
   it('comparativo: esquerda e direita', () => {
     expect(compareMessage(none, gel)).toBe(
-      'Comparando meu cabelo seco:\n• à esquerda, sem finalizador, em 18/11 às 09:05;\n• à direita, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nAs fotos estão lado a lado no PDF.',
+      'Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 18/11 às 09:05, sem finalizador;\n• à direita (B), em 19/11 às 10:23, com Gelatina Modeladora Supervolume (Widi Care).\n\nAs fotos estão lado a lado no PDF.',
+    )
+    // Com rotina: os selos curtos e o que mudou.
+    expect(compareMessage({ ...gel, routine: 'Shampoo · Gelatina' }, { ...none, routine: 'Shampoo' }, ['Só em A: fixar'])).toBe(
+      'Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 19/11 às 10:23, com Shampoo · Gelatina;\n• à direita (B), em 18/11 às 09:05, com Shampoo.\n\nO que mudou: Só em A: fixar.\n\nAs fotos estão lado a lado no PDF.',
     )
   })
 })
@@ -83,8 +87,7 @@ describe('nomes de arquivo', () => {
   it('dizem o que é: momento, data e produto', () => {
     expect(momentFileName(gel)).toBe('Seco 19-11 - Gelatina Modeladora Supervolume')
     expect(momentFileName({ ...none, stageType: 'next_day' })).toBe('Dia seguinte 18-11 - Sem finalizador')
-    expect(compareFileName(none, gel)).toBe('Comparativo Seco 18-11 x 19-11 - Sem finalizador x Gelatina Modeladora Supervolume')
-    expect(compareFileName(gel, gel)).toBe('Comparativo Seco 19-11 x 19-11 - Gelatina Modeladora Supervolume')
+    expect(compareFileName(none, gel)).toBe('Comparativo Seco 18-11 x 19-11')
   })
   it('nome editado: sem caracteres proibidos, sem .pdf repetido, nunca vazio', () => {
     expect(cleanFileName('  Meu cabelo: antes/depois?  ')).toBe('Meu cabelo- antes-depois-')

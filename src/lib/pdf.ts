@@ -491,6 +491,8 @@ export async function comparePdf(opts: {
   a: CompareSide
   b: CompareSide
   rows: { label: string; a: PdfPhoto; b: PdfPhoto }[]
+  /** O que mudou entre as duas finalizações, no fim. */
+  notes?: { title?: string; text: string }[]
 }): Promise<Blob> {
   const flat = opts.rows.flatMap((r) => [r.a, r.b])
   const [{ doc, lib }, assets, images] = await Promise.all([newDoc(), bannerAssets(opts.banner), Promise.all(flat.map((p) => prepared(p)))])
@@ -530,6 +532,14 @@ export async function comparePdf(opts: {
     photoBox(doc, images[i * 2], xA, y, w, `${r.label} · A`)
     y = photoBox(doc, images[i * 2 + 1], xB, y, w, `${r.label} · B`) + 2
   })
+  const notes = wrapNotes(doc, opts.notes ?? [])
+  if (notes.blocks.length) {
+    if (y + notes.height > BOTTOM) {
+      doc.addPage()
+      y = MARGIN
+    }
+    notesBlock(doc, notes.blocks, y)
+  }
   footers(doc)
   return doc.output('blob')
 }
