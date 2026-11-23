@@ -3483,7 +3483,7 @@ body:has(.save-bar) .toasts {
 }
 .routine-step {
   display: grid;
-  grid-template-columns: 24px 70px minmax(0, 1fr);
+  grid-template-columns: 92px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
   padding: 10px 0;
@@ -4118,4 +4118,62 @@ body::before {
 }
 .pick-remove {
   margin: -4px 0 6px;
+}
+
+/* Rotina enxuta: cada produto numa linha (nome com reticências); "+ outro" embaixo do nome da etapa. */
+.routine-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.routine-head .routine-label {
+  margin-top: 12px;
+}
+.routine-more {
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.routine-item {
+  flex-wrap: nowrap;
+  min-height: 44px;
+  padding: 0 10px;
+}
+.routine-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.routine-item .routine-tag {
+  flex: none;
+}
+.routine-tag.empty {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+}
+.pick-kind {
+  margin: 0 0 10px;
+}
+.pick-kind p {
+  margin: 0 0 6px;
+}
+.routine-step {
+  padding: 8px 0;
+}
+.routine-head .routine-label {
+  margin-top: 2px;
+  line-height: 1.25;
+}
+.routine-more {
+  min-height: 24px;
 }

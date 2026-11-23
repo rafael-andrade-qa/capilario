@@ -14,6 +14,7 @@ import { NO_FINISHER_ID, brandLabel, findFinalization, finalizationWhen, product
 import {
   MASK_KINDS,
   ROUTINE_STEPS,
+  maskKindLabel,
   changeSummary,
   diffRoutine,
   draftOf,
@@ -163,7 +164,7 @@ function RoutineEdit({
   }
 
   function setKind(item: DraftItem, kind: MaskKind) {
-    setItems((prev) => prev.map((i) => (i === item ? { ...i, maskKind: i.maskKind === kind ? null : kind } : i)))
+    setItems((prev) => prev.map((i) => (i === item ? { ...i, maskKind: kind } : i)))
   }
 
   function newProduct(step: RoutineStep, current: DraftItem | null) {
@@ -221,58 +222,54 @@ function RoutineEdit({
       {!edit && !baseLabel && <p className="muted small routine-intro">Toque nas etapas que você fez. As outras podem ficar vazias.</p>}
 
       <section className="card routine-steps" aria-label="Rotina">
-        {ROUTINE_STEPS.map((s, n) => {
+        {ROUTINE_STEPS.map((s) => {
           const list = items.filter((i) => i.step === s.id)
           return (
             <div key={s.id} className="routine-step" role="group" aria-label={s.label}>
-              <span className="routine-n" aria-hidden="true">
-                {n + 1}
-              </span>
-              <span className="routine-label">{s.short}</span>
+              <div className="routine-head">
+                <span className="routine-label">{s.short}</span>
+                {list.length > 0 && (
+                  <button type="button" className="routine-more" onClick={() => setPicking({ step: s.id, current: null })} aria-label={`Adicionar em ${s.label}`}>
+                    + outro
+                  </button>
+                )}
+              </div>
               <div className="routine-items">
                 {list.map((item) => {
                   const e = byId.get(item.experimentId)
                   const locked = (!!edit || !!fixed) && item.experimentId === principalId
                   const isNew = !!baseLabel && !baseIds.has(`${item.step}|${item.experimentId}|${item.maskKind ?? ''}`)
+                  const kind = item.step === 'mask' ? maskKindLabel(item.maskKind) : null
                   return (
-                    <div key={item.experimentId} className="routine-item-wrap">
-                      <div className="routine-item-row">
-                        <button
-                          type="button"
-                          className={`routine-item ${isNew ? 'changed' : ''}`}
-                          onClick={() =>
-                            locked
-                              ? notify('Este é o produto principal desta finalização: ele fica na rotina. Para usar outro, registre uma nova finalização.')
-                              : setPicking({ step: s.id, current: item })
-                          }
-                          aria-label={locked ? `${s.label}: ${itemName(e)} (produto desta finalização)` : `${s.label}: ${itemName(e)}. Trocar`}
-                        >
-                          <span className="routine-item-name">{e ? productLabel(e) : 'Produto'}</span>
-                          {e && brandLabel(e) && <span className="routine-item-brand">{brandLabel(e)}</span>}
-                          {isNew && <span className="routine-tag">trocado</span>}
-                          {locked && <span className="routine-tag">principal</span>}
+                    <div key={item.experimentId} className="routine-item-row">
+                      <button
+                        type="button"
+                        className={`routine-item ${isNew ? 'changed' : ''}`}
+                        onClick={() =>
+                          locked
+                            ? notify('Este é o produto principal desta finalização: ele fica na rotina. Para usar outro, registre uma nova finalização.')
+                            : setPicking({ step: s.id, current: item })
+                        }
+                        aria-label={locked ? `${s.label}: ${itemName(e)} (produto desta finalização)` : `${s.label}: ${itemName(e)}. Trocar`}
+                        title={e ? [productLabel(e), brandLabel(e)].filter(Boolean).join(' · ') : undefined}
+                      >
+                        <span className="routine-item-name">{e ? productLabel(e) : 'Produto'}</span>
+                        {item.step === 'mask' && <span className={`routine-tag ${kind ? '' : 'empty'}`}>{kind ?? 'tipo?'}</span>}
+                        {locked && <span className="routine-tag">principal</span>}
+                      </button>
+                      {!locked && (
+                        <button type="button" className="routine-remove" onClick={() => choose(s.id, item, null)} aria-label={`Tirar ${itemName(e)} de ${s.label}`} title="Tirar da rotina">
+                          <CloseIcon size={14} />
                         </button>
-                        {!locked && (
-                          <button type="button" className="routine-remove" onClick={() => choose(s.id, item, null)} aria-label={`Tirar ${itemName(e)} de ${s.label}`} title="Tirar da rotina">
-                            <CloseIcon size={14} />
-                          </button>
-                        )}
-                      </div>
-                      {item.step === 'mask' && (
-                        <div className="routine-kinds" role="radiogroup" aria-label="Tipo da máscara">
-                          {MASK_KINDS.map((k) => (
-                            <button key={k.id} type="button" role="radio" aria-checked={item.maskKind === k.id} className={`chip-btn ${item.maskKind === k.id ? 'on' : ''}`} onClick={() => setKind(item, k.id)}>
-                              {k.label}
-                            </button>
-                          ))}
-                        </div>
                       )}
                     </div>
                   )
                 })}
-                <button type="button" className={`routine-add ${list.length ? 'more' : ''}`} onClick={() => setPicking({ step: s.id, current: null })} aria-label={`Adicionar em ${s.label}`}>
-                  {list.length ? '+ outro' : `+ ${s.add}`}
-                </button>
+                {list.length === 0 && (
+                  <button type="button" className="routine-add" onClick={() => setPicking({ step: s.id, current: null })} aria-label={`Adicionar em ${s.label}`}>
+                    + {s.add}
+                  </button>
+                )}
               </div>
             </div>
           )
@@ -304,6 +301,10 @@ function RoutineEdit({
           taken={new Set(items.filter((i) => i !== picking.current).map((i) => i.experimentId))}
           lastUsed={lastUsedMap(experiments, routines)}
           onPick={(id) => choose(picking.step, picking.current, id)}
+          onKind={(k) => {
+            if (picking.current) setKind(picking.current, k)
+            setPicking(null)
+          }}
           onNew={() => newProduct(picking.step, picking.current)}
           onClose={() => setPicking(null)}
         />
@@ -337,6 +338,7 @@ function PickSheet({
   taken,
   lastUsed,
   onPick,
+  onKind,
   onNew,
   onClose,
 }: {
@@ -347,6 +349,8 @@ function PickSheet({
   taken: Set<string>
   lastUsed: Map<string, string>
   onPick: (experimentId: string | null) => void
+  /** Máscara: o tipo do cronograma (hidratação, nutrição, reconstrução). */
+  onKind: (kind: MaskKind) => void
   onNew: () => void
   onClose: () => void
 }) {
@@ -380,6 +384,18 @@ function PickSheet({
       <div ref={sheet} className="sheet pick-sheet" role="dialog" aria-modal="true" aria-label={`${info.label}: qual produto?`} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" aria-hidden="true" />
         <h2 className="sheet-title">{info.label}: qual produto?</h2>
+        {step === 'mask' && current && (
+          <div className="pick-kind">
+            <p className="muted small">Tipo da máscara (cronograma capilar)</p>
+            <div className="routine-kinds" role="radiogroup" aria-label="Tipo da máscara">
+              {MASK_KINDS.map((k) => (
+                <button key={k.id} type="button" role="radio" aria-checked={current.maskKind === k.id} className={`chip-btn ${current.maskKind === k.id ? 'on' : ''}`} onClick={() => onKind(k.id)}>
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {current && (
           <button type="button" className="btn btn-ghost btn-block danger-text pick-remove" onClick={() => onPick(null)}>
             Tirar desta etapa

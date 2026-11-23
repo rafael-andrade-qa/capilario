@@ -83,10 +83,14 @@ test('nova finalização: igual à última, troca o shampoo e a máscara, e segu
   const sheet = page.getByRole('dialog', { name: 'Lavar: qual produto?' })
   await sheet.getByRole('button', { name: /Shampoo B/ }).click()
   await expect(sheet).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Lavar: Shampoo B. Trocar' })).toContainText('trocado')
+  await expect(page.getByRole('button', { name: 'Lavar: Shampoo B. Trocar' })).toHaveClass(/changed/)
   await expect(page.getByTestId('routine-summary')).toHaveText('Mudou: lavar.')
 
-  await page.getByRole('group', { name: 'Máscara' }).getByRole('radio', { name: 'Nutrição' }).click()
+  // O tipo da máscara se escolhe na folha do produto; na rotina fica só a etiqueta.
+  await expect(page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' })).toContainText('Hidratação')
+  await page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' }).click()
+  await page.getByRole('dialog', { name: 'Máscara: qual produto?' }).getByRole('radio', { name: 'Nutrição' }).click()
+  await expect(page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' })).toContainText('Nutrição')
   await expect(page.getByTestId('routine-summary')).toHaveText('Mudou: lavar e máscara.')
 
   await page.getByRole('button', { name: 'Continuar para as fotos' }).click()
@@ -143,7 +147,7 @@ test('o produto mostra em quais finalizações entrou; a rotina dá para editar 
   // Editar a rotina da finalização de ontem: tirar a máscara. O principal fica fixo.
   await page.goto(`./#/rotina/${firstFin}`)
   await expect(page.getByRole('button', { name: 'Fixar: Geleia G (produto desta finalização)' })).toBeVisible()
-  await expect(page.getByRole('group', { name: 'Máscara' }).getByRole('radio', { name: 'Hidratação' })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' })).toContainText('Hidratação')
   await page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' }).click()
   await page.getByRole('dialog', { name: 'Máscara: qual produto?' }).getByRole('button', { name: 'Tirar desta etapa' }).click()
   await page.getByRole('button', { name: 'Salvar rotina' }).click()
