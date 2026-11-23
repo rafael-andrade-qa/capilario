@@ -11,9 +11,7 @@ import {
   analyzeQuotaLeft,
   analyzedIds,
   applySuggestions,
-  costLabel,
   fetchAnalysis,
-  modelLabel,
   setNotesState,
   suggestedMoments,
   type FinalizationAnalysis,
@@ -80,8 +78,7 @@ export function useFinalizationAnalysis(
       const r = await analyzeFinalization(fin)
       setAnalysis(r.analysis)
       setQuotaLeft(r.quotaLeft)
-      const cost = costLabel(r.analysis.usage?.cost_usd)
-      notify(`Análise pronta${cost ? ` · ${cost}` : ''}.`)
+      notify('Análise pronta.')
     } catch (e) {
       notify((e as Error).message, 'error')
     } finally {
@@ -237,7 +234,6 @@ const SCORE_LABEL: [keyof FinalizationAnalysis['result']['scores'], string][] = 
 /** Leitura do cabelo: fechada mostra só o tipo; aberta, notas, características e resumo. */
 export function AnalysisCard({ analysis, defaultOpen = false }: { analysis: FinalizationAnalysis; defaultOpen?: boolean }) {
   const r = analysis.result
-  const cost = costLabel(analysis.usage?.cost_usd)
   return (
     <details className="analysis-card" data-testid="analysis-card" open={defaultOpen}>
       <summary>
@@ -275,8 +271,7 @@ export function AnalysisCard({ analysis, defaultOpen = false }: { analysis: Fina
         </div>
         {r.summary && <p className="analysis-summary">{r.summary}</p>}
         <p className="muted small analysis-meta">
-          {modelLabel(analysis.model)} · {formatShortDateTime(analysis.created_at)}
-          {cost && ` · ${cost}`}
+          Feita em {formatShortDateTime(analysis.created_at)}
         </p>
       </div>
     </details>

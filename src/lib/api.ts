@@ -64,6 +64,7 @@ const FRIENDLY: Record<string, string> = {
   photo_not_found: 'Foto não encontrada.',
   invalid_angle: 'Ângulo inválido.',
   invalid_storage_path: 'Não foi possível salvar a foto. Tente de novo.',
+  photo_limit: 'Você chegou ao limite de 1.000 fotos. Apague fotos antigas para guardar novas.',
 }
 
 export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult> {

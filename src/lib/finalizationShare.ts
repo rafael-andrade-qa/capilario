@@ -6,7 +6,7 @@
 // cada opção traz também a versão sem a análise (noAi).
 import type { PdfOption } from '../components/PdfShareSheet'
 import type { FinalizationAnalysis } from './analysis'
-import { modelLabel, splitNote } from './analysisText'
+import { splitNote } from './analysisText'
 import { signedUrls } from './api'
 import {
   ANGLES,
@@ -53,7 +53,7 @@ export function pdfNotes(stages: Pick<Stage, 'stage_type' | 'notes'>[], withAi: 
 }
 
 /** Leitura da IA no formato do PDF. */
-export function pdfReading(a: Pick<FinalizationAnalysis, 'model' | 'created_at' | 'result'>): PdfReading {
+export function pdfReading(a: Pick<FinalizationAnalysis, 'created_at' | 'result'>): PdfReading {
   const r = a.result
   return {
     title: r.tendency ? `${r.hair_type} · ${r.tendency}` : r.hair_type,
@@ -65,7 +65,7 @@ export function pdfReading(a: Pick<FinalizationAnalysis, 'model' | 'created_at' 
       { label: 'Dia seguinte', value: r.scores.day2 },
     ],
     summary: r.summary ?? '',
-    credit: `Análise feita por IA (${modelLabel(a.model)}) em ${dayMonth(a.created_at)}`,
+    credit: `Análise feita por IA em ${dayMonth(a.created_at)}`,
   }
 }
 

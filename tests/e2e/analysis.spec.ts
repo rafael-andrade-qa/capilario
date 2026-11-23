@@ -100,7 +100,7 @@ function mockAnalyze(page: Page, over: { summary?: string; notes?: typeof RESULT
     }
     const { data, error } = await admin.from('finalization_analyses').upsert(row, { onConflict: 'finalization_id' }).select().single()
     if (error) throw error
-    await json(route, 200, { analysis: data, quota_left: 9 })
+    await json(route, 200, { analysis: data, quota_left: 2 })
   })
   return calls
 }
@@ -118,26 +118,27 @@ test('na barra do produto: escolhe a finalização, analisa e usa as observaçõ
   await expect(choices).toHaveCount(2)
   await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
   await expect(choices.first()).toContainText('Molhado · Seco')
-  await expect(sheet).toContainText('4 fotos · restam 10 análises hoje')
+  await expect(sheet).toContainText('4 fotos · restam 3 análises hoje')
   await expect(sheet).toContainText('A IA olha as fotos de todos os momentos')
 
   await sheet.getByRole('button', { name: 'Analisar', exact: true }).click()
-  await expect(page.getByText(/Análise pronta · US\$ 0,06/)).toBeVisible()
+  await expect(page.getByText('Análise pronta.', { exact: true })).toBeVisible()
   expect(calls).toHaveLength(1)
   expect(calls[0].finalization_id).toBe(fin)
   expect(calls[0].images.map((i) => `${i.moment}:${i.angle}`)).toEqual(['wet:front', 'wet:left', 'dry:front', 'dry:back'])
   // Cada foto vai recortada e reduzida (JPEG 768×1024).
   expect(Buffer.from(calls[0].images[0].data, 'base64').subarray(0, 2).toString('hex')).toBe('ffd8')
 
-  // Na folha a leitura já vem aberta: notas, resumo, modelo e custo.
+  // Na folha a leitura já vem aberta: notas, resumo e quando foi feita (sem modelo nem custo).
   const card = sheet.getByTestId('analysis-card')
   await expect(card.locator('summary')).toContainText('Ondulado 2B · tende a 2C/3A')
   await expect(card.getByText('Junta definição e controle do frizz.')).toBeVisible()
   await expect(card.getByRole('meter', { name: 'Definição' })).toHaveAttribute('aria-valuenow', '8')
   await expect(card).toContainText('Dia seguinte —')
-  await expect(card).toContainText('Opus 5.5')
-  await expect(card).toContainText('US$ 0,06')
-  await expect(sheet).toContainText('restam 9 análises hoje')
+  await expect(card).toContainText('Feita em')
+  await expect(card).not.toContainText('Opus')
+  await expect(card).not.toContainText('US$')
+  await expect(sheet).toContainText('restam 2 análises hoje')
   await expect(choices.first()).toContainText('já analisada')
   await expect(sheet.getByRole('button', { name: 'Analisar de novo' })).toBeVisible()
 
@@ -155,7 +156,7 @@ test('na barra do produto: escolhe a finalização, analisa e usa as observaçõ
   // A outra finalização ainda não tem análise.
   await choices.nth(1).click()
   await expect(sheet).toContainText('A IA olha as fotos de todos os momentos')
-  await expect(sheet).toContainText('1 foto · restam 9 análises hoje')
+  await expect(sheet).toContainText('1 foto · restam 2 análises hoje')
   await sheet.getByRole('button', { name: 'Fechar' }).click()
   await expect(sheet).toHaveCount(0)
 
@@ -218,5 +219,5 @@ test('limite do dia: avisa e não analisa', async ({ page }) => {
   await login(page)
   const sheet = await openSheet(page)
   await sheet.getByRole('button', { name: 'Analisar de novo' }).click()
-  await expect(page.getByText('Você já usou as 10 análises de hoje. Amanhã libera de novo.')).toBeVisible()
+  await expect(page.getByText('Você já usou as 3 análises de hoje. Amanhã libera de novo.')).toBeVisible()
 })

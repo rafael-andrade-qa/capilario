@@ -9,7 +9,7 @@ import {
   validateInput,
   type InputImage,
 } from '../../supabase/functions/analyze-finalization/core'
-import { costLabel, mergeNote, modelLabel, suggestedMoments } from './analysis'
+import { mergeNote, suggestedMoments } from './analysis'
 
 const ID = '6e66cb89-35fa-42ed-833c-e34df5b50cbb'
 const img = (moment: InputImage['moment'], angle: InputImage['angle']): InputImage => ({ moment, angle, data: 'AAAA' })
@@ -83,13 +83,6 @@ describe('custo', () => {
     expect(costUsd('claude-haiku-5-5', { input_tokens: 14_000, output_tokens: 3_000 })).toBeCloseTo(0.0029, 5)
     expect(costUsd('claude-sonnet-5-5', { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 10_000 })).toBeCloseTo(0.002, 5)
     expect(costUsd('modelo-novo', { input_tokens: 1 })).toBeNull()
-  })
-  it('mostra em dólar com vírgula', () => {
-    expect(costLabel(0.116)).toBe('US$ 0,12')
-    expect(costLabel(0.003)).toBe('< US$ 0,01')
-    expect(costLabel(null)).toBeNull()
-    expect(modelLabel('claude-opus-5-5')).toBe('Opus 5.5')
-    expect(modelLabel('claude-haiku-5-5')).toBe('Haiku 5.5')
   })
 })
 

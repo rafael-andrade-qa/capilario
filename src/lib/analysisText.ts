@@ -24,17 +24,3 @@ export function mergeNote(current: string | null | undefined, suggestion: string
   if (!text) return own
   return own ? `${own}\n\n${ANALYSIS_MARK}${text}` : `${ANALYSIS_MARK}${text}`
 }
-
-/** Nome curto do modelo para a tela ("claude-opus-5-5" → "Opus 5.5"). */
-export function modelLabel(model: string): string {
-  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(model)
-  if (!m) return model
-  return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ''}`
-}
-
-/** Custo em dólares para a tela ("US$ 0,07"; abaixo de 1 centavo, "< US$ 0,01"). */
-export function costLabel(usd: number | null | undefined): string | null {
-  if (usd == null) return null
-  if (usd < 0.01) return '< US$ 0,01'
-  return `US$ ${usd.toFixed(2).replace('.', ',')}`
-}

@@ -39,12 +39,12 @@ finalização inteira (molhado, seco e dia seguinte) pela função `analyze-fina
 não há análise de uma etapa sozinha. A folha diz quantas fotos vão e quantas análises restam no dia, porque cada uma
 custa centavos (as fotos vão recortadas como no app, 768×1024, ~1.000 tokens cada; com Claude Opus 5.5 dá uns
 US$ 0,05–0,12 por finalização). Volta a leitura do cabelo (tipo, até 4 características, notas de 0 a 10 para
-definição, controle do frizz, volume e dia seguinte, e um resumo que compara com as análises anteriores), com o
-modelo e quanto custou, e as observações sugeridas de cada momento: **Usar nas N observações** grava (o seu texto
+definição, controle do frizz, volume e dia seguinte, e um resumo que compara com as análises anteriores), com a
+data (modelo e custo ficam só nos registros do servidor, não na tela nem no PDF), e as observações sugeridas de cada momento: **Usar nas N observações** grava (o seu texto
 fica; a análise entra no fim, depois de "Análise: ", e analisar de novo troca só essa parte) ou o **x** descarta.
 No detalhe de cada momento, a leitura aparece num cartão fechado de uma linha e, se ainda não foi usada nem
-descartada, a sugestão daquele momento aparece embaixo da observação. Uma análise por finalização; limite de 10 por
-pessoa por dia.
+descartada, a sugestão daquele momento aparece embaixo da observação. Uma análise por finalização; limite de 3 por
+pessoa por dia e de 20 por dia somando todas as contas (o teto segura a conta da IA).
 
 **Nova finalização** fica dentro do produto (o **+**) e é uma tela só: momento (já marcado em Molhado),
 data, fotos e observação, com um único botão fixo no rodapé. **Sem finalizador** está sempre na lista,
@@ -245,6 +245,7 @@ servem para uso pessoal e em teste; antes de abrir o app ao público, troque por
 | Fotos por etapa | 1 a 4 | Interface e função `finalize_stage` |
 | Formatos | JPEG, PNG, WebP | Interface (tipo + decodificação real), bucket (`allowed_mime_types`) e tabela |
 | Tamanho | até 15 MiB por foto | Interface, bucket (`file_size_limit`) e tabela |
+| Fotos por pessoa | até 1.000 (no armazenamento, até 2.500 arquivos: foto + miniatura) | Gatilho em `photos` e política do bucket |
 | HEIC/HEIF | recusado com aviso no próprio espaço; dá para **Trocar** só esse arquivo | Interface |
 
 O `accept` do seletor lista só JPEG/PNG/WebP. Com isso o iPhone costuma converter HEIC para JPEG na hora

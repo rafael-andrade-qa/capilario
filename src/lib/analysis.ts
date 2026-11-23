@@ -35,7 +35,7 @@ export interface FinalizationAnalysis {
   notes_state: 'pending' | 'applied' | 'dismissed'
 }
 
-export { ANALYSIS_MARK, costLabel, mergeNote, modelLabel, splitNote } from './analysisText'
+export { ANALYSIS_MARK, mergeNote, splitNote } from './analysisText'
 
 /** Momentos da finalização que receberiam observação (têm sugestão). */
 export function suggestedMoments(fin: Pick<Finalization, 'moments'>, a: Pick<FinalizationAnalysis, 'result'>): StageType[] {
@@ -115,7 +115,8 @@ async function croppedBase64(url: string, crop: Crop | null | undefined): Promis
 }
 
 const MESSAGES: Record<string, string> = {
-  analyze_limit: 'Você já usou as 10 análises de hoje. Amanhã libera de novo.',
+  analyze_limit: 'Você já usou as 3 análises de hoje. Amanhã libera de novo.',
+  analyze_app_limit: 'As análises de hoje acabaram para todo mundo. Amanhã libera de novo.',
   not_configured: 'A análise com IA ainda não foi ligada no servidor.',
   not_authenticated: 'Sua sessão expirou. Entre novamente.',
   not_found: 'Finalização não encontrada.',

@@ -36,7 +36,6 @@ describe('observações do PDF', () => {
 describe('leitura da IA no PDF', () => {
   it('tipo com tendência, as 4 notas e quem fez', () => {
     const r = pdfReading({
-      model: 'claude-opus-5-5',
       created_at: new Date(2026, 10, 22, 15, 0).toISOString(),
       result: {
         product: 'Geleia',
@@ -50,6 +49,6 @@ describe('leitura da IA no PDF', () => {
     })
     expect(r.title).toBe('Ondulado 2B · tende a 2C/3A')
     expect(r.scores.map((s) => `${s.label} ${s.value ?? '—'}`)).toEqual(['Definição 8', 'Controle do frizz 7', 'Volume 6', 'Dia seguinte —'])
-    expect(r.credit).toBe('Análise feita por IA (Opus 5.5) em 22/11')
+    expect(r.credit).toBe('Análise feita por IA em 22/11')
   })
 })

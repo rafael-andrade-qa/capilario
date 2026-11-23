@@ -174,6 +174,10 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   expect(text).toContain('8/10')
   expect(text).toContain('Seco: Macio e solto.')
   expect(text).toMatch(/an.lise da IA: Ondas 2B uniformes\./)
+  // O PDF circula: sem endereço do app e sem nome do modelo.
+  expect(text).toContain('Feito com o Projeto Capilar')
+  expect(text).not.toMatch(/localhost|github|127\.0\.0\.1/i)
+  expect(text).not.toMatch(/Opus|Haiku|Sonnet/)
 
   // Sem a análise: some a leitura e a observação da IA; o texto da pessoa fica.
   await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Geleia IA' }).click()

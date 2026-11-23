@@ -45,15 +45,6 @@ const BOTTOM = PAGE_H - 16
 /** A fonte padrão do PDF não tem a seta →: troca por um sinal que ela tem. */
 export const pdfSafe = (s: string) => s.replace(/\s*→\s*/g, ' › ')
 
-/** Endereço do app, para a "propaganda" da capa e do rodapé. */
-function siteAddress(): string {
-  try {
-    return `${location.host}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
-  } catch {
-    return ''
-  }
-}
-
 /** Foto recortada (3:4) como JPEG em data URL; com cantos arredondados para a capa. */
 async function prepared(p: PdfPhoto, o: { w?: number; radius?: number; bg?: string; card?: string } = {}): Promise<string | null> {
   const W = o.w ?? 600
@@ -230,8 +221,8 @@ function drawBanner(doc: Doc, lib: JsPdf, b: Banner, a: { icon: string | null; h
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.setTextColor(...LIGHT)
-  const site = siteAddress()
-  doc.text(site ? `Feito com o Projeto Capilar · ${site}` : 'Feito com o Projeto Capilar', PAGE_W - MARGIN, BANNER_H - 7.5, { align: 'right' })
+  // Sem o endereço do app: o PDF circula, o app não é para divulgar.
+  doc.text('Feito com o Projeto Capilar', PAGE_W - MARGIN, BANNER_H - 7.5, { align: 'right' })
 }
 
 function photoBox(doc: Doc, img: string | null, x: number, y: number, w: number, label: string) {
@@ -260,13 +251,12 @@ function footers(doc: Doc) {
   const total = doc.getNumberOfPages()
   const d = new Date()
   const today = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
-  const site = siteAddress()
   for (let i = 1; i <= total; i++) {
     doc.setPage(i)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...MUTED)
-    doc.text(`Gerado pelo Projeto Capilar em ${today}${site ? ` · ${site}` : ''}`, MARGIN, PAGE_H - 9)
+    doc.text(`Gerado pelo Projeto Capilar em ${today}`, MARGIN, PAGE_H - 9)
     if (total > 1) doc.text(`${i}/${total}`, PAGE_W - MARGIN, PAGE_H - 9, { align: 'right' })
   }
 }
@@ -300,7 +290,7 @@ export interface PdfReading {
   traits: string[]
   scores: { label: string; value: number | null }[]
   summary: string
-  /** "Análise feita por IA (Opus 5.5) em 22/11" */
+  /** "Análise feita por IA em 22/11" */
   credit: string
 }
 

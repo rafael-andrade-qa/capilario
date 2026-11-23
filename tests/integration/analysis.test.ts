@@ -1,7 +1,7 @@
-// Análise da finalização pela IA: limite diário (10) e a análise só é vista e mexida pela dona.
+// Análise da finalização pela IA: limite diário (3 por pessoa, 20 no app) e a análise só é vista e mexida pela dona.
 import { randomUUID } from 'node:crypto'
-import { beforeAll, describe, expect, it } from 'vitest'
-import { anonClient, photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { adminClient, anonClient, photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
 
 const BUCKET = 'capilar-photos'
 
@@ -35,24 +35,49 @@ const RESULT = {
 
 describe('limite de análises', () => {
   let a: TestUser
+  let b: TestUser
+  let c: TestUser
+  const admin = adminClient()
+  const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
   beforeAll(async () => {
     a = await testUser('analise-limite')
+    b = await testUser('analise-limite-b')
+    c = await testUser('analise-limite-c')
+    // O teto geral soma todo mundo: começa do zero para o teste não depender dos outros.
+    const reset = await admin.from('analyze_usage').delete().gte('day', '2000-01-01')
+    if (reset.error) throw reset.error
   })
 
-  it('mostra quantas restam, conta para baixo e recusa a 11ª do dia', async () => {
-    expect((await a.client.rpc('analyze_quota_left')).data).toBe(10)
-    for (let i = 1; i <= 10; i++) {
+  it('mostra quantas restam, conta para baixo e recusa a 4ª do dia', async () => {
+    expect((await a.client.rpc('analyze_quota_left')).data).toBe(3)
+    for (let i = 1; i <= 3; i++) {
       const r = await a.client.rpc('consume_analyze_quota')
       expect(r.error).toBeNull()
-      expect(r.data).toBe(10 - i)
+      expect(r.data).toBe(3 - i)
     }
     expect((await a.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_limit')
     expect((await a.client.rpc('analyze_quota_left')).data).toBe(0)
   })
 
+  it('teto do app: 20 por dia somando todas as contas', async () => {
+    // a já usou 3; c "usou" mais 16: total 19, sobra 1 para o app inteiro.
+    const seed = await admin.from('analyze_usage').insert({ user_id: c.id, day: today(), count: 16 })
+    if (seed.error) throw seed.error
+    expect((await b.client.rpc('analyze_quota_left')).data).toBe(1)
+    const last = await b.client.rpc('consume_analyze_quota')
+    expect(last.error).toBeNull()
+    expect(last.data).toBe(0)
+    expect((await b.client.rpc('analyze_quota_left')).data).toBe(0)
+    expect((await b.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_app_limit')
+  })
+
   it('ninguém lê nem zera o contador, e sem login não consome', async () => {
     expect((await a.client.from('analyze_usage').select('*')).error?.code).toBe('42501')
     expect((await anonClient().rpc('consume_analyze_quota')).error).not.toBeNull()
+  })
+
+  afterAll(async () => {
+    await admin.from('analyze_usage').delete().gte('day', '2000-01-01')
   })
 })
 

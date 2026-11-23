@@ -86,7 +86,7 @@ async function consumeQuota(headers: Record<string, string>): Promise<number> {
   const res = await fetch(rest('rpc/consume_analyze_quota'), { method: 'POST', headers, body: '{}' })
   const body = await res.json().catch(() => ({}))
   if (res.ok) return typeof body === 'number' ? body : 0
-  if (body?.message === 'analyze_limit') throw new HttpError(429, 'analyze_limit')
+  if (body?.message === 'analyze_limit' || body?.message === 'analyze_app_limit') throw new HttpError(429, body.message)
   if (res.status === 401 || res.status === 403 || body?.message === 'not_authenticated') throw new HttpError(401, 'not_authenticated')
   throw new Error(`quota_${res.status}`)
 }
