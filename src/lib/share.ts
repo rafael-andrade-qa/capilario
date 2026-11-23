@@ -1,6 +1,7 @@
 // Enviar em PDF: textos prontos (mensagem que acompanha o arquivo e nome do arquivo) e o
 // compartilhamento do aparelho. Os textos são funções puras (testadas em share.test.ts).
 import { splitNote } from './analysisText'
+import { aboutLine } from './productGuide'
 import { STAGE_LABEL, STAGE_TYPES, brandLabel, productLabel, type Experiment, type Finalization, type Stage, type StageType } from './domain'
 
 export interface MomentInfo {
@@ -12,6 +13,8 @@ export interface MomentInfo {
   notes?: string | null
   /** O PDF leva a análise da IA (a mensagem avisa). */
   ai?: boolean
+  /** "Geleia: define e controla o frizz..." (pra quem recebe saber o que é o produto). */
+  about?: string | null
 }
 
 export function momentInfo(experiment: Experiment, stage: Stage): MomentInfo {
@@ -22,6 +25,7 @@ export function momentInfo(experiment: Experiment, stage: Stage): MomentInfo {
     stageType: stage.stage_type,
     capturedAt: stage.captured_at,
     notes: stage.notes,
+    about: aboutLine(experiment),
   }
 }
 
@@ -54,6 +58,7 @@ export function momentMessage(m: MomentInfo): string {
   return [
     `Olha como ficou meu cabelo ${MOMENT_WORD[m.stageType]}, ${productPhrase(m)}, em ${whenText(m.capturedAt)}.`,
     notes ? `Minha observação: ${notes}` : null,
+    m.about ? `${m.about}` : null,
     m.ai ? 'As fotos estão no PDF, com a análise da IA.' : 'As fotos estão no PDF.',
   ]
     .filter(Boolean)
@@ -67,6 +72,8 @@ export function compareMessage(a: MomentInfo, b: MomentInfo): string {
     `• à esquerda, ${productPhrase(a)}, em ${whenText(a.capturedAt)};`,
     `• à direita, ${productPhrase(b)}, em ${whenText(b.capturedAt)}.`,
     '',
+    ...[...new Set([a.about, b.about].filter(Boolean))].map((t) => `${t}`),
+    ...(a.about || b.about ? [''] : []),
     'As fotos estão lado a lado no PDF.',
   ].join('\n')
 }
@@ -79,6 +86,7 @@ export interface FinalizationInfo {
   moments: { stageType: StageType; capturedAt: string; notes?: string | null }[]
   /** O PDF leva a análise da IA (a mensagem avisa). */
   ai?: boolean
+  about?: string | null
 }
 
 export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, 'moments'>): FinalizationInfo {
@@ -87,6 +95,7 @@ export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, '
     productName: base.productName,
     brand: base.brand,
     noFinisher: base.noFinisher,
+    about: base.about,
     moments: STAGE_TYPES.flatMap((t) => {
       const s = f.moments[t]
       return s ? [{ stageType: t, capturedAt: s.captured_at, notes: s.notes }] : []
@@ -116,6 +125,7 @@ export function finalizationMessage(f: FinalizationInfo): string {
     `Olha como meu cabelo evoluiu ${product}, na finalização de ${whenText(start).split(' às ')[0]}:`,
     ...lines,
     '',
+    ...(f.about ? [f.about, ''] : []),
     `As fotos estão lado a lado no PDF${extra}.`,
   ].join('\n')
 }

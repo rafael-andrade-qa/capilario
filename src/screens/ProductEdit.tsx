@@ -1,4 +1,4 @@
-// Novo produto e Editar produto: nome, marca e foto da embalagem.
+// Novo produto e Editar produto: nome, marca, tipo e foto da embalagem.
 // Cadastrar não pede foto de cabelo; ao salvar, convida a registrar a primeira finalização
 // (Registrar agora ou Depois). Editar vale para todas as finalizações do produto.
 // No cadastro, "Identificar pela foto" preenche nome e marca e traz a foto oficial padronizada.
@@ -9,7 +9,9 @@ import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb } from '../components/ProductThumb'
 import { useToast } from '../components/Toasts'
-import { createProduct, removeProductPhoto, setProductPhoto, updateExperiment } from '../lib/api'
+import { createProduct, removeProductPhoto, setProductCategory, setProductPhoto, updateExperiment } from '../lib/api'
+import { catalogCategory } from '../lib/catalog'
+import { productType, typesByStep } from '../lib/productGuide'
 import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../lib/domain'
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
 import { identifyFromPhoto, type Candidate , type IdentifyStep } from '../lib/identify'
@@ -115,6 +117,7 @@ function ProductEdit({
   const [name, setName] = useState(initial?.name ?? experiment.product_name ?? '')
   const [brand, setBrand] = useState(initial?.brand ?? experiment.brand ?? '')
   const [catalogId, setCatalogId] = useState<string | null>(initial?.catalogId ?? null)
+  const [category, setCategory] = useState<string>(initial?.category ?? experiment.category ?? '')
   const [photo, setPhoto] = useState<PhotoChange>(() =>
     initial?.photo
       ? { kind: 'new', file: initial.photo, mime: initial.photo.type, preview: URL.createObjectURL(initial.photo), error: null, owned: true }
@@ -181,7 +184,11 @@ function ProductEdit({
       setBrand(r.brand)
       setCheckNote(r.confidence !== 'high')
       // A função já procurou no catálogo; achou: nome, marca e foto dele.
-      if (r.catalog) setCatalogId(r.catalog.id)
+      if (r.catalog) {
+        setCatalogId(r.catalog.id)
+        const found = await catalogCategory(r.catalog.id)
+        if (found) setCategory(found)
+      }
       const all = r.candidates
       setCandidates(all)
       if (all.length) {
@@ -199,7 +206,8 @@ function ProductEdit({
   }
 
   const nameChanged = name.trim() !== (experiment.product_name ?? '') || brand.trim() !== (experiment.brand ?? '')
-  const changed = nameChanged || photo.kind !== 'keep'
+  const categoryChanged = category !== (experiment.category ?? '')
+  const changed = nameChanged || categoryChanged || photo.kind !== 'keep'
 
   function validate(): string | null {
     if (!name.trim()) return 'Informe o nome do produto.'
@@ -222,7 +230,7 @@ function ProductEdit({
     setBusy(true)
     try {
       if (mode === 'new') {
-        await createProduct(experiment.id, name, brand, catalogId)
+        await createProduct(experiment.id, name, brand, catalogId, category)
         // O produto já está salvo; se a foto falhar, dá para pôr depois pelo lápis.
         if (photo.kind === 'new') {
           await setProductPhoto(session.user.id, experiment.id, photo.file, photo.mime).catch(() =>
@@ -235,6 +243,7 @@ function ProductEdit({
         return
       }
       if (nameChanged) await updateExperiment(experiment.id, name, brand)
+      if (categoryChanged) await setProductCategory(experiment.id, category || null)
       if (photo.kind === 'new') await setProductPhoto(session.user.id, experiment.id, photo.file, photo.mime)
       if (photo.kind === 'remove') await removeProductPhoto(experiment.id)
       await reload()
@@ -318,6 +327,26 @@ function ProductEdit({
             ))}
           </datalist>
           {checkNote && <p className="muted small check-note">Confira o nome e a marca: a foto não estava muito nítida.</p>}
+        </div>
+        <div className="field">
+          <label htmlFor="e-tipo" className="field-label">
+            Tipo
+          </label>
+          <select id="e-tipo" value={category} onChange={(e) => setCategory(e.target.value)} disabled={locked}>
+            <option value="">Não sei / outro</option>
+            {typesByStep().map((g) => (
+              <optgroup key={g.step.id} label={g.step.label}>
+                {g.types.map(({ id, type }) => (
+                  <option key={id} value={id}>
+                    {type.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <p className="muted small type-hint" data-testid="type-hint">
+            {productType(category)?.short ?? 'Diz pra que serve o produto (vale para qualquer marca).'}
+          </p>
         </div>
         <div className="field">
           <span className="field-label">Foto do produto</span>

@@ -7,6 +7,7 @@
 import type { PdfOption } from '../components/PdfShareSheet'
 import type { FinalizationAnalysis } from './analysis'
 import { splitNote } from './analysisText'
+import { pdfAbout, typeAndBrand } from './productGuide'
 import { signedUrls } from './api'
 import {
   ANGLES,
@@ -52,6 +53,11 @@ export function pdfNotes(stages: Pick<Stage, 'stage_type' | 'notes'>[], withAi: 
   })
 }
 
+const withAbout = (e: Experiment) => {
+  const a = pdfAbout(e)
+  return a ? [a] : []
+}
+
 /** Leitura da IA no formato do PDF. */
 export function pdfReading(a: Pick<FinalizationAnalysis, 'created_at' | 'result'>): PdfReading {
   const r = a.result
@@ -88,7 +94,7 @@ export function finalizationOption(
         banner: {
           kicker: 'Evolução da finalização',
           title: productLabel(experiment),
-          brand: brandLabel(experiment) || null,
+          brand: typeAndBrand(experiment, brandLabel(experiment) || null),
           pill: `${dayMonth(f.start)} · ${stages.map((s) => STAGE_LABEL[s.stage_type]).join(' → ')}`,
           heroes: [await productHero(experiment)],
         },
@@ -100,7 +106,7 @@ export function finalizationOption(
             return p ? { label: ANGLE_LABEL[a], url: urls[p.storage_path], crop: p.crop } : null
           }),
         })),
-        notes: pdfNotes(stages, withAi, true) as { title: string; text: string }[],
+        notes: [...withAbout(experiment), ...(pdfNotes(stages, withAi, true) as { title: string; text: string }[])],
         reading: withAi && analysis ? pdfReading(analysis) : undefined,
       })
     },
@@ -125,11 +131,11 @@ export function momentOption(experiment: Experiment, stage: Stage, present: Angl
         banner: {
           kicker: `Momento · ${STAGE_LABEL[stage.stage_type]}`,
           title: productLabel(experiment),
-          brand: brandLabel(experiment) || null,
+          brand: typeAndBrand(experiment, brandLabel(experiment) || null),
           pill: formatDateTime(stage.captured_at),
           heroes: [await productHero(experiment)],
         },
-        notes: pdfNotes([stage], withAi, false),
+        notes: [...withAbout(experiment), ...pdfNotes([stage], withAi, false)],
         photos: present.map((ang) => {
           const p = photoByAngle(stage, ang)!
           return { label: ANGLE_LABEL[ang], url: urls[p.storage_path], crop: p.crop }

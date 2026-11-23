@@ -55,6 +55,8 @@ export interface Experiment {
   brand: string | null
   /** Foto da embalagem (opcional), usada como miniatura do produto no histórico. */
   photo_path: string | null
+  /** Tipo (geleia, creme de pentear...): o mesmo do catálogo; explica pra que serve. */
+  category?: string | null
   created_at: string
   stages: Stage[]
 }

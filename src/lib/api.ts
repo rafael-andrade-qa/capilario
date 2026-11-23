@@ -8,7 +8,7 @@ import { prepareImage, thumbPath } from './images'
 import { uuid } from './uuid'
 
 const HISTORY_SELECT =
-  'id, product_mode, product_name, brand, photo_path, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
+  'id, product_mode, product_name, brand, photo_path, category, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
 
 export async function fetchHistory(): Promise<Experiment[]> {
   const { data, error } = await supabase.from('experiments').select(HISTORY_SELECT).order('created_at', { ascending: false })
@@ -155,12 +155,13 @@ export async function setPhotoCrops(crops: { photoId: string; crop: Crop | null 
 }
 
 /** Cadastra um produto (nome e marca), sem fotos. Repetir com o mesmo id não duplica. */
-export async function createProduct(experimentId: string, name: string, brand: string, catalogId?: string | null): Promise<void> {
+export async function createProduct(experimentId: string, name: string, brand: string, catalogId?: string | null, category?: string | null): Promise<void> {
   const { error } = await supabase.rpc('create_product', {
     p_experiment_id: experimentId,
     p_name: name,
     p_brand: brand,
     p_catalog_id: catalogId ?? null,
+    p_category: category || null,
   })
   if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível cadastrar o produto: ${error.message}`)
 }
@@ -169,6 +170,13 @@ export async function createProduct(experimentId: string, name: string, brand: s
 export async function updateExperiment(experimentId: string, name: string, brand: string): Promise<void> {
   const { error } = await supabase.rpc('update_experiment', { p_experiment_id: experimentId, p_name: name, p_brand: brand })
   if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar o produto: ${error.message}`)
+}
+
+/** Troca o tipo do produto (geleia, creme de pentear...); vazio tira. */
+export async function setProductCategory(experimentId: string, category: string | null): Promise<void> {
+  const { data, error } = await supabase.from('experiments').update({ category: category || null }).eq('id', experimentId).select('id')
+  if (error) throw new Error(`Não foi possível salvar o tipo: ${error.message}`)
+  if (!data?.length) throw new Error('Produto não encontrado.')
 }
 
 /** Remove a foto da embalagem do produto e apaga o arquivo. */

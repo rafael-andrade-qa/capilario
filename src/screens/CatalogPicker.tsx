@@ -21,6 +21,7 @@ export interface CatalogChoice {
   name: string
   brand: string
   catalogId: string
+  category: string | null
   photo: File | null
 }
 
@@ -118,7 +119,7 @@ export function CatalogPicker({
     let photo: File | null = null
     if (item.image_path) photo = await catalogPhotoFile(item.image_path).catch(() => null)
     setPicking(null)
-    onPick({ name: item.name, brand: item.brand, catalogId: item.id, photo })
+    onPick({ name: item.name, brand: item.brand, catalogId: item.id, category: item.category, photo })
   }
 
   function onIdentifyPicked(e: ChangeEvent<HTMLInputElement>) {

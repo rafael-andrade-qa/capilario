@@ -97,11 +97,14 @@ test('busca no catálogo, escolhe e cadastra com a foto pronta', async ({ page }
   await expect(page.getByRole('combobox', { name: 'Marca' })).toHaveValue(`Crespa ${tag}`)
   await expect(page.getByRole('button', { name: 'Trocar foto do produto' }).locator('img')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Identificar pela foto' })).toHaveCount(0)
+  // O tipo vem do catálogo, com a linha do que ele faz.
+  await expect(page.getByRole('combobox', { name: 'Tipo' })).toHaveValue('creme_pentear')
+  await expect(page.getByTestId('type-hint')).toHaveText('Hidrata, desembaraça e começa a formar o cacho.')
 
   await page.getByRole('button', { name: 'Cadastrar produto' }).click()
   await expect(page.getByRole('heading', { name: 'Produto cadastrado' })).toBeVisible()
-  const { data } = await admin.from('experiments').select('product_name, brand, photo_path, catalog_product_id').eq('user_id', me.id).single()
-  expect(data).toMatchObject({ product_name: 'Creme de Pentear Cachos Leves', brand: `Crespa ${tag}`, catalog_product_id: `creme-${tag}` })
+  const { data } = await admin.from('experiments').select('product_name, brand, photo_path, catalog_product_id, category').eq('user_id', me.id).single()
+  expect(data).toMatchObject({ product_name: 'Creme de Pentear Cachos Leves', brand: `Crespa ${tag}`, catalog_product_id: `creme-${tag}`, category: 'creme_pentear' })
   expect(data?.photo_path).toMatch(/\.webp$/)
 })
 

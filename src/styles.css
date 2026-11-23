@@ -3270,3 +3270,133 @@ body:has(.save-bar) .toasts {
   height: 20px;
   margin: 0;
 }
+
+/* Tipo do produto: a linha "Geleia · define..." no produto aberto, a folha e o guia. */
+.product-about {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.product-about-text {
+  flex: 1;
+  min-width: 0;
+}
+.product-about-more {
+  flex-shrink: 0;
+  color: var(--brand);
+  font-weight: 600;
+}
+.type-chip {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.guide-body {
+  margin: 0 0 12px;
+}
+.guide-body dt {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.guide-body dd {
+  margin: 2px 0 0;
+}
+.guide-step-note {
+  margin: 0 0 14px;
+}
+.guide-link {
+  margin: 14px 0 0;
+}
+.guide-link a {
+  color: var(--brand);
+  font-weight: 600;
+}
+.type-hint {
+  margin: 6px 0 0;
+}
+.guide-intro {
+  margin: 0 0 12px;
+}
+.guide-route {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  counter-reset: route;
+}
+.guide-route li {
+  counter-increment: route;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.guide-route li::before {
+  content: counter(route) '. ';
+}
+.guide-group {
+  margin-bottom: 12px;
+}
+.guide-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+.guide-n {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 0.75rem;
+}
+.guide-group-text {
+  margin: 0 0 6px;
+}
+.guide-item {
+  border-top: 1px solid var(--line);
+}
+.guide-item summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.guide-item summary::-webkit-details-marker {
+  display: none;
+}
+.guide-item[open] summary .muted {
+  display: none;
+}
+.guide-item .guide-body {
+  margin-top: -6px;
+}

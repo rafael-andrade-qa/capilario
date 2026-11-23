@@ -114,3 +114,9 @@ export async function catalogPhotoFile(path: string): Promise<File> {
   const type = blob.type === 'image/jpeg' ? 'image/jpeg' : 'image/webp'
   return new File([blob], type === 'image/jpeg' ? 'produto.jpg' : 'produto.webp', { type })
 }
+
+/** Tipo de um item do catálogo (quando a identificação pela foto acha o produto lá). */
+export async function catalogCategory(id: string): Promise<string | null> {
+  const { data } = await supabase.from('catalog_products').select('category').eq('id', id).maybeSingle()
+  return (data as { category?: string } | null)?.category ?? null
+}

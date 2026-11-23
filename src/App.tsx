@@ -12,16 +12,18 @@ const loadStageDetail = () => import('./screens/StageDetail')
 const loadProductEdit = () => import('./screens/ProductEdit')
 const loadStageForm = () => import('./screens/StageForm')
 const loadCompare = () => import('./screens/Compare')
+const loadGuide = () => import('./screens/Guide')
 const StageDetail = lazy(() => loadStageDetail().then((m) => ({ default: m.StageDetail })))
 const ProductEditRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductEditRoute })))
 const ProductNewRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductNewRoute })))
 const StageFormRoute = lazy(() => loadStageForm().then((m) => ({ default: m.StageFormRoute })))
 const Compare = lazy(() => loadCompare().then((m) => ({ default: m.Compare })))
+const Guide = lazy(() => loadGuide().then((m) => ({ default: m.Guide })))
 
 function usePrefetchScreens() {
   useEffect(() => {
     const run = () => {
-      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare]) void load().catch(() => undefined)
+      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide]) void load().catch(() => undefined)
     }
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
     const id = idle ? idle(run) : window.setTimeout(run, 1500)
@@ -107,6 +109,7 @@ function Route({ userId }: { userId: string }) {
   if ((m = match('/etapa/:id/completar', path))) return <StageFormRoute kind="complete" userId={userId} stageId={m.id} />
   if ((m = match('/etapa/:id', path))) return <StageDetail stageId={m.id} />
   if (path === '/comparar') return <Compare params={params} />
+  if (path === '/guia') return <Guide />
   return (
     <History
       saved={params.get('salvo')}

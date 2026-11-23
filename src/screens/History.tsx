@@ -38,6 +38,7 @@ import {
   NO_FINISHER_ID,
 } from '../lib/domain'
 import { href, navigate } from '../lib/router'
+import { ProductAbout } from '../components/ProductGuide'
 import { signOut, useHistory, useThumbUrls } from '../lib/state'
 
 /** A partir de quantos produtos a busca aparece. */
@@ -252,6 +253,7 @@ export function History({
 
                 {isOpen && (
                   <div id={`produto-${exp.id}`} className="product-body">
+                    <ProductAbout experimentId={exp.id} mode={exp.product_mode} category={exp.category} />
                     {fins.length === 0 && (
                       <div className="fin-empty">
                         <p className="muted small">Registre a primeira finalização com este produto: molhado, seco e dia seguinte.</p>
@@ -329,6 +331,11 @@ export function History({
             )
           })}
         </div>
+      )}
+      {visible.length > 0 && (
+        <p className="center small guide-link">
+          <a href={href('/guia')}>O que é cada tipo de produto?</a>
+        </p>
       )}
 
       {pdfFor && (
@@ -531,6 +538,7 @@ function NoFinisherRow({ open, onToggle }: { open: boolean; onToggle: () => void
       </h2>
       {open && (
         <div id="produto-sem-finalizador" className="product-body">
+          <ProductAbout experimentId={NO_FINISHER_ID} mode="none" />
           <div className="fin-empty">
             <p className="muted small">Registre como o cabelo fica sem nenhum produto, para comparar com os outros.</p>
             <a className="btn btn-outline-brand btn-block" href={href(`/produto/${NO_FINISHER_ID}/nova-finalizacao`)}>

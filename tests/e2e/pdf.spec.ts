@@ -157,6 +157,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
       },
     })
   if (error) throw error
+  await adminClient().from('experiments').update({ category: 'geleia' }).eq('id', experimentId)
 
   await login(page)
   const card = page.locator('.experiment', { hasText: 'Geleia IA' })
@@ -167,6 +168,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   await expect(toggle).toBeChecked()
   const message = dialog.getByRole('textbox', { name: 'Mensagem' })
   await expect(message).toHaveValue(/com as minhas observações e a análise da IA\.$/)
+  await expect(message).toHaveValue(/\n\nGeleia: define e controla o frizz, com fixação média\.\n\n/)
   const withAi = (await downloadPdf(page, 'Enviar PDF da finalização')).bytes
   let text = pdfText(withAi)
   expect(text).toContain('(Leitura da IA)')
@@ -174,6 +176,9 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   expect(text).toContain('8/10')
   expect(text).toContain('Seco: Macio e solto.')
   expect(text).toMatch(/an.lise da IA: Ondas 2B uniformes\./)
+  // Quem recebe entende o produto: o tipo na capa e o que ele é.
+  expect(text).toContain('Geleia · Marca G')
+  expect(text).toMatch(/O que . geleia: Gel leve/)
   // O PDF circula: sem endereço do app e sem nome do modelo.
   expect(text).toContain('Feito com o Projeto Capilar')
   expect(text).not.toMatch(/localhost|github|127\.0\.0\.1/i)
@@ -193,7 +198,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   await page.getByRole('button', { name: 'Enviar PDF' }).click()
   const sheet = page.getByRole('dialog', { name: 'Enviar PDF' })
   await expect(sheet.getByRole('checkbox', { name: 'Incluir a análise da IA' })).toBeChecked()
-  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/Minha observação: Macio e solto\.\n\nAs fotos estão no PDF, com a análise da IA\.$/)
+  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/Minha observação: Macio e solto\.\n\nGeleia: define e controla o frizz, com fixação média\.\n\nAs fotos estão no PDF, com a análise da IA\.$/)
   text = pdfText((await downloadPdf(page, 'Enviar PDF')).bytes)
   expect(text).toMatch(/An.lise da IA: Ondas 2B uniformes\./)
   expect(text).not.toContain('Leitura da IA')
