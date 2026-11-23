@@ -7,7 +7,7 @@
 
 export const MOMENTS = ['wet', 'dry', 'next_day'] as const
 export type Moment = (typeof MOMENTS)[number]
-export const ANGLES = ['front', 'left', 'right', 'back'] as const
+export const ANGLES = ['front', 'left', 'back', 'right'] as const // mesma ordem do app
 export type Angle = (typeof ANGLES)[number]
 
 const MOMENT_LABEL: Record<Moment, string> = { wet: 'Molhado (logo depois de finalizar)', dry: 'Seco (no mesmo dia)', next_day: 'Dia seguinte' }

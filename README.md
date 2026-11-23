@@ -2,7 +2,7 @@
 
 Diário fotográfico capilar pessoal, em português, pensado para o celular. Cada **finalização** é um
 dia de lavagem com um produto, fotografado em três **momentos**: **Molhado**, **Seco** e
-**Dia seguinte**, com até quatro ângulos (**Frente**, **Esquerdo**, **Direito**, **Costas**). O
+**Dia seguinte**, com até quatro ângulos (**Frente**, **Esquerdo**, **Costas**, **Direito**, a ordem de quem gira na frente da câmera). O
 comparador põe dois momentos iguais lado a lado no mesmo ângulo.
 
 Estrutura: produto (experimento) → finalização → momento (etapa) → fotos. Cada finalização tem no

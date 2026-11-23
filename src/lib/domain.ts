@@ -1,14 +1,15 @@
 import type { Crop } from './framing'
 // Tipos e rótulos do domínio. Valores em inglês no banco, rótulos em pt-BR na interface.
 
-export const ANGLES = ['front', 'left', 'right', 'back'] as const
+// Ordem de quem gira na frente da câmera: frente, um lado, costas, o outro lado.
+export const ANGLES = ['front', 'left', 'back', 'right'] as const
 export type Angle = (typeof ANGLES)[number]
 
 export const ANGLE_LABEL: Record<Angle, string> = {
   front: 'Frente',
   left: 'Esquerdo',
-  right: 'Direito',
   back: 'Costas',
+  right: 'Direito',
 }
 
 export const STAGE_TYPES = ['wet', 'dry', 'next_day'] as const

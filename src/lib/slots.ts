@@ -4,7 +4,7 @@ import { ANGLES, type Angle } from './domain'
 export type Slots<T> = Record<Angle, T | null>
 
 export function emptySlots<T>(): Slots<T> {
-  return { front: null, left: null, right: null, back: null }
+  return { front: null, left: null, back: null, right: null }
 }
 
 /**

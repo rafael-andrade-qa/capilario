@@ -23,7 +23,7 @@ import { MAX_BYTES, detectMime, validateFile } from './files'
 describe('distribuição nos ângulos', () => {
   it('usa a ordem do seletor como ponto de partida', () => {
     const { slots, overflow } = assignInOrder(emptySlots<string>(), ['1', '2', '3', '4', '5'])
-    expect(slots).toEqual({ front: '1', left: '2', right: '3', back: '4' })
+    expect(slots).toEqual({ front: '1', left: '2', back: '3', right: '4' })
     expect(overflow).toEqual(['5'])
   })
 
@@ -37,7 +37,7 @@ describe('distribuição nos ângulos', () => {
 
   it('preenche só os espaços vagos permitidos (Completar fotos)', () => {
     const { slots } = assignInOrder(emptySlots<string>(), ['x', 'y', 'z'], ['right', 'back'])
-    expect(slots).toEqual({ front: null, left: null, right: 'x', back: 'y' })
+    expect(slots).toEqual({ front: null, left: null, back: 'x', right: 'y' })
   })
 
   it('remove uma seleção', () => {

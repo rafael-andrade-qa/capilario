@@ -114,7 +114,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await expect(page.locator('.moment-context')).toContainText('Ondulando a Gema')
   await expect(stageRadio(page, 'Molhado')).toHaveClass(/on/)
   // Troca Frente <-> Esquerdo por toque.
-  await pick(page, [FRONT, LEFT, RIGHT, BACK])
+  await pick(page, [FRONT, LEFT, BACK, RIGHT])
   await noHorizontalScroll(page)
   await slot(page, 'front').locator('.slot-target').click()
   await slot(page, 'left').locator('.slot-target').click()
@@ -146,7 +146,7 @@ test('A2: + Seco completa a finalização direto nas fotos; observação e favor
   await expect(page.locator('.moment-context')).toContainText('Ondulando a Gema')
   await expect(page.getByText('Passo 1 de 2')).toHaveCount(0)
   await page.getByLabel('Observação').fill('Macio e solto.')
-  await pick(page, [FRONT, LEFT, RIGHT, BACK])
+  await pick(page, [FRONT, LEFT, BACK, RIGHT])
   ids.dry = await saveAndGetStage(page)
 
   await expect(page.locator('.experiment:not(.fixed-product)')).toHaveCount(1)
@@ -183,7 +183,7 @@ test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ pag
   await expect(page.locator('.angle-cell img')).toHaveCount(2)
   await page.getByRole('link', { name: 'Adicionar foto: Direito' }).click()
   await expect(slot(page, 'front').getByText('Publicada')).toBeVisible()
-  await pick(page, [RIGHT, BACK])
+  await pick(page, [BACK, RIGHT])
   await saveButton(page).click()
   await page.waitForURL(new RegExp(`#/etapa/${ids.dryNone}$`))
   await expect(page.locator('.angle-cell img')).toHaveCount(4)
@@ -219,7 +219,7 @@ test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ 
 
   const dry = await photosOf(ids.dry)
   const none = await photosOf(ids.dryNone)
-  for (const angle of ['front', 'left', 'right', 'back'] as const) {
+  for (const angle of ['front', 'left', 'back', 'right'] as const) {
     const label = { front: 'Frente', left: 'Esquerdo', right: 'Direito', back: 'Costas' }[angle]
     await page.getByRole('tab', { name: label }).click()
     await expect(page.getByTestId('side-A').locator('img')).toHaveAttribute('src', new RegExp(dry[angle].storage_path))
@@ -238,8 +238,8 @@ test('A4: compara só a mesma etapa; Seco × Seco entre experimentos', async ({ 
 
   // Recarregar o comparador mantém etapa, seleção e ângulo (A8).
   await page.reload()
-  await expect(page.getByRole('tab', { name: 'Costas' })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none.back.storage_path))
+  await expect(page.getByRole('tab', { name: 'Direito' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('side-B').locator('img')).toHaveAttribute('src', new RegExp(none.right.storage_path))
 
   // Pedir Molhado × Seco pela URL não vale: sem outro Molhado, não há B.
   await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)
@@ -300,7 +300,7 @@ test('A6: falha no envio, nova tentativa e toque repetido não duplicam', async 
 
   await newProduct(page, 'Creme teste A6', 'Marca A6')
   await page.getByLabel('Observação').fill('nota preservada')
-  await pick(page, [FRONT, LEFT, RIGHT, BACK])
+  await pick(page, [FRONT, LEFT, BACK, RIGHT])
   // Dois toques seguidos em Salvar.
   await saveButton(page).evaluate((b: HTMLButtonElement) => {
     b.click()
@@ -355,7 +355,7 @@ test('A6: salvar só as fotos concluídas quando uma continua falhando', async (
   })
   await noFinisherFinalization(page)
   await stageRadio(page, 'Seco').click()
-  await pick(page, [FRONT, LEFT, RIGHT])
+  await pick(page, [FRONT, LEFT, BACK])
   await saveButton(page).click()
   await expect(page.getByText('1 foto não foi enviada.')).toBeVisible()
   await page.getByRole('button', { name: 'Salvar só as 2 fotos concluídas' }).click()
@@ -375,18 +375,18 @@ test('A9: arquivo grande, formato não aceito; foto pesada é reduzida no aparel
   await pick(page, [resumable, big, gif, heic])
 
   await expect(slot(page, 'left')).toContainText('grande demais')
-  await expect(slot(page, 'right')).toContainText('Formato não aceito')
-  await expect(slot(page, 'back')).toContainText('HEIC')
+  await expect(slot(page, 'back')).toContainText('Formato não aceito')
+  await expect(slot(page, 'right')).toContainText('HEIC')
   await noHorizontalScroll(page)
   await saveButton(page).click()
   await expect(page.getByText('Troque ou remova os arquivos marcados com problema.')).toBeVisible()
 
   // Remove um, troca os outros dois; a foto boa continua selecionada.
   await slot(page, 'left').getByRole('button', { name: 'Remover' }).click()
-  await slot(page, 'right').getByRole('button', { name: 'Trocar' }).click()
-  await page.getByTestId('slot-input').setInputFiles([RIGHT])
   await slot(page, 'back').getByRole('button', { name: 'Trocar' }).click()
   await page.getByTestId('slot-input').setInputFiles([BACK])
+  await slot(page, 'right').getByRole('button', { name: 'Trocar' }).click()
+  await page.getByTestId('slot-input').setInputFiles([RIGHT])
   await expect(page.getByText('Verificando…')).toHaveCount(0)
   await expect(slot(page, 'front').locator('.slot-target')).toHaveAttribute('aria-label', /grande-ok\.png/)
 
