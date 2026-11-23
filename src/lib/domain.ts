@@ -45,6 +45,11 @@ export interface Stage {
   is_favorite: boolean
   created_at: string
   photos: Photo[]
+  /** Clima da hora do momento (preenchido sozinho pelo app; vazio até lá). */
+  humidity?: number | null
+  temperature?: number | null
+  weather_code?: number | null
+  weather_at?: string | null
 }
 
 export interface Experiment {

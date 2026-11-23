@@ -35,6 +35,14 @@ da lista, rota `#/guia`) mostra todos, na ordem de uma rotina. O PDF leva o tipo
 e a explicação nas observações; a mensagem pronta leva a linha curta, para quem recebe entender o produto.
 Os textos são gerais (sem marca) e ficam no app (`src/lib/productGuide.ts`): não chamam a IA.
 
+**Clima de cada momento.** Ao abrir o histórico, o app pega a localização do aparelho (o navegador pede
+permissão uma vez), arredonda para ~1 km e consulta no [Open-Meteo](https://open-meteo.com) (grátis, sem
+chave) a umidade, a temperatura e o tempo da hora de cada momento que ainda não tem clima. Só os números
+ficam gravados no momento (`stages.humidity`, `temperature`, `weather_code`, `weather_at`); a localização
+não é guardada. Mudou o horário do momento, consulta de novo. Aparece no quadradinho do momento (gota +
+%), na tela do momento, no Comparar e nos PDFs, e vai junto para a análise da IA, que separa frizz de dia
+úmido do efeito do produto. Sem permissão de localização, nada acontece.
+
 **Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta. A IA (Claude Haiku 5.5, pela
 função `identify-product`, sem busca na web) só lê marca e nome no rótulo; a foto vem do catálogo do app e,
 se o produto não estiver lá, da busca pública das lojas (até 3 fotos, padronizadas: retrato 3:4, fundo

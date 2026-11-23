@@ -1936,8 +1936,20 @@ input[list]::-webkit-list-button {
   white-space: nowrap;
 }
 .moment-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   line-height: 1.1;
+}
+.moment-humidity {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.moment-humidity svg {
+  color: var(--brand);
+  opacity: 0.85;
 }
 .moment-add .moment-frame {
   border: 1.5px dashed var(--line);
@@ -3434,4 +3446,23 @@ body:has(.save-bar) .toasts {
   font-weight: 600;
   text-align: right;
   cursor: pointer;
+}
+.detail-weather {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -8px 0 12px;
+}
+.detail-weather svg {
+  flex-shrink: 0;
+  color: var(--brand);
+}
+.compare-humidity {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.compare-humidity svg {
+  color: var(--brand);
 }

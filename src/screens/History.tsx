@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
-import { EditIcon, PlusIcon } from '../components/ActionIcons'
+import { DropIcon, EditIcon, PlusIcon } from '../components/ActionIcons'
+import { weatherLong } from '../lib/weather'
 import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
 import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
@@ -512,9 +513,15 @@ function MomentTile({ stage, urls, highlight }: { stage: Stage; urls: Record<str
         )}
       </span>
       <span className="moment-label">{STAGE_LABEL[stage.stage_type]}</span>
-      <time className="moment-time muted" dateTime={stage.captured_at}>
-        {formatTime(stage.captured_at)}
-      </time>
+      <span className="moment-time muted">
+        <time dateTime={stage.captured_at}>{formatTime(stage.captured_at)}</time>
+        {stage.humidity != null && (
+          <span className="moment-humidity" title={weatherLong(stage) ?? undefined} aria-label={`umidade ${stage.humidity}%`}>
+            <DropIcon />
+            {stage.humidity}%
+          </span>
+        )}
+      </span>
     </a>
   )
 }

@@ -1,8 +1,9 @@
 // Sessão e histórico compartilhados entre as telas.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { cachedSignedUrls, clearSignedUrlCache, fetchHistory, isMissingFile, signedUrls } from './api'
+import { cachedSignedUrls, clearSignedUrlCache, fetchHistory, isMissingFile, saveStageWeather, signedUrls } from './api'
+import { fillWeather, stagesNeedingWeather } from './weather'
 import { thumbPath } from './images'
 import type { Experiment, Stage } from './domain'
 
@@ -92,11 +93,14 @@ export function HistoryProvider({ userId, children }: { userId: string; children
   const [experiments, setExperiments] = useState<Experiment[] | null>(() => readHistoryCache(userId))
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Já veio do servidor nesta abertura (o guardado no aparelho pode estar velho).
+  const [fresh, setFresh] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
     try {
       setExperiments(await fetchHistory())
+      setFresh(true)
       setError(null)
     } catch (e) {
       setError((e as Error).message)
@@ -127,6 +131,26 @@ export function HistoryProvider({ userId, children }: { userId: string; children
   useEffect(() => {
     if (experiments) writeHistoryCache(userId, experiments)
   }, [userId, experiments])
+
+  // Clima dos momentos que ainda não têm: pega a localização e consulta sozinho. Cada momento é
+  // tentado uma vez por abertura do app (sem localização ou sem internet, fica para a próxima).
+  const weatherTried = useRef(new Set<string>())
+  const weatherBusy = useRef(false)
+  useEffect(() => {
+    if (!experiments || !fresh || loading || weatherBusy.current) return
+    const pending = stagesNeedingWeather(experiments).filter((s) => !weatherTried.current.has(s.id + s.captured_at))
+    if (!pending.length) return
+    for (const s of pending) weatherTried.current.add(s.id + s.captured_at)
+    weatherBusy.current = true
+    void fillWeather(pending, async (id, w) => {
+      await saveStageWeather(id, w)
+      patchStage(id, w)
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        weatherBusy.current = false
+      })
+  }, [experiments, fresh, loading, patchStage])
 
   // Já pede os endereços de todas as fotos (e miniaturas) num pedido só: ao abrir um momento,
   // as fotos começam a baixar na hora, sem esperar mais uma ida ao servidor.

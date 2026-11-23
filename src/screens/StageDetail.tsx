@@ -2,7 +2,8 @@
 // e horário, trocar a foto de um ângulo, remover (menos a última), pôr foto num ângulo vazio e
 // ajustar o enquadramento (à mão ou automático, em todas as fotos de uma vez).
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { CheckIcon, CloseIcon, CropIcon, EditIcon } from '../components/ActionIcons'
+import { weatherLong } from '../lib/weather'
+import { CheckIcon, CloseIcon, CropIcon, DropIcon, EditIcon } from '../components/ActionIcons'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { useToast } from '../components/Toasts'
 import { PageHeader } from '../components/PageHeader'
@@ -298,6 +299,11 @@ export function StageDetail({ stageId }: { stageId: string }) {
         <span className="detail-sub-product">{productLabel(experiment)}</span>
         <span className="detail-sub-when"> · {formatShortDateTime(stage.captured_at)}</span>
       </p>
+      {weatherLong(stage) && (
+        <p className="muted small detail-weather" data-testid="stage-weather">
+          <DropIcon size={12} /> {weatherLong(stage)}
+        </p>
+      )}
 
       {urlError && <p className="alert alert-error">{urlError}</p>}
 

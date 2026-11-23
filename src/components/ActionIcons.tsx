@@ -86,3 +86,12 @@ export function InfoIcon({ size = 14 }: { size?: number }) {
     </svg>
   )
 }
+
+/** Gota (umidade do ar). */
+export function DropIcon({ size = 11 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <path d="M12 3.2c3.2 4.1 6 7.6 6 10.9a6 6 0 0 1-12 0c0-3.3 2.8-6.8 6-10.9z" fill="currentColor" />
+    </svg>
+  )
+}

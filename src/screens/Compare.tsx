@@ -2,6 +2,8 @@
 // Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
 // os dois registros têm ficam clicáveis (ver lib/compare.ts).
 import { PageSkeleton } from '../components/Skeleton'
+import { DropIcon } from '../components/ActionIcons'
+import { weatherLong, withHumidity } from '../lib/weather'
 import { useEffect, useMemo, useState } from 'react'
 import { Dropdown, type DropdownOption } from '../components/Dropdown'
 import { PageHeader } from '../components/PageHeader'
@@ -290,8 +292,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
                         ? [await productHero(a.experiment)]
                         : [await productHero(a.experiment, 'A'), await productHero(b.experiment, 'B')],
                   },
-                  a: { title: productTitle(a.experiment), subtitle: formatDateTime(a.stage.captured_at) },
-                  b: { title: productTitle(b.experiment), subtitle: formatDateTime(b.stage.captured_at) },
+                  a: { title: productTitle(a.experiment), subtitle: withHumidity(formatDateTime(a.stage.captured_at), a.stage) },
+                  b: { title: productTitle(b.experiment), subtitle: withHumidity(formatDateTime(b.stage.captured_at), b.stage) },
                   rows: common.map((ang) => {
                     const pa = photoByAngle(a.stage, ang)!
                     const pb = photoByAngle(b.stage, ang)!
@@ -339,6 +341,13 @@ export function Compare({ params }: { params: URLSearchParams }) {
                     </span>
                     <span className="compare-sub muted">
                       <span className="compare-when">{formatShortDateTime(e.stage.captured_at)}</span>
+                      {e.stage.humidity != null && (
+                        <span className="compare-humidity" title={weatherLong(e.stage) ?? undefined} aria-label={"umidade " + e.stage.humidity + "%"}>
+                          {' · '}
+                          <DropIcon />
+                          {e.stage.humidity}%
+                        </span>
+                      )}
                       {brandLabel(e.experiment) && (
                         <span className="one-line" title={brandLabel(e.experiment) ?? undefined}>
                           · {brandLabel(e.experiment)}

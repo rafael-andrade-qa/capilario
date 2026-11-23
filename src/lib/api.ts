@@ -6,9 +6,10 @@ import { EXT_BY_MIME, type AcceptedMime } from './files'
 import { uploadPhoto } from './upload'
 import { prepareImage, thumbPath } from './images'
 import { uuid } from './uuid'
+import type { StageWeather } from './weather'
 
 const HISTORY_SELECT =
-  'id, product_mode, product_name, brand, photo_path, category, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
+  'id, product_mode, product_name, brand, photo_path, category, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, humidity, temperature, weather_code, weather_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
 
 export async function fetchHistory(): Promise<Experiment[]> {
   const { data, error } = await supabase.from('experiments').select(HISTORY_SELECT).order('created_at', { ascending: false })
@@ -88,6 +89,12 @@ export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult>
  * a política do Storage só libera objetos que já não estão ligados a uma foto.
  * Se a resposta se perde, confere no banco se a etapa sumiu antes de declarar falha.
  */
+/** Grava o clima da hora do momento. */
+export async function saveStageWeather(stageId: string, w: StageWeather): Promise<void> {
+  const { error } = await supabase.from('stages').update(w).eq('id', stageId)
+  if (error) throw new Error(`Não foi possível salvar o clima: ${error.message}`)
+}
+
 export async function deleteStage(stageId: string, paths: string[]): Promise<void> {
   const { data: result, error } = await supabase.rpc('delete_stage', { p_stage_id: stageId })
   if (error) {

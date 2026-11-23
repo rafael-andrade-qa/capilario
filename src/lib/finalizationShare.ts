@@ -5,6 +5,7 @@
 // da IA de cada momento, com rótulo, separada do que a pessoa escreveu). A folha deixa tirar:
 // cada opção traz também a versão sem a análise (noAi).
 import type { PdfOption } from '../components/PdfShareSheet'
+import { weatherShort, withHumidity } from './weather'
 import type { FinalizationAnalysis } from './analysis'
 import { splitNote } from './analysisText'
 import { pdfAbout, typeAndBrand } from './productGuide'
@@ -98,7 +99,7 @@ export function finalizationOption(
           pill: `${dayMonth(f.start)} · ${stages.map((s) => STAGE_LABEL[s.stage_type]).join(' → ')}`,
           heroes: [await productHero(experiment)],
         },
-        columns: stages.map((s) => ({ title: STAGE_LABEL[s.stage_type], subtitle: whenText(s.captured_at) })),
+        columns: stages.map((s) => ({ title: STAGE_LABEL[s.stage_type], subtitle: withHumidity(whenText(s.captured_at), s) })),
         rows: angles.map((a) => ({
           label: ANGLE_LABEL[a],
           cells: stages.map((s) => {
@@ -132,7 +133,7 @@ export function momentOption(experiment: Experiment, stage: Stage, present: Angl
           kicker: `Momento · ${STAGE_LABEL[stage.stage_type]}`,
           title: productLabel(experiment),
           brand: typeAndBrand(experiment, brandLabel(experiment) || null),
-          pill: formatDateTime(stage.captured_at),
+          pill: weatherShort(stage) ? `${formatDateTime(stage.captured_at)} · ${weatherShort(stage)}` : formatDateTime(stage.captured_at),
           heroes: [await productHero(experiment)],
         },
         notes: [...withAbout(experiment), ...pdfNotes([stage], withAi, false)],

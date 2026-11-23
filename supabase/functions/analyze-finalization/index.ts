@@ -67,11 +67,19 @@ interface StageRow {
   captured_at: string
   notes: string | null
   experiment_id: string
+  humidity: number | null
+  temperature: number | null
 }
 interface ExperimentRow {
   product_mode: string
   product_name: string | null
   brand: string | null
+}
+
+/** "82% de umidade, 24°C" para a IA levar o clima em conta (frizz de dia úmido não é culpa do produto). */
+function weatherOf(s: StageRow): string | null {
+  if (s.humidity == null || s.temperature == null) return null
+  return `${s.humidity}% de umidade, ${Math.round(Number(s.temperature))}°C`
 }
 
 function productOf(e: ExperimentRow | undefined): string {
@@ -133,7 +141,7 @@ Deno.serve(async (req) => {
     // A finalização precisa ser da pessoa (o RLS só devolve os momentos dela).
     const stages = await getJson<StageRow[]>(
       headers,
-      `stages?finalization_id=eq.${input.finalization_id}&select=id,stage_type,captured_at,notes,experiment_id&order=captured_at`,
+      `stages?finalization_id=eq.${input.finalization_id}&select=id,stage_type,captured_at,notes,experiment_id,humidity,temperature&order=captured_at`,
     )
     if (!stages.length) return reply(404, { error: 'not_found' })
     const [experiment] = await getJson<ExperimentRow[]>(headers, `experiments?id=eq.${stages[0].experiment_id}&select=product_mode,product_name,brand`)
@@ -145,7 +153,7 @@ Deno.serve(async (req) => {
     const present = new Set<Moment>(input.images.map((i) => i.moment))
     const content = buildContent(input.images, {
       product,
-      moments: stages.map((s) => ({ moment: s.stage_type, when: WHEN.format(new Date(s.captured_at)), notes: ownNotes(s.notes) })),
+      moments: stages.map((s) => ({ moment: s.stage_type, when: WHEN.format(new Date(s.captured_at)), notes: ownNotes(s.notes), weather: weatherOf(s) })),
       past: past.map(
         (p): PastAnalysis => ({
           product: String(p.result.product ?? ''),

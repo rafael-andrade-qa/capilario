@@ -62,6 +62,8 @@ export interface MomentContext {
   when: string
   /** Observação da própria pessoa (sem a análise anterior da IA). */
   notes: string | null
+  /** Clima da hora (ex.: "82% de umidade, 24°C, nublado"), se o app conseguiu. */
+  weather?: string | null
 }
 export interface PastAnalysis {
   product: string
@@ -103,6 +105,7 @@ Como avaliar:
 - summary: 1 a 2 frases sobre o produto nesta finalização; se houver análises anteriores, compare com elas pelo nome do produto.
 - notes: uma observação por momento que tem fotos (2 a 3 frases curtas, até ~300 caracteres), no estilo de anotação de diário. Não repita o nome do produto. Para momento sem fotos, texto vazio.
 - Leve em conta as observações que a própria pessoa escreveu (rotina, sensação ao toque), sem repeti-las.
+- Quando vier o clima do momento (umidade e temperatura do ar), use para separar o efeito do tempo do efeito do produto: ar úmido (75% ou mais) costuma aumentar frizz e volume, ar seco (abaixo de 40%) tende a ressecar. Se fizer diferença, diga isso em uma frase; não repita os números.
 - Seja honesto: se a foto não permite avaliar algo (luz, ângulo, cabelo escondido), diga isso em vez de inventar.
 - Couro cabeludo: só comente se algo estiver claramente visível, em tom neutro e sem diagnóstico (ex.: "vale acompanhar"). Você não é médico.`
 
@@ -164,7 +167,7 @@ export function buildContent(images: InputImage[], ctx: AnalyzeContext): unknown
     const mc = ctx.moments.find((x) => x.moment === m)
     const n = images.filter((i) => i.moment === m).length
     if (!mc && !n) continue
-    lines.push(`- ${MOMENT_LABEL[m]}${mc ? `, ${mc.when}` : ''}: ${n} foto(s).${mc?.notes ? ` Observação da pessoa: "${mc.notes}"` : ''}`)
+    lines.push(`- ${MOMENT_LABEL[m]}${mc ? `, ${mc.when}` : ''}${mc?.weather ? ` (clima: ${mc.weather})` : ''}: ${n} foto(s).${mc?.notes ? ` Observação da pessoa: "${mc.notes}"` : ''}`)
   }
   if (ctx.past.length) {
     lines.push('', 'Análises anteriores (outras finalizações), para comparar:')
