@@ -1,7 +1,8 @@
 // Confirmação para excluir um produto inteiro, com todas as etapas e fotos.
 import { useEffect, useRef, useState } from 'react'
-import { deleteExperiment } from '../lib/api'
-import { finalizationsOf, productFullLabel, publishedStages, type Experiment } from '../lib/domain'
+import { deleteExperiment, saveRoutine } from '../lib/api'
+import { finalizationsOf, productFullLabel, type Experiment } from '../lib/domain'
+import { draftOf, finalizationsWith } from '../lib/routine'
 import { useHistory } from '../lib/state'
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 }
 
 export function DeleteProductDialog({ experiment, onCancel, onDeleted }: Props) {
-  const { removeExperiment } = useHistory()
+  const { removeExperiment, routines, experiments, reload } = useHistory()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -28,18 +29,21 @@ export function DeleteProductDialog({ experiment, onCancel, onDeleted }: Props) 
     return () => window.removeEventListener('keydown', onKey)
   }, [busy, onCancel])
 
-  const stages = publishedStages(experiment)
-  const fins = finalizationsOf(experiment).length
-  const photos = stages.reduce((n, s) => n + s.photos.length, 0)
-  const paths = [...experiment.stages.flatMap((s) => s.photos.map((p) => p.storage_path)), ...(experiment.photo_path ? [experiment.photo_path] : [])]
+  const all = experiments ?? []
+  // Em quantas finalizações ele entrou; as que estão guardadas nele mudam de produto antes.
+  const used = finalizationsWith(experiment.id, all, routines).length
+  const owned = finalizationsOf(experiment)
+  const paths = experiment.photo_path ? [experiment.photo_path] : []
 
   async function confirm() {
     if (busy) return
     setBusy(true)
     setError(null)
     try {
+      for (const f of owned) await saveRoutine(f.id, draftOf(routines[f.id], all).filter((i) => i.experimentId !== experiment.id))
       await deleteExperiment(experiment.id, paths)
       removeExperiment(experiment.id)
+      await reload()
       onDeleted()
     } catch (e) {
       setError((e as Error).message)
@@ -63,9 +67,9 @@ export function DeleteProductDialog({ experiment, onCancel, onDeleted }: Props) 
             <strong>{productFullLabel(experiment)}</strong>
           </p>
           <p>
-            {fins === 0
-              ? `O produto ainda não tem finalização${experiment.photo_path ? '; a foto da embalagem será apagada' : ''}. Não dá para desfazer.`
-              : `${fins === 1 ? 'A finalização' : `As ${fins} finalizações`} e ${photos === 1 ? 'a foto' : `as ${photos} fotos`} serão apagadas${experiment.photo_path ? ', junto com a foto do produto' : ''}. Não dá para desfazer.`}
+            {used === 0
+              ? `O produto ainda não entrou em nenhuma finalização${experiment.photo_path ? '; a foto da embalagem será apagada' : ''}. Não dá para desfazer.`
+              : `Ele sai da rotina ${used === 1 ? 'da finalização em que aparece' : `das ${used} finalizações em que aparece`}; as finalizações e as fotos continuam${experiment.photo_path ? '. A foto da embalagem é apagada' : ''}. Não dá para desfazer.`}
           </p>
         </div>
         {error && <p className="alert alert-error">{error}</p>}

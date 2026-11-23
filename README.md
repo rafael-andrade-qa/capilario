@@ -43,17 +43,20 @@ não é guardada. Mudou o horário do momento, consulta de novo. Aparece no quad
 %), na tela do momento, no Comparar e nos PDFs, e vai junto para a análise da IA, que separa frizz de dia
 úmido do efeito do produto. Sem permissão de localização, nada acontece.
 
-**Rotina da finalização.** Cada finalização guarda o que a pessoa usou no dia, por etapa: lavar,
-condicionar, máscara (com o tipo do cronograma: hidratação, nutrição ou reconstrução), preparar, pentear
-e definir, fixar e finalizar (tabela `routine_items`, gravada pela função `set_routine`). **+ Nova
-finalização** abre "O que você usou hoje?" já igual à última rotina: toca só no que mudou, e a finalização
-fica no produto principal (o de fixar, senão o de pentear, senão o de finalizar; sem nenhum, Sem
-finalizador). A rotina é gravada junto com o primeiro momento. O início tem duas abas: **Dias** (cada
-finalização com a rotina, destacando o que mudou desde a anterior, o clima e os momentos, mais a faixa do
-cronograma) e **Produtos** (a lista de antes). No Comparar, duas finalizações diferentes mostram "O que
-mudou" (etapas diferentes e o clima). "Como fica com ele" (`#/produto/<id>`) mostra em quais
-finalizações o produto entrou e a média das notas da IA com e sem ele. A rotina vai no PDF, na mensagem
-e na análise da IA.
+**Finalização e rotina.** A unidade do app é a finalização (um dia de lavagem); os produtos são
+ingredientes dela. Cada finalização guarda a rotina do dia, por etapa: lavar, condicionar, máscara (com o
+tipo do cronograma: hidratação, nutrição ou reconstrução), preparar, definir, fixar e finalizar (tabela
+`routine_items`, gravada pela função `set_routine`). **+ Nova finalização** abre "O que você usou?" já
+igual à última rotina: toca só no que mudou; qualquer produto pode entrar ou sair. Por dentro, a
+finalização fica guardada num produto (o de fixar, senão o de definir, senão o de finalizar; sem nenhum,
+Sem finalizador) e muda de produto sozinha quando a rotina muda (os momentos vão junto). A rotina é
+gravada junto com o primeiro momento. O início tem duas abas: **Diário** (cada finalização com a rotina em
+selos curtos, o que mudou desde a anterior, o clima, os momentos e um menu ⋯ com editar rotina, comparar
+com a anterior, analisar com IA, PDF e excluir) e **Produtos** (a prateleira: cada produto com as
+finalizações em que entrou e "Como fica com ele", `#/produto/<id>`, com a média das notas da IA com e
+sem ele). Excluir um produto não apaga finalizações: ele só sai das rotinas. O Comparar compara duas
+finalizações (dia, foto e rotina de cada uma; "O que mudou" embaixo das fotos), e o PDF, a mensagem e a
+análise da IA usam a rotina como contexto.
 
 **Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta. A IA (Claude Haiku 5.5, pela
 função `identify-product`, sem busca na web) só lê marca e nome no rótulo; a foto vem do catálogo do app e,

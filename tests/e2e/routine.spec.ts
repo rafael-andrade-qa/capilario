@@ -121,7 +121,8 @@ test('nova finalização: igual à última, troca o shampoo e a máscara, e segu
 
 test('comparar com a anterior mostra o que mudou', async ({ page }) => {
   await login(page)
-  await page.getByRole('listitem', { name: /^Finalização de / }).first().getByRole('link', { name: /Comparar .* com a anterior/ }).click()
+  await page.getByRole('listitem', { name: /^Finalização de / }).first().getByRole('button', { name: /^Ações da finalização de / }).click()
+  await page.getByRole('menuitem', { name: 'Comparar com a anterior' }).click()
   const changes = page.getByRole('region', { name: 'O que mudou' })
   // Recolhido numa linha embaixo das fotos; tocar abre a tabela.
   await expect(changes.locator('summary')).toHaveText('Mudou: lavar, máscara')
@@ -146,9 +147,9 @@ test('o produto mostra em quais finalizações entrou; a rotina dá para editar 
   await expect(page.locator('.insight-row')).toHaveCount(1)
   await expect(page.locator('.insight-row')).toContainText('+ Máscara M, Geleia G')
 
-  // Editar a rotina da finalização de ontem: tirar a máscara. O principal fica fixo.
+  // Editar a rotina da finalização de ontem: tirar a máscara. Nenhum produto fica preso.
   await page.goto(`./#/rotina/${firstFin}`)
-  await expect(page.getByRole('button', { name: 'Fixar: Geleia G (produto desta finalização)' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tirar Geleia G de Fixar' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' })).toContainText('Hidratação')
   await page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' }).click()
   await page.getByRole('dialog', { name: 'Máscara: qual produto?' }).getByRole('button', { name: 'Tirar desta etapa' }).click()
@@ -177,9 +178,12 @@ test('produto que não está cadastrado: cadastra no meio da rotina e volta com 
   await page.getByRole('button', { name: 'Tirar Óleo Pontas de Finalizar' }).click()
   await expect(page.getByRole('group', { name: 'Finalizar' }).getByRole('button', { name: /Óleo Pontas/ })).toHaveCount(0)
   await expect(page.getByTestId('routine-summary')).toHaveCount(0)
-  // O principal não tem ×: tocar nele explica por quê.
+  // Tirar o finalizador: a finalização passa para Sem finalizador (as fotos vão junto).
   await page.goto(`./#/rotina/${firstFin}`)
-  await expect(page.getByRole('button', { name: /Tirar Geleia G/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Fixar: Geleia G (produto desta finalização)' }).click()
-  await expect(page.getByText(/Este é o produto principal desta finalização/)).toBeVisible()
+  await page.getByRole('button', { name: 'Tirar Geleia G de Fixar' }).click()
+  await page.getByRole('button', { name: 'Salvar rotina' }).click()
+  await expect(page.getByText('Rotina salva.')).toBeVisible()
+  const moved = (await admin.from('finalizations').select('experiment_id').eq('id', firstFin).single()).data!.experiment_id
+  expect((await admin.from('experiments').select('product_mode').eq('id', moved).single()).data!.product_mode).toBe('none')
+  expect(((await admin.from('stages').select('experiment_id').eq('finalization_id', firstFin)).data ?? []).map((x) => x.experiment_id)).toEqual([moved])
 })

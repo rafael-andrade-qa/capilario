@@ -26,7 +26,8 @@ export function DeleteFinalizationSheet({
   choices: FinalizationChoice[]
   onClose: () => void
   onDeleted: () => void
-  onDeleteProduct: () => void
+  /** Sem ela, não oferece excluir o produto (a finalização é excluída pelo cartão do dia). */
+  onDeleteProduct?: () => void
 }) {
   const { removeStage } = useHistory()
   const [index, setIndex] = useState(0)
@@ -73,7 +74,7 @@ export function DeleteFinalizationSheet({
         />
         {fin && (
           <p className="delete-warning small" role="note">
-            Sai {momentsText(fin)} de {choice.label}, com {photos === 1 ? 'a foto' : `as ${photos} fotos`} e a análise da IA, se tiver. O produto fica. Não dá
+            Sai {momentsText(fin)} de {choice.label}, com {photos === 1 ? 'a foto' : `as ${photos} fotos`} e a análise da IA, se tiver. Os produtos ficam. Não dá
             para desfazer.
           </p>
         )}
@@ -86,11 +87,13 @@ export function DeleteFinalizationSheet({
             {busy ? 'Excluindo…' : 'Excluir'}
           </button>
         </div>
-        <p className="delete-product-row">
-          <button type="button" className="text-action danger-text" onClick={onDeleteProduct} disabled={busy}>
-            Excluir o produto inteiro
-          </button>
-        </p>
+        {onDeleteProduct && (
+          <p className="delete-product-row">
+            <button type="button" className="text-action danger-text" onClick={onDeleteProduct} disabled={busy}>
+              Excluir o produto inteiro
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

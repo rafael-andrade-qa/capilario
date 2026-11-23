@@ -117,6 +117,14 @@ test('PDF do comparativo: A e B lado a lado', async ({ page }) => {
   expect(bytes.length).toBeGreaterThan(12_000)
 })
 
+/** "Enviar PDF" pelo menu ⋯ do cartão do dia que tem esse texto (o selo da rotina). */
+async function dayPdf(page: Page, text: string) {
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  const day = page.getByRole('listitem', { name: /^Finalização de / }).filter({ hasText: text }).first()
+  await day.getByRole('button', { name: /^Ações da finalização de / }).click()
+  await page.getByRole('menuitem', { name: 'Enviar PDF' }).click()
+}
+
 /** Texto do PDF: abre os blocos comprimidos (o jsPDF escreve o texto como "(...) Tj"). */
 function pdfText(bytes: Buffer): string {
   const raw = bytes.toString('latin1')
@@ -168,7 +176,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   await login(page)
   const card = page.locator('.experiment', { hasText: 'Geleia IA' })
   await card.locator('.product-toggle').click()
-  await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Geleia IA' }).click()
+  await dayPdf(page, 'Geleia')
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF da finalização' })
   const toggle = dialog.getByRole('checkbox', { name: 'Incluir a análise da IA' })
   await expect(toggle).toBeChecked()
@@ -191,7 +199,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   expect(text).not.toMatch(/Opus|Haiku|Sonnet/)
 
   // Sem a análise: some a leitura e a observação da IA; o texto da pessoa fica.
-  await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Geleia IA' }).click()
+  await dayPdf(page, 'Geleia')
   await toggle.uncheck()
   await expect(message).toHaveValue(/com as minhas observações\.$/)
   text = pdfText((await downloadPdf(page, 'Enviar PDF da finalização')).bytes)
@@ -217,10 +225,10 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   const dry = await seed(null, 'Secou com volume.', 21, { experimentId, finalizationId, stageType: 'dry', hour: '12:30' })
 
   await login(page)
-  // Histórico: ícone junto das ações do produto; escolhe a finalização numa lista.
+  // Diário: menu ⋯ do cartão da finalização.
   const card = page.locator('.experiment', { hasText: 'Creme Evolução' })
   await card.locator('.product-toggle').click()
-  await card.getByRole('button', { name: 'Enviar PDF de uma finalização de Creme Evolução' }).click()
+  await dayPdf(page, 'Creme Evolução')
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF da finalização' })
   const choices = dialog.getByRole('radio')
   await expect(choices).toHaveCount(1)

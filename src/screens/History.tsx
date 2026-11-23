@@ -5,16 +5,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
-import { CompareIcon, DropIcon, EditIcon, LogoutIcon, PlusIcon } from '../components/ActionIcons'
+import { CompareIcon, DropIcon, EditIcon, LogoutIcon, MoreIcon, PlusIcon } from '../components/ActionIcons'
 import { weatherLong } from '../lib/weather'
 import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
-import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
+import { PdfShareSheet } from '../components/PdfShareSheet'
 import { finalizationOption } from '../lib/finalizationShare'
 import { fetchAnalyses, type FinalizationAnalysis } from '../lib/analysis'
-import { AnalyzeSheet, SparkIcon } from '../components/FinalizationAnalysis'
+import { AnalyzeSheet } from '../components/FinalizationAnalysis'
 import { DeleteFinalizationSheet } from '../components/DeleteFinalizationSheet'
-import type { FinalizationChoice } from '../components/FinalizationStrip'
 import { SearchField } from '../components/SearchField'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import {
@@ -42,7 +41,7 @@ import { href, navigate } from '../lib/router'
 import { ProductAbout } from '../components/ProductGuide'
 import { productType } from '../lib/productGuide'
 import { signOut, useHistory, useThumbUrls } from '../lib/state'
-import { allFinalizations, diffRoutine, draftOf, itemName, routineExtra, schedule, sortRoutine, stepLabel, type Routines, type RoutineStep } from '../lib/routine'
+import { allFinalizations, diffRoutine, draftOf, finalizationsWith, itemName, routineExtra, schedule, sortRoutine, stepLabel, type Routines, type RoutineStep } from '../lib/routine'
 import { compareUrl } from '../lib/compare'
 
 /** A partir de quantos produtos a busca aparece. */
@@ -91,18 +90,14 @@ export function History({
     writeTab(t)
   }
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
-  const [pdfFor, setPdfFor] = useState<Experiment | null>(null)
-  // Análises das finalizações do produto do PDF (buscadas ao tocar, antes de abrir a folha).
-  const [pdfAnalyses, setPdfAnalyses] = useState<Map<string, FinalizationAnalysis>>(() => new Map())
-  const openPdf = (exp: Experiment) =>
-    void fetchAnalyses(finalizationsOf(exp).map((f) => f.id))
+  // Ação numa finalização (pelo menu do cartão do dia). O PDF busca a análise antes de abrir.
+  const [finAction, setFinAction] = useState<FinAction | null>(null)
+  const openAction = (kind: FinAction['kind'], experiment: Experiment, fin: Finalization, when: string) => {
+    if (kind !== 'pdf') return setFinAction({ kind, experiment, fin, when })
+    void fetchAnalyses([fin.id])
       .catch(() => new Map<string, FinalizationAnalysis>())
-      .then((m) => {
-        setPdfAnalyses(m)
-        setPdfFor(exp)
-      })
-  const [aiFor, setAiFor] = useState<Experiment | null>(null)
-  const [deleteFor, setDeleteFor] = useState<Experiment | null>(null)
+      .then((m) => setFinAction({ kind, experiment, fin, when, analysis: m.get(fin.id) ?? null }))
+  }
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
@@ -145,15 +140,15 @@ export function History({
     for (const id of open) openMemory.add(id)
   }, [open])
 
-  // Em quantas finalizações cada produto entrou pela rotina (de qualquer produto principal).
-  const usedCount = useMemo(() => {
-    // Só finalizações que ainda existem (a rotina guardada pode ser de uma que foi excluída).
-    const alive = new Set(list.flatMap((e) => publishedStages(e).map((s) => s.finalization_id)))
-    const out = new Map<string, number>()
-    for (const [fin, items] of Object.entries(routines)) if (alive.has(fin)) for (const i of items) out.set(i.experiment_id, (out.get(i.experiment_id) ?? 0) + 1)
-    return out
-  }, [routines, list])
-  const usedIn = (e: Experiment) => usedCount.get(e.id) ?? 0
+  // Em quais finalizações cada produto entrou, em qualquer etapa (a prateleira mostra todas).
+  const finsOf = useMemo(() => {
+    const cache = new Map<string, { experiment: Experiment; finalization: Finalization }[]>()
+    return (e: Experiment) => {
+      if (!cache.has(e.id))
+        cache.set(e.id, e.product_mode === 'named' ? finalizationsWith(e.id, list, routines) : finalizationsOf(e).map((finalization) => ({ experiment: e, finalization })))
+      return cache.get(e.id)!
+    }
+  }, [list, routines])
 
   const visible = useMemo(() => {
     const q = normalize(query.trim())
@@ -166,13 +161,16 @@ export function History({
     for (const e of list) {
       const t = productThumbPath(e)
       if (t) out.add(t)
-      if (open.has(e.id) || tab === 'dias') for (const s of publishedStages(e)) {
-        const c = coverPhoto(s)
-        if (c) out.add(c.storage_path)
-      }
+      if (open.has(e.id) || tab === 'dias')
+        for (const { finalization } of tab === 'dias' ? finalizationsOf(e).map((finalization) => ({ finalization })) : finsOf(e))
+          for (const s of STAGE_TYPES.flatMap((t) => (finalization.moments[t] ? [finalization.moments[t]!] : []))) {
+            const c = coverPhoto(s)
+            if (c) out.add(c.storage_path)
+          }
     }
+    if (finAction) for (const s of Object.values(finAction.fin.moments)) if (s && coverPhoto(s)) out.add(coverPhoto(s)!.storage_path)
     return [...out]
-  }, [list, open, tab])
+  }, [list, open, tab, finsOf, finAction])
   const { urls } = useThumbUrls(paths) // miniaturas: aqui as fotos aparecem pequenas
 
   function toggle(id: string) {
@@ -236,7 +234,7 @@ export function History({
         </div>
       )}
 
-      {tab === 'dias' && experiments !== null && list.length > 0 && <DaysView experiments={list} routines={routines} urls={urls} saved={saved} />}
+      {tab === 'dias' && experiments !== null && list.length > 0 && <DaysView experiments={list} routines={routines} urls={urls} saved={saved} onAction={openAction} />}
 
       {tab === 'produtos' && list.length > 0 && (
         <a className="btn btn-ghost btn-block new-product" href={href('/produto/novo')}>
@@ -253,8 +251,8 @@ export function History({
         <div className="card product-list">
           {!query && !list.some((e) => e.product_mode === 'none') && <NoFinisherRow open={open.has(NO_FINISHER_ID)} onToggle={() => toggle(NO_FINISHER_ID)} />}
           {visible.map((exp) => {
-            const stages = publishedStages(exp)
-            const fins = finalizationsOf(exp)
+            const used = finsOf(exp)
+            const fins = used.map((u) => u.finalization)
             const isOpen = open.has(exp.id)
             const brand = brandLabel(exp)
             return (
@@ -273,13 +271,10 @@ export function History({
                       <span className="muted small experiment-sub">
                         {brand && <span className="brand-name">{brand}</span>}
                         <span className="dates">
-                          {stages.length ? (
+                          {fins.length ? (
                             <>
-                              {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {fins.length}{' '}
-                              {fins.length === 1 ? 'finalização' : 'finalizações'}
+                              {formatDateRange(fins[fins.length - 1].start, fins[0].start)} · {fins.length} {fins.length === 1 ? 'finalização' : 'finalizações'}
                             </>
-                          ) : usedIn(exp) > 0 ? (
-                            `Em ${usedIn(exp)} ${usedIn(exp) === 1 ? 'finalização' : 'finalizações'}`
                           ) : (
                             'Nenhuma finalização ainda'
                           )}
@@ -309,13 +304,13 @@ export function History({
                       </div>
                     )}
                     <ol className="fin-list">
-                      {fins.map((f, i) => (
+                      {used.map(({ experiment: owner, finalization: f }) => (
                         <FinalizationRow
                           key={f.id}
                           finalization={f}
                           urls={urls}
                           saved={saved}
-                          latest={i === 0}
+                          latest={finalizationsOf(owner)[0]?.id === f.id}
                           withTime={fins.some((o) => o !== f && finalizationWhen(o) === finalizationWhen(f))}
                         />
                       ))}
@@ -329,28 +324,6 @@ export function History({
                       >
                         <PlusIcon />
                       </a>
-                      {fins.length > 0 && (
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          onClick={() => setAiFor(exp)}
-                          aria-label={`Analisar com IA uma finalização de ${productLabel(exp)}`}
-                          title="Analisar com IA"
-                        >
-                          <SparkIcon size={20} />
-                        </button>
-                      )}
-                      {fins.length > 0 && (
-                        <button
-                          type="button"
-                          className="icon-btn"
-                          onClick={() => openPdf(exp)}
-                          aria-label={`Enviar PDF de uma finalização de ${productLabel(exp)}`}
-                          title="Enviar PDF de uma finalização"
-                        >
-                          <PdfIcon />
-                        </button>
-                      )}
                       {exp.product_mode === 'named' && (
                         <a
                           className="icon-btn"
@@ -361,15 +334,17 @@ export function History({
                           <EditIcon />
                         </a>
                       )}
-                      <button
-                        type="button"
-                        className="icon-btn danger-icon product-delete"
-                        onClick={() => (fins.length > 0 ? setDeleteFor(exp) : setProductToDelete(exp))}
-                        aria-label={fins.length > 0 ? `Excluir uma finalização de ${productLabel(exp)}` : `Excluir produto ${productLabel(exp)}`}
-                        title={fins.length > 0 ? 'Excluir uma finalização' : 'Excluir produto'}
-                      >
-                        <TrashIcon />
-                      </button>
+                      {exp.product_mode === 'named' && (
+                        <button
+                          type="button"
+                          className="icon-btn danger-icon product-delete"
+                          onClick={() => setProductToDelete(exp)}
+                          aria-label={`Excluir produto ${productLabel(exp)}`}
+                          title="Excluir produto"
+                        >
+                          <TrashIcon />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -378,40 +353,37 @@ export function History({
           })}
         </div>
       )}
-      {pdfFor && (
+      {finAction?.kind === 'pdf' && (
         <PdfShareSheet
           heading="Enviar PDF da finalização"
-          intro={(() => {
-            const n = finalizationsOf(pdfFor).length
-            return n > 2 ? `Escolha uma das ${n} finalizações de ${productLabel(pdfFor)} (deslize para ver todas):` : `Escolha a finalização de ${productLabel(pdfFor)}:`
-          })()}
           pick="list"
-          options={finalizationChoices(pdfFor, urls, pdfAnalyses, (id) => routineExtra(routines[id], list))}
-          onClose={() => setPdfFor(null)}
+          options={[
+            {
+              ...finalizationOption(finAction.experiment, finAction.fin, finAction.when, finAction.analysis ?? null, routineExtra(routines[finAction.fin.id], list)),
+              ...singleCard(finAction.fin, finAction.when, urls),
+            },
+          ]}
+          onClose={() => setFinAction(null)}
         />
       )}
 
-      {aiFor && (
+      {finAction?.kind === 'ai' && (
         <AnalyzeSheet
-          product={productLabel(aiFor)}
-          choices={finalizationCards(aiFor, urls)}
+          product={whenWord(finAction.when)}
+          choices={[{ ...singleCard(finAction.fin, finAction.when, urls), fin: finAction.fin, label: finAction.when }]}
           onNotes={(changes) => changes.forEach((c) => patchStage(c.stageId, { notes: c.notes }))}
-          onClose={() => setAiFor(null)}
+          onClose={() => setFinAction(null)}
         />
       )}
 
-      {deleteFor && (
+      {finAction?.kind === 'delete' && (
         <DeleteFinalizationSheet
-          product={productLabel(deleteFor)}
-          choices={finalizationCards(deleteFor, urls)}
-          onClose={() => setDeleteFor(null)}
+          product={whenWord(finAction.when)}
+          choices={[{ ...singleCard(finAction.fin, finAction.when, urls), fin: finAction.fin, label: finAction.when }]}
+          onClose={() => setFinAction(null)}
           onDeleted={() => {
-            setDeleteFor(null)
+            setFinAction(null)
             notify('Finalização excluída.')
-          }}
-          onDeleteProduct={() => {
-            setProductToDelete(deleteFor)
-            setDeleteFor(null)
           }}
         />
       )}
@@ -458,37 +430,30 @@ function savedLabel(list: Experiment[], stageId: string): string {
   return 'Salvo.'
 }
 
-/** Cartões das folhas (PDF e análise): um por finalização, a mais recente primeiro. */
-function finalizationCards(exp: Experiment, urls: Record<string, string>): (FinalizationChoice & { when: string })[] {
-  const fins = finalizationsOf(exp)
-  return fins.map((f) => {
-    const when = fins.some((o) => o !== f && finalizationWhen(o) === finalizationWhen(f)) ? `${finalizationWhen(f)}, ${formatTime(f.start)}` : finalizationWhen(f)
-    const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
-    return {
-      fin: f,
-      when,
-      label: when,
-      detail: stages.map((st) => STAGE_LABEL[st.stage_type]).join(' · '),
-      thumbs: stages.map((st) => {
-        const c = coverPhoto(st)
-        return { url: c ? urls[c.storage_path] : undefined, crop: c?.crop }
-      }),
-    }
-  })
+interface FinAction {
+  kind: 'ai' | 'pdf' | 'delete'
+  experiment: Experiment
+  fin: Finalization
+  when: string
+  analysis?: FinalizationAnalysis | null
 }
 
-/** Opções do PDF: uma por finalização, com data, momentos e miniaturas. */
-function finalizationChoices(
-  exp: Experiment,
-  urls: Record<string, string>,
-  analyses: Map<string, FinalizationAnalysis>,
-  routineOf: (finalizationId: string) => string | null,
-): PdfOption[] {
-  return finalizationCards(exp, urls).map(({ fin, when, detail, thumbs }) => ({
-    ...finalizationOption(exp, fin, when, analyses.get(fin.id) ?? null, routineOf(fin.id)),
-    detail,
-    thumbs,
-  }))
+/** "hoje", "ontem" ou "22/11" (para "Finalização de hoje"). */
+const whenWord = (when: string) => (/^(Hoje|Ontem)/.test(when) ? when[0].toLowerCase() + when.slice(1) : when)
+
+/** Cartão de uma finalização nas folhas (análise, PDF, excluir): momentos e miniaturas. */
+function singleCard(f: Finalization, when: string, urls: Record<string, string>) {
+  const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
+  return {
+    fin: f,
+    when,
+    label: when,
+    detail: stages.map((st) => STAGE_LABEL[st.stage_type]).join(' · '),
+    thumbs: stages.map((st) => {
+      const c = coverPhoto(st)
+      return { url: c ? urls[c.storage_path] : undefined, crop: c?.crop }
+    }),
+  }
 }
 
 /** Uma finalização: os três momentos lado a lado; o que falta vira atalho (nos primeiros dias). */
@@ -655,7 +620,19 @@ const KIND_CLASS = { H: 'kind-h', N: 'kind-n', R: 'kind-r' } as const
 const KIND_NAME = { H: 'hidratação', N: 'nutrição', R: 'reconstrução' } as const
 
 /** Aba Dias: as finalizações de todos os produtos, com a rotina, o clima e os momentos. */
-function DaysView({ experiments, routines, urls, saved }: { experiments: Experiment[]; routines: Routines; urls: Record<string, string>; saved: string | null }) {
+function DaysView({
+  experiments,
+  routines,
+  urls,
+  saved,
+  onAction,
+}: {
+  experiments: Experiment[]
+  routines: Routines
+  urls: Record<string, string>
+  saved: string | null
+  onAction: (kind: FinAction['kind'], experiment: Experiment, fin: Finalization, when: string) => void
+}) {
   const all = useMemo(() => allFinalizations(experiments), [experiments])
   const sched = useMemo(() => schedule(experiments, routines), [experiments, routines])
   const byId = useMemo(() => new Map(experiments.map((e) => [e.id, e])), [experiments])
@@ -715,16 +692,16 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
                     <DropIcon /> {weather.humidity}% · {Math.round(weather.temperature ?? 0)}°C
                   </span>
                 )}
-                <span className="day-icons">
-                  <a className="icon-btn icon-btn-small" href={href(`/rotina/${f.id}`)} aria-label={`Editar a rotina de ${when}`} title="Editar rotina">
-                    <EditIcon size={16} />
-                  </a>
-                  {pair && (
-                    <a className="icon-btn icon-btn-small" href={href(compareUrl(pair.type, pair.a, pair.b))} aria-label={`Comparar ${when} com a anterior`} title="Comparar com a anterior">
-                      <CompareIcon size={16} />
-                    </a>
-                  )}
-                </span>
+                <DayMenu
+                  when={when}
+                  items={[
+                    { label: 'Editar rotina', href: `/rotina/${f.id}` },
+                    ...(pair ? [{ label: 'Comparar com a anterior', href: compareUrl(pair.type, pair.a, pair.b) }] : []),
+                    { label: 'Analisar com IA', onClick: () => onAction('ai', experiment, f, when) },
+                    { label: 'Enviar PDF', onClick: () => onAction('pdf', experiment, f, when) },
+                    { label: 'Excluir finalização', onClick: () => onAction('delete', experiment, f, when), danger: true },
+                  ]}
+                />
               </div>
               <ul className="day-chips" aria-label="Rotina">
                 {items.length === 0 && <li className="day-chip">{experiment.product_mode === 'named' ? productLabel(experiment) : 'Sem finalizador'}</li>}
@@ -758,4 +735,68 @@ function comparePair(a: Finalization, b: Finalization): { type: 'dry' | 'wet' | 
     if (x && y) return { type: t, a: x.id, b: y.id }
   }
   return null
+}
+
+interface MenuItem {
+  label: string
+  href?: string
+  onClick?: () => void
+  danger?: boolean
+}
+
+/** Menu ⋯ do cartão do dia: as ações da finalização. */
+function DayMenu({ when, items }: { when: string; items: MenuItem[] }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      if (!(e.target as HTMLElement).closest?.('.day-menu')) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('click', close)
+    window.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('click', close)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [open])
+  return (
+    <div className="day-menu">
+      <button
+        type="button"
+        className="icon-btn icon-btn-small"
+        aria-label={`Ações da finalização de ${when}`}
+        title="Ações"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreIcon size={18} />
+      </button>
+      {open && (
+        <div className="day-pop" role="menu" aria-label={`Finalização de ${when}`}>
+          {items.map((it) =>
+            it.href ? (
+              <a key={it.label} role="menuitem" className="day-item" href={href(it.href)}>
+                {it.label}
+              </a>
+            ) : (
+              <button
+                key={it.label}
+                type="button"
+                role="menuitem"
+                className={`day-item ${it.danger ? 'danger-text' : ''}`}
+                onClick={() => {
+                  setOpen(false)
+                  it.onClick?.()
+                }}
+              >
+                {it.label}
+              </button>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  )
 }

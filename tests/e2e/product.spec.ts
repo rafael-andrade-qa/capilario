@@ -166,21 +166,24 @@ test('editar fotos do momento: trocar, adicionar no ângulo vazio e remover', as
   expect(after[0].id).not.toBe(before[0].id)
 })
 
-test('excluir um produto inteiro pela lixeira', async ({ page }) => {
+test('excluir um produto: ele sai das rotinas e as finalizações e fotos continuam', async ({ page }) => {
   await login(page)
   const product = products.find((p) => p.name === 'Óleo Finalizador')!
+  const before = (await admin.from('stages').select('id, finalization_id').eq('experiment_id', product.id)).data ?? []
+  expect(before.length).toBeGreaterThan(0)
   await toggle(page, 'Óleo Finalizador').click()
-  // A lixeira escolhe a finalização; o produto inteiro fica num link embaixo da folha.
-  await page.getByRole('button', { name: 'Excluir uma finalização de Óleo Finalizador' }).click()
-  await page.getByRole('dialog', { name: 'Excluir finalização' }).getByRole('button', { name: 'Excluir o produto inteiro' }).click()
-  await expect(page.getByRole('dialog', { name: 'Excluir finalização' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Excluir produto Óleo Finalizador' }).click()
   const dialog = page.getByRole('alertdialog', { name: 'Excluir este produto?' })
-  await expect(dialog).toContainText('A finalização e a foto serão apagadas')
+  await expect(dialog).toContainText('as finalizações e as fotos continuam')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Produto excluído.')).toBeVisible()
   await expect(page.locator('.experiment', { hasText: 'Óleo Finalizador' })).toHaveCount(0)
-  const { data } = await admin.from('experiments').select('id').eq('id', product.id)
-  expect(data).toEqual([])
+  expect((await admin.from('experiments').select('id').eq('id', product.id)).data).toEqual([])
+  // Os momentos continuam, agora em Sem finalizador.
+  const after = (await admin.from('stages').select('id, experiment_id').in('id', before.map((x) => x.id))).data ?? []
+  expect(after).toHaveLength(before.length)
+  const owner = (await admin.from('experiments').select('product_mode').eq('id', after[0].experiment_id).single()).data!
+  expect(owner.product_mode).toBe('none')
 })
 
 test('novo produto com foto da embalagem; registrar a finalização depois', async ({ page }) => {
@@ -217,7 +220,7 @@ test('novo produto com foto da embalagem; registrar a finalização depois', asy
   await card.getByRole('link', { name: '+ Registrar finalização' }).click()
   // Primeiro a rotina (já com o produto, fixo); depois as fotos.
   await expect(page.getByRole('heading', { name: 'O que você usou?' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Fixar: Máscara Nova (produto desta finalização)' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Fixar: Máscara Nova. Trocar' })).toBeVisible()
   await page.getByRole('button', { name: 'Continuar para as fotos' }).click()
   await expect(page.getByRole('heading', { name: 'Nova finalização' })).toBeVisible()
   await expect(page.locator('.moment-context')).toContainText('Máscara Nova')
@@ -235,9 +238,14 @@ test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async
   // Sempre o primeiro da lista, antes dos produtos (mesmo dos mais recentes).
   await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
   const row = page.locator('.experiment', { hasText: 'Sem finalizador' })
-  await expect(row.locator('.experiment-sub')).toContainText('Só lavado, sem creme nem gel')
+  // Pode já existir (excluir um produto leva as finalizações dele para cá): conta antes.
+  const noneBefore = (await admin.from('experiments').select('id').eq('user_id', me.id).eq('product_mode', 'none')).data ?? []
+  const finsBefore = noneBefore.length
+    ? new Set(((await admin.from('stages').select('finalization_id').eq('experiment_id', noneBefore[0].id)).data ?? []).map((x) => x.finalization_id)).size
+    : 0
+  await expect(row.locator('.experiment-sub')).toContainText(finsBefore ? `${finsBefore} finaliza` : 'Só lavado, sem creme nem gel')
   await row.locator('.product-toggle').click()
-  await row.getByRole('link', { name: '+ Registrar finalização' }).click()
+  await row.getByRole('link', { name: finsBefore ? 'Nova finalização com Sem finalizador' : '+ Registrar finalização' }).click()
   await expect(page.locator('.moment-context')).toContainText('Sem finalizador')
   await page.locator('label.seg', { hasText: 'Seco' }).click()
   await page.getByTestId('gallery-input').setInputFiles([LEFT])
@@ -246,7 +254,7 @@ test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async
   await expect(page.getByText('Seco salvo.')).toBeVisible()
   const { data } = await admin.from('experiments').select('id').eq('user_id', me.id).eq('product_mode', 'none')
   expect(data).toHaveLength(1)
-  await expect(page.locator('.experiment', { hasText: 'Sem finalizador' }).locator('.experiment-sub')).toContainText('1 finalização')
+  await expect(page.locator('.experiment', { hasText: 'Sem finalizador' }).locator('.experiment-sub')).toContainText(`${finsBefore + 1} finaliza`)
   // Depois de usado, continua fixo no topo.
   await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
 })

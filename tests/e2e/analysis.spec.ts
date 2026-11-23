@@ -66,11 +66,18 @@ async function login(page: Page) {
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
-/** Abre o produto no Histórico e toca no brilho da barra dele. */
-async function openSheet(page: Page) {
-  const card = page.locator('.experiment', { hasText: PRODUCT })
-  await card.locator('.product-toggle').click()
-  await card.getByRole('button', { name: `Analisar com IA uma finalização de ${PRODUCT}` }).click()
+
+/** Abre o menu ⋯ do cartão do dia (Diário) e escolhe uma ação. 0 = a finalização mais recente. */
+async function dayAction(page: Page, action: string, which = 0) {
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  const day = page.getByRole('listitem', { name: /^Finalização de / }).nth(which)
+  await day.getByRole('button', { name: /^Ações da finalização de / }).click()
+  await page.getByRole('menuitem', { name: action }).click()
+}
+
+/** Abre "Analisar com IA" pelo menu do cartão do dia. */
+async function openSheet(page: Page, which = 0) {
+  await dayAction(page, 'Analisar com IA', which)
   return page.getByRole('dialog', { name: 'Analisar com IA' })
 }
 
@@ -113,14 +120,14 @@ function mockAnalyze(page: Page, over: { summary?: string; notes?: typeof RESULT
 const notesOf = async (id: string) => (await admin.from('stages').select('notes').eq('id', id).single()).data?.notes
 const stateOf = async () => (await admin.from('finalization_analyses').select('notes_state').eq('finalization_id', fin).single()).data?.notes_state
 
-test('na barra do produto: escolhe a finalização, analisa e usa as observações sugeridas', async ({ page }) => {
+test('pelo menu da finalização: analisa e usa as observações sugeridas', async ({ page }) => {
   const calls = mockAnalyze(page)
   await login(page)
   const sheet = await openSheet(page)
 
-  // As finalizações do produto, a mais recente marcada; a linha de baixo diz fotos e o que resta.
+  // A finalização escolhida no cartão; a linha de baixo diz fotos e o que resta.
   const choices = sheet.getByRole('radio')
-  await expect(choices).toHaveCount(2)
+  await expect(choices).toHaveCount(1)
   await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
   await expect(choices.first()).toContainText('Molhado · Seco')
   await expect(sheet).toContainText('4 fotos · restam 3 análises hoje')
@@ -158,12 +165,14 @@ test('na barra do produto: escolhe a finalização, analisa e usa as observaçõ
   expect(await notesOf(ids.wet)).toBe('Análise: Ondas já aparecem no molhado.')
   expect(await stateOf()).toBe('applied')
 
-  // A outra finalização ainda não tem análise.
-  await choices.nth(1).click()
-  await expect(sheet).toContainText('A IA olha as fotos de todos os momentos')
-  await expect(sheet).toContainText('1 foto · restam 2 análises hoje')
   await sheet.getByRole('button', { name: 'Fechar' }).click()
   await expect(sheet).toHaveCount(0)
+  // A outra finalização ainda não tem análise.
+  const other = await openSheet(page, 1)
+  await expect(other).toContainText('A IA olha as fotos de todos os momentos')
+  await expect(other).toContainText('1 foto · restam')
+  await other.getByRole('button', { name: 'Fechar' }).click()
+  await expect(other).toHaveCount(0)
 
   // Na tela do momento: a leitura aparece fechada, a observação já veio, e não há brilho de etapa.
   await page.goto(`./#/etapa/${ids.dry}`)

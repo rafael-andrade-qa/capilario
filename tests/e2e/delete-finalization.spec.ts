@@ -47,6 +47,15 @@ test.beforeAll(async () => {
   await seedMoment(newer, 'dry', '2026-11-20T16:00:00-03:00', [['front', FRONT]], false)
 })
 
+
+/** Abre o menu ⋯ do cartão do dia (Diário) e escolhe uma ação. 0 = a finalização mais recente. */
+async function dayAction(page: Page, action: string, which = 0) {
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  const day = page.getByRole('listitem', { name: /^Finalização de / }).nth(which)
+  await day.getByRole('button', { name: /^Ações da finalização de / }).click()
+  await page.getByRole('menuitem', { name: action }).click()
+}
+
 async function login(page: Page) {
   await page.goto('./')
   await page.getByLabel('E-mail').fill(me.email)
@@ -55,32 +64,28 @@ async function login(page: Page) {
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
-test('a lixeira escolhe a finalização; cancelar não apaga e excluir tira só ela', async ({ page }) => {
+test('o menu do dia exclui aquela finalização; cancelar não apaga e excluir tira só ela', async ({ page }) => {
   await login(page)
-  const card = page.locator('.experiment', { hasText: PRODUCT })
-  await card.locator('.product-toggle').click()
-  await expect(card).toContainText('2 finalizações')
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  await expect(page.getByRole('listitem', { name: /^Finalização de / })).toHaveCount(2)
 
-  await card.getByRole('button', { name: `Excluir uma finalização de ${PRODUCT}` }).click()
+  // A mais antiga: o aviso diz o que sai; cancelar não apaga nada.
+  await dayAction(page, 'Excluir finalização', 1)
   const sheet = page.getByRole('dialog', { name: 'Excluir finalização' })
-  const choices = sheet.getByRole('radio')
-  await expect(choices).toHaveCount(2)
-  await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
-  await expect(sheet).toContainText('Sai o molhado e o seco de 20/11, com as 3 fotos')
-
-  // Trocar de cartão troca o aviso; cancelar não apaga nada.
-  await choices.nth(1).click()
+  await expect(sheet.getByRole('radio')).toHaveCount(1)
   await expect(sheet).toContainText('Sai o molhado de 17/11, com a foto')
+  await expect(sheet.getByRole('button', { name: 'Excluir o produto inteiro' })).toHaveCount(0)
   await sheet.getByRole('button', { name: 'Cancelar' }).click()
   await expect(sheet).toHaveCount(0)
   expect((await admin.from('stages').select('id').eq('experiment_id', exp)).data).toHaveLength(3)
 
   // Excluir a mais recente.
-  await card.getByRole('button', { name: `Excluir uma finalização de ${PRODUCT}` }).click()
+  await dayAction(page, 'Excluir finalização', 0)
+  await expect(sheet).toContainText('Sai o molhado e o seco de 20/11, com as 3 fotos')
   await sheet.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Finalização excluída.')).toBeVisible()
   await expect(sheet).toHaveCount(0)
-  await expect(card).toContainText('1 finalização')
+  await expect(page.getByRole('listitem', { name: /^Finalização de / })).toHaveCount(1)
 
   expect((await admin.from('stages').select('id').eq('finalization_id', newer)).data).toEqual([])
   expect((await admin.from('stages').select('id').eq('finalization_id', older)).data).toHaveLength(1)

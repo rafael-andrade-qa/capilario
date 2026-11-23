@@ -112,7 +112,7 @@ function RoutineEdit({
   /** Nova finalização já com o produto principal escolhido (o "+" do produto). */
   fixed?: Experiment | null
 }) {
-  const { setRoutine, routines } = useHistory()
+  const { reload, routines } = useHistory()
   const notify = useToast()
   const products = useMemo(() => experiments.filter((e) => e.product_mode === 'named'), [experiments])
   const byId = useMemo(() => new Map(experiments.map((e) => [e.id, e])), [experiments])
@@ -130,7 +130,8 @@ function RoutineEdit({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const principalId = edit ? (edit.principal.product_mode === 'named' ? edit.principal.id : null) : (fixed?.id ?? principalOf(items))
+  // Onde a finalização nova fica (o finalizador; sem ele, Sem finalizador). Ao editar, o banco decide.
+  const principalId = principalOf(items)
   const diff = useMemo(() => diffRoutine(base, items, experiments), [base, items, experiments])
   const changedSteps = new Set(diff.changed.map((c) => c.step))
   const baseIds = new Set(base.map((i) => `${i.step}|${i.experimentId}|${i.maskKind ?? ''}`))
@@ -179,10 +180,7 @@ function RoutineEdit({
       setBusy(true)
       try {
         await saveRoutine(edit.finalizationId, items)
-        setRoutine(
-          edit.finalizationId,
-          items.map((i, position) => ({ finalization_id: edit.finalizationId, experiment_id: i.experimentId, step: i.step, position, mask_kind: i.maskKind })),
-        )
+        await reload()
         notify('Rotina salva.')
         navigate('/')
       } catch (e) {
@@ -237,7 +235,6 @@ function RoutineEdit({
               <div className="routine-items">
                 {list.map((item) => {
                   const e = byId.get(item.experimentId)
-                  const locked = (!!edit || !!fixed) && item.experimentId === principalId
                   const isNew = !!baseLabel && !baseIds.has(`${item.step}|${item.experimentId}|${item.maskKind ?? ''}`)
                   const kind = item.step === 'mask' ? maskKindLabel(item.maskKind) : null
                   return (
@@ -245,19 +242,14 @@ function RoutineEdit({
                       <button
                         type="button"
                         className={`routine-item ${isNew ? 'changed' : ''}`}
-                        onClick={() =>
-                          locked
-                            ? notify('Este é o produto principal desta finalização: ele fica na rotina. Para usar outro, registre uma nova finalização.')
-                            : setPicking({ step: s.id, current: item })
-                        }
-                        aria-label={locked ? `${s.label}: ${itemName(e)} (produto desta finalização)` : `${s.label}: ${itemName(e)}. Trocar`}
+                        onClick={() => setPicking({ step: s.id, current: item })}
+                        aria-label={`${s.label}: ${itemName(e)}. Trocar`}
                         title={e ? [productLabel(e), brandLabel(e)].filter(Boolean).join(' · ') : undefined}
                       >
                         <span className="routine-item-name">{e ? productLabel(e) : 'Produto'}</span>
                         {item.step === 'mask' && <span className={`routine-tag ${kind ? '' : 'empty'}`}>{kind ?? 'tipo?'}</span>}
-                        {locked && <span className="routine-tag">principal</span>}
                       </button>
-                      {!locked && (
+                      {(
                         <button type="button" className="routine-remove" onClick={() => choose(s.id, item, null)} aria-label={`Tirar ${itemName(e)} de ${s.label}`} title="Tirar da rotina">
                           <CloseIcon size={14} />
                         </button>

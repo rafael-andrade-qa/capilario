@@ -76,12 +76,30 @@ describe('rotina da finalização', () => {
     ])
   })
 
-  it('o principal não sai da rotina', async () => {
-    expect((await a.client.rpc('set_routine', { p_finalization_id: fin, p_items: [{ experiment_id: shampoo, step: 'wash' }] })).error).toBeNull()
-    expect((await routineOf(a, fin)).map((i) => [i.experiment_id, i.step])).toEqual([
-      [shampoo, 'wash'],
-      [geleia, 'hold'],
-    ])
+  it('a rotina decide onde a finalização fica: sem finalizador vai para Sem finalizador e volta', async () => {
+    const where = async () => {
+      const f = (await a.client.from('finalizations').select('experiment_id').eq('id', fin).single()).data!.experiment_id as string
+      const st = ((await a.client.from('stages').select('experiment_id').eq('finalization_id', fin)).data ?? []).map((x) => x.experiment_id)
+      const e = (await a.client.from('experiments').select('product_mode').eq('id', f).single()).data!.product_mode as string
+      return { f, st, e }
+    }
+    // Tirou a geleia: sem fixar/definir/finalizar, a finalização (e os momentos) vão para Sem finalizador.
+    const r = await a.client.rpc('set_routine', { p_finalization_id: fin, p_items: [{ experiment_id: shampoo, step: 'wash' }] })
+    expect(r.error).toBeNull()
+    expect(r.data.moved).toBe(true)
+    expect((await routineOf(a, fin)).map((i) => [i.experiment_id, i.step])).toEqual([[shampoo, 'wash']])
+    const none = await where()
+    expect(none.e).toBe('none')
+    expect(none.st).toEqual([none.f])
+    // Pôs a geleia de volta: volta para ela.
+    expect((await a.client.rpc('set_routine', { p_finalization_id: fin, p_items: [{ experiment_id: shampoo, step: 'wash' }, { experiment_id: geleia, step: 'hold' }] })).error).toBeNull()
+    const back = await where()
+    expect(back.f).toBe(geleia)
+    expect(back.st).toEqual([geleia])
+    // Fixar vale mais que definir, mesmo vindo depois na lista.
+    const creme = await product(a, 'Creme Rotina', 'creme_pentear')
+    await a.client.rpc('set_routine', { p_finalization_id: fin, p_items: [{ experiment_id: creme, step: 'shape' }, { experiment_id: geleia, step: 'hold' }, { experiment_id: shampoo, step: 'wash' }] })
+    expect((await where()).f).toBe(geleia)
   })
 
   it('recusa produto de outra pessoa, etapa inventada e finalização alheia', async () => {
@@ -90,7 +108,7 @@ describe('rotina da finalização', () => {
     expect((await a.client.rpc('set_routine', { p_finalization_id: fin, p_items: [{ experiment_id: shampoo, step: 'perfumar' }] })).error?.message).toBe('routine_invalid')
     expect((await b.client.rpc('set_routine', { p_finalization_id: fin, p_items: [] })).error?.message).toBe('finalization_not_found')
     // A rotina da A continua a mesma.
-    expect((await routineOf(a, fin)).length).toBe(2)
+    expect((await routineOf(a, fin)).length).toBe(3)
   })
 
   it('cada um só vê a própria rotina e ninguém grava direto na tabela', async () => {
@@ -106,6 +124,6 @@ describe('rotina da finalização', () => {
       const r = await a.client.rpc('delete_experiment', { p_experiment_id: shampoo })
       expect(r.error).toBeNull()
     }
-    expect((await routineOf(a, fin)).map((i) => i.experiment_id)).toEqual([geleia])
+    expect((await routineOf(a, fin)).map((i) => i.experiment_id)).not.toContain(shampoo)
   })
 })
