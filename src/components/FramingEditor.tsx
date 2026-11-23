@@ -1,6 +1,7 @@
 // Ajustar o enquadramento de uma foto: arrastar para mover, pinça (ou + e −) para aproximar.
 // "Automático" enquadra sozinho pela cabeça (cabelo + rosto); "Preencher" volta ao quadro cheio
 // centralizado. A oval mostra onde o rosto fica no enquadramento automático (fotos parecidas).
+import { lockScroll } from '../lib/sheetGestures'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type SyntheticEvent, type WheelEvent } from 'react'
 import { analyzeUrl } from '../lib/faces'
 import { FRAME, HEAD_FACE_CENTER_Y, HEAD_FACE_HEIGHT, coverCrop, cropStyle, headCrop, panCrop, zoomCrop, type Crop, type PhotoAngle } from '../lib/framing'
@@ -30,10 +31,9 @@ export function FramingEditor({
   const pinch = useRef<{ dist: number } | null>(null)
 
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
     return () => {
-      document.body.style.overflow = prev
+      unlock()
     }
   }, [])
 

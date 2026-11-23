@@ -5,6 +5,7 @@
 // a mensagem; cada PDF é montado uma vez só. Em pick="list" (ex.: escolher a finalização), as
 // opções viram uma faixa horizontal de cartões (miniaturas, data e momentos): altura fixa, desliza
 // para o lado, então serve igual para 2 ou 20 opções.
+import { lockScroll, swipeToClose } from '../lib/sheetGestures'
 import { useEffect, useRef, useState } from 'react'
 import { cleanFileName, shareFile } from '../lib/share'
 import type { Crop } from '../lib/framing'
@@ -99,13 +100,14 @@ export function PdfShareSheet({
   }, [key, option])
 
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
+    const unswipe = swipeToClose(sheet.current, () => closeRef.current())
     sheet.current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      unlock()
+      unswipe()
       window.removeEventListener('keydown', onKey)
     }
   }, [])

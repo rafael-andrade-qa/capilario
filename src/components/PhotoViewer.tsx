@@ -3,6 +3,7 @@
 // do momento; puxar para baixo, tocar fora ou o ✕ fecha. Os ângulos ficam embaixo para pular direto.
 // Zoom só para olhar (não muda o enquadramento salvo): pinça, toque duplo ou rodinha do mouse;
 // com zoom, um dedo move a foto.
+import { lockScroll } from '../lib/sheetGestures'
 import { useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
 import { cropStyle, type Crop } from '../lib/framing'
 import { edgeResist, lockAxis, swipeOutcome, type Axis } from '../lib/swipe'
@@ -86,12 +87,11 @@ export function PhotoViewer({
       else if (e.key === 'ArrowLeft' && k.canPrev) k.onIndex(k.index - 1)
     }
     window.addEventListener('keydown', onKey)
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
     closeRef.current?.focus()
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = overflow
+      unlock()
     }
   }, [])
 

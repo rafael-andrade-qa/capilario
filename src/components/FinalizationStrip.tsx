@@ -1,6 +1,7 @@
 // Escolher uma finalização numa folha (analisar com IA, excluir): faixa horizontal de cartões
 // com miniaturas, data e momentos, igual à do PDF. Altura fixa e desliza para o lado, então serve
 // igual para 2 ou 20 finalizações.
+import { lockScroll, swipeToClose } from '../lib/sheetGestures'
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { Finalization } from '../lib/domain'
 import type { Crop } from '../lib/framing'
@@ -20,13 +21,14 @@ export function useSheet(onClose: () => void) {
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
+    const unswipe = swipeToClose(sheet.current, () => closeRef.current())
     sheet.current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      unlock()
+      unswipe()
       window.removeEventListener('keydown', onKey)
     }
   }, [])

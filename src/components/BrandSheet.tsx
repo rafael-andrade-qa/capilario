@@ -1,5 +1,6 @@
 // Escolher a marca: todas as marcas do catálogo numa folha, com busca, as mais usadas no topo
 // e o resto de A a Z (com letras para se achar). Tocar escolhe e fecha.
+import { lockScroll, swipeToClose } from '../lib/sheetGestures'
 import { BrandsSkeleton } from './Skeleton'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { allBrands, type CatalogBrand } from '../lib/catalog'
@@ -33,14 +34,15 @@ export function BrandSheet({
   useEffect(() => {
     let alive = true
     void allBrands().then((b) => alive && setBrands(b))
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
+    const unswipe = swipeToClose(sheet.current, () => onClose())
     sheet.current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => {
       alive = false
-      document.body.style.overflow = prev
+      unlock()
+      unswipe()
       window.removeEventListener('keydown', onKey)
     }
   }, [onClose])

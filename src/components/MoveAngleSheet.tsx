@@ -1,5 +1,6 @@
 // Foto no ângulo errado: "Esta foto é…" mostra os outros ângulos com a foto que está em cada um.
 // Escolher um ângulo com foto troca as duas de lugar; um ângulo vazio só recebe a foto.
+import { lockScroll, swipeToClose } from '../lib/sheetGestures'
 import { useEffect, useRef } from 'react'
 import { ANGLES, ANGLE_LABEL, photoByAngle, type Angle, type Stage } from '../lib/domain'
 import { PhotoView } from './PhotoView'
@@ -34,13 +35,14 @@ export function MoveAngleSheet({
   const me = photoByAngle(stage, angle)
 
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
+    const unswipe = swipeToClose(sheet.current, () => closeRef.current())
     sheet.current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      unlock()
+      unswipe()
       window.removeEventListener('keydown', onKey)
     }
   }, [])

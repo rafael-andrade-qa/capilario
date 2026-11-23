@@ -1,5 +1,6 @@
 // Data e horário: o campo mostra "Hoje, 18:01"; tocar abre um painel inferior com fundo
 // escurecido, atalhos (Agora, Ontem), calendário compacto e horário. Tocar fora cancela.
+import { lockScroll, swipeToClose } from '../lib/sheetGestures'
 import { useEffect, useId, useRef, useState } from 'react'
 import { formatLocal, friendlyLocal, isFutureDay, monthGrid, monthTitle, parseLocal, partsOf, sameDay, type LocalParts } from '../lib/dates'
 
@@ -56,13 +57,14 @@ function DateTimeSheet({ value, onCancel, onDone }: { value: string; onCancel: (
 
   // Trava a rolagem do fundo, foca o painel e fecha com Esc.
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockScroll()
+    const unswipe = swipeToClose(sheet.current, () => onCancel())
     sheet.current?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel()
     window.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = prev
+      unlock()
+      unswipe()
       window.removeEventListener('keydown', onKey)
     }
   }, [onCancel])
