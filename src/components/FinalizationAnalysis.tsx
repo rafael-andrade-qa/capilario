@@ -1,9 +1,9 @@
 // Análise da finalização inteira pela IA. Começa no brilho da barra do produto (AnalyzeSheet:
 // escolhe a finalização e analisa). A leitura também aparece na tela de cada momento, num cartão
 // fechado de uma linha, com a observação sugerida embaixo do campo para usar ou descartar.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CheckIcon, CloseIcon } from './ActionIcons'
-import { PhotoView } from './PhotoView'
+import { FinalizationStrip, stripIntro, useSheet, type FinalizationChoice } from './FinalizationStrip'
 import { useToast } from './Toasts'
 import {
   analysisPhotos,
@@ -19,7 +19,6 @@ import {
   type FinalizationAnalysis,
 } from '../lib/analysis'
 import { STAGE_LABEL, formatShortDateTime, type Finalization, type StageType } from '../lib/domain'
-import type { Crop } from '../lib/framing'
 
 /** Brilho (análise com IA). */
 export function SparkIcon({ size = 18 }: { size?: number }) {
@@ -131,13 +130,6 @@ export function useFinalizationAnalysis(
   }
 }
 
-/** Uma finalização na folha: miniaturas, data e momentos (como na folha do PDF). */
-export interface AnalyzeChoice {
-  fin: Finalization
-  label: string
-  detail: string
-  thumbs: { url?: string; crop?: Crop | null }[]
-}
 
 /**
  * "Analisar com IA" (barra do produto, ao lado do + e do PDF): escolhe a finalização, mostra a
@@ -151,15 +143,13 @@ export function AnalyzeSheet({
   onClose,
 }: {
   product: string
-  choices: AnalyzeChoice[]
+  choices: FinalizationChoice[]
   onNotes: (changes: NotesChange[]) => void
   onClose: () => void
 }) {
   const [index, setIndex] = useState(0)
   const [analyzed, setAnalyzed] = useState<Set<string>>(() => new Set())
-  const sheet = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
+  const sheet = useSheet(onClose)
   const fin = choices[index]?.fin
   const ai = useFinalizationAnalysis(fin, onNotes, { quota: true })
   const ids = choices.map((c) => c.fin.id).join(',')
@@ -179,66 +169,28 @@ export function AnalyzeSheet({
     if (current) setAnalyzed((s) => (s.has(current) ? s : new Set(s).add(current)))
   }, [current])
 
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    sheet.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prev
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [])
-
   const heading = 'Analisar com IA'
-  const n = choices.length
   const shown = ai.analysis && ai.analysis.finalization_id === fin?.id ? ai.analysis : null
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div ref={sheet} className="sheet ai-sheet" role="dialog" aria-modal="true" aria-label={heading} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" aria-hidden="true" />
         <h2 className="sheet-title">{heading}</h2>
-        <p className="muted small pdf-intro">
-          {n > 2 ? `Escolha uma das ${n} finalizações de ${product} (deslize para ver todas):` : n === 2 ? `Escolha a finalização de ${product}:` : `Finalização de ${product}:`}
-        </p>
-        <div className="pdf-strip" role="radiogroup" aria-label="Finalização">
-          {choices.map((c, i) => (
-            <button
-              key={c.fin.id}
-              type="button"
-              role="radio"
-              aria-checked={i === index}
-              className="pdf-card"
-              disabled={ai.busy && i !== index}
-              onClick={(e) => {
-                setIndex(i)
-                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
-              }}
-            >
-              <span className="pdf-card-thumbs" aria-hidden="true">
-                {c.thumbs.map((t, j) => (
-                  <PhotoView key={j} url={t.url} crop={t.crop} alt="" />
-                ))}
+        <p className="muted small pdf-intro">{stripIntro(choices.length, product)}</p>
+        <FinalizationStrip
+          choices={choices}
+          index={index}
+          onSelect={setIndex}
+          locked={ai.busy}
+          mark={(f) =>
+            analyzed.has(f.id) && (
+              <span className="ai-card-mark" title="Já analisada">
+                <SparkIcon size={13} />
+                <span className="visually-hidden"> · já analisada</span>
               </span>
-              <strong className="pdf-card-label">
-                {c.label}
-                {analyzed.has(c.fin.id) && (
-                  <span className="ai-card-mark" title="Já analisada">
-                    <SparkIcon size={13} />
-                    <span className="visually-hidden"> · já analisada</span>
-                  </span>
-                )}
-              </strong>
-              <span className="muted pdf-card-detail">{c.detail}</span>
-              {i === index && (
-                <span className="pdf-card-check" aria-hidden="true">
-                  ✓
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+            )
+          }
+        />
 
         {ai.busy ? (
           <p className="analysis-line muted small" role="status">

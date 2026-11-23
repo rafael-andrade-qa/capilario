@@ -165,7 +165,10 @@ test('excluir um produto inteiro pela lixeira', async ({ page }) => {
   await login(page)
   const product = products.find((p) => p.name === 'Óleo Finalizador')!
   await toggle(page, 'Óleo Finalizador').click()
-  await page.getByRole('button', { name: 'Excluir produto Óleo Finalizador' }).click()
+  // A lixeira escolhe a finalização; o produto inteiro fica num link embaixo da folha.
+  await page.getByRole('button', { name: 'Excluir uma finalização de Óleo Finalizador' }).click()
+  await page.getByRole('dialog', { name: 'Excluir finalização' }).getByRole('button', { name: 'Excluir o produto inteiro' }).click()
+  await expect(page.getByRole('dialog', { name: 'Excluir finalização' })).toHaveCount(0)
   const dialog = page.getByRole('alertdialog', { name: 'Excluir este produto?' })
   await expect(dialog).toContainText('A finalização e a foto serão apagadas')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()

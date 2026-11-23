@@ -3240,3 +3240,18 @@ body:has(.save-bar) .toasts {
 .analysis-suggestion-list li + li {
   margin-top: 4px;
 }
+/* Folha "Excluir finalização" */
+.delete-warning {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--err-soft);
+  color: var(--err);
+}
+.delete-product-row {
+  margin: 4px 0 0;
+  text-align: center;
+}
+.delete-product-row .text-action {
+  margin-top: 0;
+}

@@ -173,15 +173,19 @@ vermelho com ! e neutro com i. Somem sozinhos (4 s; erros 7 s), fecham com um to
 dedo, o mouse ou o foco em cima. Leitores de tela anunciam (status para sucesso, alert para erro). Validação
 de formulário e falhas que pedem ação (como reenviar fotos) continuam no lugar, perto do botão.
 
-## Excluir um momento ou um produto
+## Excluir um momento, uma finalização ou um produto
 
 - **Momento:** no detalhe, ícone de lixeira no cabeçalho (**Excluir momento**).
-- **Produto inteiro:** no histórico, com o produto aberto, ícone de lixeira à direita.
+- **Finalização:** no histórico, com o produto aberto, a lixeira à direita abre a folha **Excluir finalização**:
+  escolhe a finalização nos cartões (como no PDF e na análise), o aviso diz o que sai e **Excluir** confirma.
+- **Produto inteiro:** na mesma folha, o link **Excluir o produto inteiro** abre a confirmação. Produto sem
+  nenhuma finalização vai direto para ela.
 
-Os dois pedem confirmação. A função `delete_stage` (Postgres, `SECURITY INVOKER`) apaga o momento e as fotos numa
-transação. Se era o último momento da finalização, a finalização sai. O produto fica (mesmo sem nenhuma
-finalização); ele só sai pela lixeira do produto. Em seguida o app apaga os arquivos do Storage:
-sem a linha em `photos`, a política de exclusão libera o objeto para o dono. Não tem como desfazer.
+Todos pedem confirmação. A função `delete_stage` (Postgres, `SECURITY INVOKER`) apaga o momento e as fotos numa
+transação. Se era o último momento da finalização, a finalização sai. `delete_finalization` apaga de uma vez os
+momentos, as fotos e a análise da IA de uma finalização. O produto fica (mesmo sem nenhuma finalização); ele só
+sai pelo link do produto inteiro. Em seguida o app apaga os arquivos do Storage: sem a linha em `photos`, a
+política de exclusão libera o objeto para o dono. Não tem como desfazer.
 
 ### Arquivos órfãos (aba fechada durante o envio)
 

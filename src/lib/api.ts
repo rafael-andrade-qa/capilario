@@ -100,6 +100,18 @@ export async function deleteStage(stageId: string, paths: string[]): Promise<voi
   await removeFiles(paths)
 }
 
+/** Exclui uma finalização inteira (momentos, fotos e análise); o produto fica. Depois, os arquivos. */
+export async function deleteFinalization(finalizationId: string, paths: string[]): Promise<void> {
+  const { data: result, error } = await supabase.rpc('delete_finalization', { p_finalization_id: finalizationId })
+  if (error) {
+    if (error.code) throw new Error(`Não foi possível excluir: ${error.message}`)
+    const { data, error: checkErr } = await supabase.from('stages').select('id').eq('finalization_id', finalizationId)
+    if (checkErr || data?.length) throw new Error('Não foi possível excluir. Verifique a conexão e tente de novo.')
+  }
+  paths = [...new Set([...paths, ...(((result as { paths?: string[] } | null)?.paths) ?? [])])]
+  await removeFiles(paths)
+}
+
 /** Exclui o produto inteiro (todas as etapas e fotos) e depois os arquivos. */
 export async function deleteExperiment(experimentId: string, paths: string[]): Promise<void> {
   const { data: result, error } = await supabase.rpc('delete_experiment', { p_experiment_id: experimentId })

@@ -10,7 +10,9 @@ import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
 import { PdfIcon, PdfShareSheet, type PdfOption } from '../components/PdfShareSheet'
 import { finalizationOption } from '../lib/finalizationShare'
-import { AnalyzeSheet, SparkIcon, type AnalyzeChoice } from '../components/FinalizationAnalysis'
+import { AnalyzeSheet, SparkIcon } from '../components/FinalizationAnalysis'
+import { DeleteFinalizationSheet } from '../components/DeleteFinalizationSheet'
+import type { FinalizationChoice } from '../components/FinalizationStrip'
 import { SearchField } from '../components/SearchField'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import {
@@ -80,6 +82,7 @@ export function History({
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [pdfFor, setPdfFor] = useState<Experiment | null>(null)
   const [aiFor, setAiFor] = useState<Experiment | null>(null)
+  const [deleteFor, setDeleteFor] = useState<Experiment | null>(null)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Set<string>>(() => new Set(openMemory))
 
@@ -303,9 +306,9 @@ export function History({
                       <button
                         type="button"
                         className="icon-btn danger-icon product-delete"
-                        onClick={() => setProductToDelete(exp)}
-                        aria-label={`Excluir produto ${productLabel(exp)}`}
-                        title="Excluir produto"
+                        onClick={() => (fins.length > 0 ? setDeleteFor(exp) : setProductToDelete(exp))}
+                        aria-label={fins.length > 0 ? `Excluir uma finalização de ${productLabel(exp)}` : `Excluir produto ${productLabel(exp)}`}
+                        title={fins.length > 0 ? 'Excluir uma finalização' : 'Excluir produto'}
                       >
                         <TrashIcon />
                       </button>
@@ -337,6 +340,22 @@ export function History({
           choices={finalizationCards(aiFor, urls)}
           onNotes={(changes) => changes.forEach((c) => patchStage(c.stageId, { notes: c.notes }))}
           onClose={() => setAiFor(null)}
+        />
+      )}
+
+      {deleteFor && (
+        <DeleteFinalizationSheet
+          product={productLabel(deleteFor)}
+          choices={finalizationCards(deleteFor, urls)}
+          onClose={() => setDeleteFor(null)}
+          onDeleted={() => {
+            setDeleteFor(null)
+            notify('Finalização excluída.')
+          }}
+          onDeleteProduct={() => {
+            setProductToDelete(deleteFor)
+            setDeleteFor(null)
+          }}
         />
       )}
 
@@ -382,7 +401,7 @@ function savedLabel(list: Experiment[], stageId: string): string {
 }
 
 /** Cartões das folhas (PDF e análise): um por finalização, a mais recente primeiro. */
-function finalizationCards(exp: Experiment, urls: Record<string, string>): (AnalyzeChoice & { when: string })[] {
+function finalizationCards(exp: Experiment, urls: Record<string, string>): (FinalizationChoice & { when: string })[] {
   const fins = finalizationsOf(exp)
   return fins.map((f) => {
     const when = fins.some((o) => o !== f && finalizationWhen(o) === finalizationWhen(f)) ? `${finalizationWhen(f)}, ${formatTime(f.start)}` : finalizationWhen(f)
