@@ -123,8 +123,10 @@ test('comparar com a anterior mostra o que mudou', async ({ page }) => {
   await login(page)
   await page.getByRole('listitem', { name: /^Finalização de / }).first().getByRole('link', { name: /Comparar .* com a anterior/ }).click()
   const changes = page.getByRole('region', { name: 'O que mudou' })
-  // Recolhido numa linha acima das fotos; tocar abre a tabela.
+  // Recolhido numa linha embaixo das fotos; tocar abre a tabela.
   await expect(changes.locator('summary')).toHaveText('Mudou: lavar, máscara')
+  const grid = (await page.locator('.compare-grid').boundingBox())!
+  expect((await changes.boundingBox())!.y).toBeGreaterThan(grid.y + grid.height)
   await changes.locator('summary').click()
   await expect(changes.getByRole('row', { name: /Lavar/ })).toContainText('Shampoo B')
   await expect(changes.getByRole('row', { name: /Lavar/ })).toContainText('Shampoo A')

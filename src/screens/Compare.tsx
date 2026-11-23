@@ -303,8 +303,6 @@ export function Compare({ params }: { params: URLSearchParams }) {
             />
           )}
 
-          {a.stage.finalization_id !== b.stage.finalization_id && <CompareChanges a={a.stage} b={b.stage} />}
-
           <div className="compare-grid">
             {([['A', a], ['B', b]] as const).map(([label, e]) => {
               const p = photoByAngle(e.stage, angle)
@@ -357,6 +355,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
               )
             })}
           </div>
+
+          {/* O que mudou fica embaixo das fotos: elas vêm primeiro. */}
+          {a.stage.finalization_id !== b.stage.finalization_id && <CompareChanges a={a.stage} b={b.stage} />}
         </>
       )}
     </main>

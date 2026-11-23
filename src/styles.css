@@ -4177,3 +4177,7 @@ body::before {
 .routine-more {
   min-height: 24px;
 }
+
+.compare-changes {
+  margin: 16px 0 0;
+}
