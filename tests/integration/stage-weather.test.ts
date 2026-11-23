@@ -1,7 +1,7 @@
 // Clima do momento: a dona grava só os campos do clima, com valores válidos; outra pessoa não.
 import { randomUUID } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { BUCKET } from '../../src/lib/supabase'
+const BUCKET = 'capilar-photos'
 import { photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
 
 describe('clima do momento', () => {
