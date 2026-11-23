@@ -67,8 +67,7 @@ test('lista usa a miniatura (ou a foto, se faltar) e reaproveita os endereços a
   await page.reload()
   await expect(thumbSrc(page, 'Com Miniatura (Marca M)')).toHaveAttribute('src', before!)
 
-  await page.getByRole('button', { name: 'Conta' }).click()
-  await page.getByRole('menuitem', { name: 'Sair' }).click()
+  await page.getByRole('button', { name: 'Sair' }).click()
   await expect(page.getByLabel('E-mail')).toBeVisible()
   expect(await saved()).toBeNull()
 })

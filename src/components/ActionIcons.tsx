@@ -116,3 +116,13 @@ export function MoreIcon({ size = 20 }: { size?: number }) {
     </svg>
   )
 }
+
+/** Sair (porta com seta para fora). */
+export function LogoutIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <path d="M10 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2H10" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path d="M14 8l4 4-4 4M18 12H9.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
-import { CompareIcon, DropIcon, EditIcon, MoreIcon, PlusIcon } from '../components/ActionIcons'
+import { CompareIcon, DropIcon, EditIcon, LogoutIcon, PlusIcon } from '../components/ActionIcons'
 import { weatherLong } from '../lib/weather'
 import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
@@ -190,7 +190,9 @@ export function History({
         <h1>Projeto Capilar</h1>
         <div className="topbar-actions">
           <CompareButton total={totalStages} loading={experiments === null} />
-          <AccountMenu />
+          <button className="icon-btn" onClick={() => void signOut()} aria-label="Sair" title="Sair">
+            <LogoutIcon />
+          </button>
         </div>
       </header>
 
@@ -446,37 +448,6 @@ function CompareButton({ total, loading }: { total: number; loading: boolean }) 
   )
 }
 
-/** Conta: o Sair fica num menu (é raro e não precisa ocupar o topo). */
-function AccountMenu() {
-  const [open, setOpen] = useState(false)
-  useEffect(() => {
-    if (!open) return
-    const close = (e: Event) => {
-      if (!(e.target as HTMLElement).closest?.('.account-menu')) setOpen(false)
-    }
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('click', close)
-    window.addEventListener('keydown', esc)
-    return () => {
-      document.removeEventListener('click', close)
-      window.removeEventListener('keydown', esc)
-    }
-  }, [open])
-  return (
-    <div className="account-menu">
-      <button className="icon-btn" aria-label="Conta" title="Conta" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((v) => !v)}>
-        <MoreIcon />
-      </button>
-      {open && (
-        <div className="account-pop" role="menu">
-          <button type="button" role="menuitem" className="account-item" onClick={() => void signOut()}>
-            Sair
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
 
 /** Aviso depois de salvar: "Seco salvo.", "Dia seguinte salvo." */
 function savedLabel(list: Experiment[], stageId: string): string {
