@@ -73,4 +73,15 @@ test('pega a localização, consulta o clima e mostra a umidade', async ({ page 
   await expect(page.getByTestId('stage-weather')).toBeVisible()
   await page.waitForTimeout(1500)
   expect(asked.length).toBe(before)
+
+  // No Diário, umidade e temperatura ficam numa linha só, mesmo no celular mais estreito.
+  await page.setViewportSize({ width: 320, height: 700 })
+  await page.goto('./')
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  const weather = page.locator('.day-weather').first()
+  await expect(weather).toHaveText(/82% · 24°C/)
+  const box = (await weather.boundingBox())!
+  const date = (await page.locator('.day-head strong').first().boundingBox())!
+  expect(box.height).toBeLessThan(24)
+  expect(Math.abs(box.y + box.height / 2 - (date.y + date.height / 2))).toBeLessThan(6)
 })

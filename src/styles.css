@@ -4067,3 +4067,24 @@ body::before {
   background: var(--bg);
   pointer-events: none;
 }
+
+/* Umidade e temperatura sempre numa linha só: quem encolhe (com reticências) é a data. */
+.day-head {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.day-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.day-weather,
+.day-icons {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.moment-time,
+.moment-humidity {
+  white-space: nowrap;
+}
