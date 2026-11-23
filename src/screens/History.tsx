@@ -144,6 +144,16 @@ export function History({
     for (const id of open) openMemory.add(id)
   }, [open])
 
+  // Em quantas finalizações cada produto entrou pela rotina (de qualquer produto principal).
+  const usedCount = useMemo(() => {
+    // Só finalizações que ainda existem (a rotina guardada pode ser de uma que foi excluída).
+    const alive = new Set(list.flatMap((e) => publishedStages(e).map((s) => s.finalization_id)))
+    const out = new Map<string, number>()
+    for (const [fin, items] of Object.entries(routines)) if (alive.has(fin)) for (const i of items) out.set(i.experiment_id, (out.get(i.experiment_id) ?? 0) + 1)
+    return out
+  }, [routines, list])
+  const usedIn = (e: Experiment) => usedCount.get(e.id) ?? 0
+
   const visible = useMemo(() => {
     const q = normalize(query.trim())
     if (!q) return list
@@ -201,16 +211,13 @@ export function History({
 
       {experiments !== null && list.length === 0 && (
         <section className="empty-state card">
-          <h2>Comece pelo produto que você vai testar</h2>
-          <p className="muted">
-            Cadastre o produto e, dentro dele, registre cada finalização: o cabelo molhado, seco e no dia seguinte. Assim dá para comparar os
-            produtos.
-          </p>
-          <a className="btn btn-primary" href={href('/produto/novo')}>
-            + Novo produto
+          <h2>Registre sua primeira finalização</h2>
+          <p className="muted">Conte o que você usou e tire as fotos do cabelo: molhado, seco e no dia seguinte. Depois é só comparar.</p>
+          <a className="btn btn-primary" href={href('/rotina/nova')}>
+            Começar
           </a>
-          <a className="link empty-secondary" href={href(`/produto/${NO_FINISHER_ID}/nova-finalizacao`)}>
-            Ou registre sem finalizador
+          <a className="link empty-secondary" href={href('/produto/novo')}>
+            + Novo produto
           </a>
         </section>
       )}
@@ -218,7 +225,7 @@ export function History({
       {list.length > 0 && (
         <div className="tabs" role="tablist" aria-label="Ver por">
           <button type="button" role="tab" aria-selected={tab === 'dias'} className={`tab ${tab === 'dias' ? 'on' : ''}`} onClick={() => pickTab('dias')}>
-            Dias
+            Diário
           </button>
           <button type="button" role="tab" aria-selected={tab === 'produtos'} className={`tab ${tab === 'produtos' ? 'on' : ''}`} onClick={() => pickTab('produtos')}>
             Produtos
@@ -268,6 +275,8 @@ export function History({
                               {formatDateRange(stages[0].captured_at, stages[stages.length - 1].captured_at)} · {fins.length}{' '}
                               {fins.length === 1 ? 'finalização' : 'finalizações'}
                             </>
+                          ) : usedIn(exp) > 0 ? (
+                            `Em ${usedIn(exp)} ${usedIn(exp) === 1 ? 'finalização' : 'finalizações'}`
                           ) : (
                             'Nenhuma finalização ainda'
                           )}
@@ -586,7 +595,7 @@ function NoFinisherRow({ open, onToggle }: { open: boolean; onToggle: () => void
           <span className="product-text">
             <span className="product-name muted-title">Sem finalizador</span>
             <span className="muted small experiment-sub">
-              <span className="dates">Para quando você não usou produto</span>
+              <span className="dates">Só lavado, sem creme nem gel</span>
             </span>
           </span>
           <ChevronIcon />
@@ -637,6 +646,7 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
   const all = useMemo(() => allFinalizations(experiments), [experiments])
   const sched = useMemo(() => schedule(experiments, routines), [experiments, routines])
   const byId = useMemo(() => new Map(experiments.map((e) => [e.id, e])), [experiments])
+  const [legend, setLegend] = useState(false)
   if (!all.length) {
     return (
       <section className="card empty-days">
@@ -650,7 +660,9 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
     <>
       {sched.length > 0 && (
         <div className="schedule" aria-label="Cronograma capilar">
-          <span className="muted small">Cronograma</span>
+          <button type="button" className="schedule-toggle muted small" aria-expanded={legend} onClick={() => setLegend((v) => !v)}>
+            Cronograma
+          </button>
           <ol>
             {sched.map((m) => (
               <li
@@ -663,6 +675,7 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
               </li>
             ))}
           </ol>
+          {legend && <p className="muted small schedule-legend">H hidratação · N nutrição · R reconstrução (a máscara de cada finalização)</p>}
         </div>
       )}
       <ol className="day-list">
@@ -700,7 +713,7 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
               <MomentStrip finalization={f} urls={urls} saved={saved} latest={latest} when={when} />
               <div className="day-actions">
                 <a className="link small" href={href(`/rotina/${f.id}`)} aria-label={`Editar a rotina de ${when}`}>
-                  Rotina
+                  Editar rotina
                 </a>
                 {pair && (
                   <a className="link small" href={href(compareUrl(pair.type, pair.a, pair.b))} aria-label={`Comparar ${when} com a anterior`}>

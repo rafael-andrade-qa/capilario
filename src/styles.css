@@ -3915,3 +3915,21 @@ body:has(.save-bar) .toasts {
   display: flex;
   flex-direction: column;
 }
+
+.schedule {
+  flex-wrap: wrap;
+}
+.schedule-toggle {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.schedule-legend {
+  flex-basis: 100%;
+  margin: 0;
+}

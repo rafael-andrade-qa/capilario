@@ -12,7 +12,7 @@ export const ROUTINE_STEPS: { id: RoutineStep; label: string; short: string; add
   { id: 'condition', label: 'Condicionar', short: 'Condicionar', add: 'Condicionador' },
   { id: 'mask', label: 'Máscara', short: 'Máscara', add: 'Hidratação, nutrição…' },
   { id: 'prep', label: 'Preparar', short: 'Preparar', add: 'Leave-in, protetor…' },
-  { id: 'shape', label: 'Pentear e definir', short: 'Pentear', add: 'Creme de pentear…' },
+  { id: 'shape', label: 'Definir', short: 'Definir', add: 'Creme de pentear…' },
   { id: 'hold', label: 'Fixar', short: 'Fixar', add: 'Gelatina, geleia, mousse…' },
   { id: 'finish', label: 'Finalizar', short: 'Finalizar', add: 'Óleo, sérum…' },
 ]
@@ -133,7 +133,9 @@ export interface StepChange {
 export function itemName(e: Experiment | undefined, maskKind: MaskKind | null = null): string {
   const name = e ? productLabel(e) : 'Produto excluído'
   const kind = maskKindLabel(maskKind)
-  return kind ? `${name} (${kind.toLowerCase()})` : name
+  // "Máscara Nutrição" já diz o tipo: não repete "(nutrição)".
+  const plain = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return kind && !plain(name).includes(plain(kind)) ? `${name} (${kind.toLowerCase()})` : name
 }
 
 /**

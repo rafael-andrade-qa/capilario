@@ -216,7 +216,7 @@ test('novo produto com foto da embalagem; registrar a finalização depois', asy
   // Registrar depois, dentro do produto: uma tela só, sem perguntar o produto.
   await card.getByRole('link', { name: '+ Registrar finalização' }).click()
   // Primeiro a rotina (já com o produto, fixo); depois as fotos.
-  await expect(page.getByRole('heading', { name: 'O que você usou hoje?' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'O que você usou?' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Fixar: Máscara Nova (produto desta finalização)' })).toBeVisible()
   await page.getByRole('button', { name: 'Continuar para as fotos' }).click()
   await expect(page.getByRole('heading', { name: 'Nova finalização' })).toBeVisible()
@@ -235,7 +235,7 @@ test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async
   // Sempre o primeiro da lista, antes dos produtos (mesmo dos mais recentes).
   await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
   const row = page.locator('.experiment', { hasText: 'Sem finalizador' })
-  await expect(row.locator('.experiment-sub')).toContainText('Para quando você não usou produto')
+  await expect(row.locator('.experiment-sub')).toContainText('Só lavado, sem creme nem gel')
   await row.locator('.product-toggle').click()
   await row.getByRole('link', { name: '+ Registrar finalização' }).click()
   await expect(page.locator('.moment-context')).toContainText('Sem finalizador')

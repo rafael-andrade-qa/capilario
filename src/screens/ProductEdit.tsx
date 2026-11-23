@@ -16,8 +16,7 @@ import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../l
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
 import { identifyFromPhoto, type Candidate , type IdentifyStep } from '../lib/identify'
 import { CatalogPicker, type CatalogChoice } from './CatalogPicker'
-import { href, navigate, useRoute } from '../lib/router'
-import { routineReturn } from './RoutineEdit'
+import { href, navigate } from '../lib/router'
 import { useHistory, useSession, useSignedUrls } from '../lib/state'
 import { uuid } from '../lib/uuid'
 
@@ -51,6 +50,14 @@ const ID_STEP: Record<IdentifyStep, { n: number; label: string }> = {
 }
 
 export function ProductNewRoute() {
+  return <ProductNewFlow />
+}
+
+/**
+ * Cadastrar produto: catálogo primeiro, depois o formulário. Dentro da rotina (onCreated), ao
+ * cadastrar devolve o produto para ela em vez de ir para o histórico.
+ */
+export function ProductNewFlow({ onCreated, onCancel }: { onCreated?: (experimentId: string) => void; onCancel?: () => void } = {}) {
   const { experiments } = useHistory()
   const [draft] = useState<Experiment>(() => ({
     id: uuid(),
@@ -72,6 +79,7 @@ export function ProductNewRoute() {
         onPick={(choice) => setStep({ kind: 'form', initial: choice })}
         onManual={() => setStep({ kind: 'form' })}
         onIdentify={(file) => setStep({ kind: 'form', identify: file })}
+        onCancel={onCancel}
       />
     )
   }
@@ -83,6 +91,7 @@ export function ProductNewRoute() {
       initial={step.initial}
       identifyFile={step.identify}
       onBack={() => setStep({ kind: 'search' })}
+      onCreated={onCreated}
     />
   )
 }
@@ -102,6 +111,7 @@ function ProductEdit({
   initial,
   identifyFile,
   onBack,
+  onCreated,
 }: {
   mode: 'new' | 'edit'
   experiment: Experiment
@@ -109,12 +119,13 @@ function ProductEdit({
   initial?: CatalogChoice
   identifyFile?: File
   onBack?: () => void
+  /** Cadastrado: devolve o id (rotina) em vez de mostrar "Produto cadastrado". */
+  onCreated?: (experimentId: string) => void
 }) {
   const { session } = useSession()
   const { reload, experiments } = useHistory()
   const notify = useToast()
   const [created, setCreated] = useState(false)
-  const fromRoutine = useRoute().params.get('rotina') === '1'
   const brands = [...new Set(others.map((e) => e.brand).filter((b): b is string => !!b))].sort()
   const [name, setName] = useState(initial?.name ?? experiment.product_name ?? '')
   const [brand, setBrand] = useState(initial?.brand ?? experiment.brand ?? '')
@@ -241,9 +252,8 @@ function ProductEdit({
         }
         await reload()
         // Cadastrado no meio da rotina: volta para ela, já com o produto na etapa.
-        const back = fromRoutine ? routineReturn(experiment.id) : null
-        if (back) {
-          navigate(back, { replace: true })
+        if (onCreated) {
+          onCreated(experiment.id)
           return
         }
         setCreated(true)

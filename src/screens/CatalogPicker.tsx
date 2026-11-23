@@ -45,11 +45,14 @@ export function CatalogPicker({
   onPick,
   onManual,
   onIdentify,
+  onCancel,
 }: {
   others: Experiment[]
   onPick: (choice: CatalogChoice) => void
   onManual: () => void
   onIdentify: (file: File) => void
+  /** Dentro da rotina: o voltar fecha a busca (sem sair da rotina). */
+  onCancel?: () => void
 }) {
   const notify = useToast()
   const [query, setQuery] = useState('')
@@ -136,7 +139,7 @@ export function CatalogPicker({
 
   return (
     <main className="page form-page catalog-page">
-      <PageHeader title="Novo produto" back={{ label: 'Voltar ao histórico', href: href('/') }} />
+      <PageHeader title="Novo produto" back={onCancel ? { label: 'Voltar à rotina', onClick: onCancel } : { label: 'Voltar ao histórico', href: href('/') }} />
       <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar no catálogo" />
 
       <div className="catalog-filters">

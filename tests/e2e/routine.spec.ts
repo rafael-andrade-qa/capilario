@@ -69,16 +69,15 @@ const routineOf = async (fin: string) =>
 test('nova finalização: igual à última, troca o shampoo e a máscara, e segue para as fotos', async ({ page }) => {
   await login(page)
   // O início abre em Dias, com a rotina da finalização e o cronograma.
-  await expect(page.getByRole('tab', { name: 'Dias' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: 'Diário' })).toHaveAttribute('aria-selected', 'true')
   const day = page.getByRole('listitem', { name: /^Finalização de / }).first()
   await expect(day.getByRole('list', { name: 'Rotina' })).toContainText('Shampoo A')
   await expect(day.getByRole('list', { name: 'Rotina' })).toContainText('Máscara M · H')
   await expect(page.getByLabel('Cronograma capilar')).toContainText('H')
 
   await page.getByRole('link', { name: '+ Nova finalização' }).click()
-  await expect(page.getByRole('heading', { name: 'O que você usou hoje?' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'O que você usou?' })).toBeVisible()
   await expect(page.locator('.routine-banner')).toContainText('Igual à de ontem')
-  await expect(page.getByTestId('routine-principal')).toHaveText('Esta finalização fica em Geleia G.')
 
   await page.getByRole('button', { name: 'Lavar: Shampoo A. Trocar' }).click()
   const sheet = page.getByRole('dialog', { name: 'Lavar: qual produto?' })
@@ -149,13 +148,13 @@ test('produto que não está cadastrado: cadastra no meio da rotina e volta com 
   await login(page)
   await page.getByRole('link', { name: '+ Nova finalização' }).click()
   await page.getByRole('button', { name: 'Adicionar em Finalizar' }).click()
-  await page.getByRole('dialog', { name: 'Finalizar: qual produto?' }).getByRole('button', { name: '+ Cadastrar outro produto' }).click()
+  await page.getByRole('dialog', { name: 'Finalizar: qual produto?' }).getByRole('button', { name: '+ Cadastrar produto' }).click()
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByRole('textbox', { name: 'Produto' }).fill('Óleo Pontas')
   await page.getByRole('combobox', { name: 'Marca' }).fill('Marca O')
   await page.getByRole('button', { name: 'Cadastrar produto' }).click()
 
-  await expect(page.getByRole('heading', { name: 'O que você usou hoje?' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'O que você usou?' })).toBeVisible()
   await expect(page.getByRole('group', { name: 'Finalizar' }).getByRole('button', { name: 'Finalizar: Óleo Pontas. Trocar' })).toBeVisible()
   // O resto da rotina continua como estava.
   await expect(page.getByRole('button', { name: 'Fixar: Geleia G. Trocar' })).toBeVisible()

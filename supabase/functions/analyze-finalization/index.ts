@@ -87,7 +87,7 @@ const STEP_LABEL: Record<string, string> = {
   condition: 'Condicionar',
   mask: 'Máscara',
   prep: 'Preparar',
-  shape: 'Pentear e definir',
+  shape: 'Definir',
   hold: 'Fixar',
   finish: 'Finalizar',
 }

@@ -96,7 +96,7 @@ async function noHorizontalScroll(page: Page) {
 
 test('A1: quatro fotos em um envio, troca de posição antes de salvar', async ({ page }) => {
   await login(page, me)
-  await expect(page.getByText('Comece pelo produto que você vai testar')).toBeVisible()
+  await expect(page.getByText('Registre sua primeira finalização')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Comparar' })).toBeDisabled()
   await noHorizontalScroll(page)
 
@@ -408,7 +408,7 @@ test('A9: arquivo grande, formato não aceito; foto pesada é reduzida no aparel
 
 test('A7: outra conta não vê os registros da conta pessoal', async ({ page }) => {
   await login(page, other)
-  await expect(page.getByText('Comece pelo produto que você vai testar')).toBeVisible()
+  await expect(page.getByText('Registre sua primeira finalização')).toBeVisible()
   await page.goto(`./#/etapa/${ids.wet}`)
   await expect(page.getByText('Momento não encontrado.')).toBeVisible()
   await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)

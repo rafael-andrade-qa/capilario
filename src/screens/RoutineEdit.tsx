@@ -1,6 +1,7 @@
-// "O que você usou hoje?": a rotina da finalização, por etapa. Nova finalização: começa igual à
+// "O que você usou?": a rotina da finalização, por etapa. Nova finalização: começa igual à
 // última, e a pessoa toca só no que mudou; depois segue para as fotos, no produto principal (o
 // finalizador; sem ele, Sem finalizador). Finalização que já existe: edita a rotina dela.
+// Produto que ainda não está cadastrado: o catálogo abre aqui mesmo, sem sair da rotina.
 import { useMemo, useState } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { PageSkeleton } from '../components/Skeleton'
@@ -26,21 +27,10 @@ import {
 import { href, navigate } from '../lib/router'
 import { useHistory, useThumbUrls } from '../lib/state'
 import { uuid } from '../lib/uuid'
+import { ProductNewFlow } from './ProductEdit'
 
-// Rascunho guardado na sessão: sobrevive a sair para cadastrar um produto e voltar.
-const DRAFT_KEY = 'capilar:rotina:rascunho'
 /** Rotina de uma finalização nova, gravada depois que o primeiro momento é salvo. */
 export const PENDING_KEY = 'capilar:rotina:pendente'
-
-interface Draft {
-  /** '/rotina/nova' ou '/rotina/<finalização>'. */
-  back: string
-  items: DraftItem[]
-  /** Etapa que esperava um produto novo. */
-  step?: RoutineStep
-  /** Produto que o novo substitui (trocar), se for o caso. */
-  replace?: string
-}
 
 function readJson<T>(key: string): T | null {
   try {
@@ -66,13 +56,6 @@ export function takePendingRoutine(finalizationId: string): DraftItem[] | null {
   return p.items
 }
 
-/** Ao cadastrar um produto a partir da rotina: volta para ela com o produto na etapa. */
-export function routineReturn(newExperimentId: string): string | null {
-  const d = readJson<Draft>(DRAFT_KEY)
-  if (!d) return null
-  return `${d.back}${d.back.includes('?') ? '&' : '?'}novo=${newExperimentId}`
-}
-
 export function RoutineEditRoute({ finalizationId, params }: { finalizationId: string | null; params: URLSearchParams }) {
   const { experiments, routines } = useHistory()
   if (experiments === null) return <PageSkeleton />
@@ -93,7 +76,6 @@ export function RoutineEditRoute({ finalizationId, params }: { finalizationId: s
         base={draftOf(routines[finalizationId], experiments)}
         baseLabel={null}
         edit={{ finalizationId, principal: hit.experiment, when: finalizationWhen(hit.finalization) }}
-        added={params.get('novo')}
       />
     )
   }
@@ -108,7 +90,6 @@ export function RoutineEditRoute({ finalizationId, params }: { finalizationId: s
       baseLabel={last.from ? finalizationWhen(last.from) : null}
       edit={null}
       fixed={fixed}
-      added={params.get('novo')}
     />
   )
 }
@@ -119,7 +100,6 @@ function RoutineEdit({
   baseLabel,
   edit,
   fixed = null,
-  added,
 }: {
   experiments: Experiment[]
   /** Rotina de partida (a última, ou a desta finalização). */
@@ -129,31 +109,22 @@ function RoutineEdit({
   edit: { finalizationId: string; principal: Experiment; when: string } | null
   /** Nova finalização já com o produto principal escolhido (o "+" do produto). */
   fixed?: Experiment | null
-  /** Produto que acabou de ser cadastrado a partir da rotina. */
-  added: string | null
 }) {
   const { setRoutine, routines } = useHistory()
   const notify = useToast()
-  const back = edit ? `/rotina/${edit.finalizationId}` : fixed ? `/rotina/nova?com=${fixed.id}` : '/rotina/nova'
   const products = useMemo(() => experiments.filter((e) => e.product_mode === 'named'), [experiments])
   const byId = useMemo(() => new Map(experiments.map((e) => [e.id, e])), [experiments])
 
   const [items, setItems] = useState<DraftItem[]>(() => {
-    const saved = readJson<Draft>(DRAFT_KEY)
-    let start = saved && saved.back === back ? saved.items.filter((i) => byId.has(i.experimentId)) : base
-    if (fixed && !start.some((i) => i.experimentId === fixed.id)) {
+    if (fixed && !base.some((i) => i.experimentId === fixed.id)) {
       const step = stepOfCategory(fixed.category)
-      start = [...start.filter((i) => i.step !== step), { experimentId: fixed.id, step, maskKind: null }]
+      return [...base.filter((i) => i.step !== step), { experimentId: fixed.id, step, maskKind: null }]
     }
-    const fresh = added ? byId.get(added) : undefined
-    if (fresh && !start.some((i) => i.experimentId === fresh.id)) {
-      const step = saved?.step ?? stepOfCategory(fresh.category)
-      start = [...start.filter((i) => i.experimentId !== saved?.replace), { experimentId: fresh.id, step, maskKind: null }]
-    }
-    writeJson(DRAFT_KEY, null)
-    return start
+    return base
   })
   const [picking, setPicking] = useState<{ step: RoutineStep; current: DraftItem | null } | null>(null)
+  // Cadastrando um produto novo para esta etapa (o catálogo abre no lugar da rotina).
+  const [adding, setAdding] = useState<{ step: RoutineStep; current: DraftItem | null } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -195,8 +166,9 @@ function RoutineEdit({
   }
 
   function newProduct(step: RoutineStep, current: DraftItem | null) {
-    writeJson(DRAFT_KEY, { back, items, step, replace: current?.experimentId } satisfies Draft)
-    navigate('/produto/novo?rotina=1')
+    setPicking(null)
+    setAdding({ step, current })
+    window.scrollTo(0, 0)
   }
 
   async function submit() {
@@ -223,17 +195,29 @@ function RoutineEdit({
     navigate(`/produto/${principalId ?? NO_FINISHER_ID}/nova-finalizacao?finalizacao=${finalizationId}`)
   }
 
-  const principal = principalId ? byId.get(principalId) : undefined
+  if (adding) {
+    return (
+      <ProductNewFlow
+        onCancel={() => setAdding(null)}
+        onCreated={(id) => {
+          choose(adding.step, adding.current, id)
+          setAdding(null)
+          window.scrollTo(0, 0)
+        }}
+      />
+    )
+  }
+
   return (
     <main className="page routine-page">
-      <PageHeader title={edit ? `Rotina de ${edit.when.toLowerCase() === 'hoje' ? 'hoje' : edit.when}` : 'O que você usou hoje?'} back={{ label: 'Voltar ao histórico', href: href('/') }} />
+      <PageHeader title={edit ? `Rotina de ${edit.when.toLowerCase() === 'hoje' ? 'hoje' : edit.when}` : 'O que você usou?'} back={{ label: 'Voltar ao histórico', href: href('/') }} />
 
       {!edit && baseLabel && items.length > 0 && (
         <p className="routine-banner">
           Igual à de <strong>{baseLabel === 'Hoje' || baseLabel === 'Ontem' ? baseLabel.toLowerCase() : baseLabel}</strong>. Toque só no que mudou.
         </p>
       )}
-      {!edit && !baseLabel && <p className="muted small routine-intro">Toque em cada etapa que você fez hoje. Pode deixar etapas vazias.</p>}
+      {!edit && !baseLabel && <p className="muted small routine-intro">Toque nas etapas que você fez. As outras podem ficar vazias.</p>}
 
       <section className="card routine-steps" aria-label="Rotina">
         {ROUTINE_STEPS.map((s, n) => {
@@ -287,19 +271,6 @@ function RoutineEdit({
       {!edit && baseLabel && changedSteps.size > 0 && (
         <p className="muted small routine-summary" data-testid="routine-summary">
           {changeSummary(diff.changed)}
-        </p>
-      )}
-      {!edit && (
-        <p className="muted small routine-principal" data-testid="routine-principal">
-          {principal ? (
-            <>
-              Esta finalização fica em <strong>{productLabel(principal)}</strong>.
-            </>
-          ) : (
-            <>
-              Sem fixar, pentear ou finalizar: fica em <strong>Sem finalizador</strong>.
-            </>
-          )}
         </p>
       )}
 
@@ -412,7 +383,7 @@ function PickSheet({
             </button>
           ))}
         <button type="button" className="btn btn-outline-brand btn-block pick-new" onClick={onNew}>
-          + Cadastrar outro produto
+          + Cadastrar produto
         </button>
         {current && (
           <button type="button" className="btn btn-ghost btn-block danger-text" onClick={() => onPick(null)}>
