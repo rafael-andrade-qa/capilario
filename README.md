@@ -30,8 +30,8 @@ marca e foto: mudar o catálogo não mexe no histórico.
 **Tipo do produto.** Cada produto tem um tipo (geleia, creme de pentear, leave-in... os mesmos 27 do
 catálogo). Vem do catálogo quando o produto é escolhido de lá; no cadastro à mão (ou no lápis), o campo
 **Tipo** escolhe. Ao abrir o produto no histórico aparece a linha "Geleia · define e controla o frizz"; tocar
-abre o que é, como usar, com o que combina e em que etapa da rotina entra. **Tipos de produto** (link no fim
-da lista, rota `#/guia`) mostra todos, na ordem de uma rotina. O PDF leva o tipo na capa ("Geleia · Marca")
+abre o que é, como usar, com o que combina e em que etapa da rotina entra. **Tipos de produto** (pelo "Ver todos os tipos" da explicação
+do tipo, rota `#/guia`) mostra todos, na ordem de uma rotina. O PDF leva o tipo na capa ("Geleia · Marca")
 e a explicação nas observações; a mensagem pronta leva a linha curta, para quem recebe entender o produto.
 Os textos são gerais (sem marca) e ficam no app (`src/lib/productGuide.ts`): não chamam a IA.
 

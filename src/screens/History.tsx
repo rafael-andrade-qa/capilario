@@ -376,12 +376,6 @@ export function History({
           })}
         </div>
       )}
-      {(tab === 'dias' ? list.length > 0 : visible.length > 0) && (
-        <p className="center small guide-link">
-          <a href={href('/guia')}>O que é cada tipo de produto?</a>
-        </p>
-      )}
-
       {pdfFor && (
         <PdfShareSheet
           heading="Enviar PDF da finalização"
