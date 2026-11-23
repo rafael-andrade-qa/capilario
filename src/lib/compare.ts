@@ -73,3 +73,12 @@ export function initialType(items: CompareItem[]): StageType | null {
 export function isCompatible(a: CompareItem, b: CompareItem): boolean {
   return a.id !== b.id && a.type === b.type
 }
+
+/** Endereço do Comparar com o momento, os dois registros e o ângulo. */
+export function compareUrl(type: StageType, a?: string, b?: string, angle?: Angle) {
+  const q = new URLSearchParams({ etapa: type })
+  if (a) q.set('a', a)
+  if (b) q.set('b', b)
+  if (angle) q.set('angulo', angle)
+  return `/comparar?${q.toString()}`
+}

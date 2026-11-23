@@ -5,6 +5,11 @@ import { expect, test } from '@playwright/test'
 const BUCKET = 'capilar-photos'
 import { adminClient, photoPath, testUser, tinyJpeg } from '../integration/helpers'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 const admin = adminClient()
 test.use({ permissions: ['geolocation'], geolocation: { latitude: -18.91864, longitude: -48.27722 } })
 
@@ -43,7 +48,7 @@ test('pega a localização, consulta o clima e mostra a umidade', async ({ page 
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 
   await expect.poll(async () => (await admin.from('stages').select('humidity, temperature, weather_code').eq('id', stageId).single()).data).toEqual({
     humidity: 82,

@@ -81,10 +81,12 @@ export function finalizationOption(
   f: Finalization,
   label = 'Finalização inteira',
   analysis: FinalizationAnalysis | null = null,
+  /** Rotina do dia em texto ("Lavar: Shampoo X · Fixar: Geleia Y"). */
+  routine: string | null = null,
 ): PdfOption {
   const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
   const angles = ANGLES.filter((a) => stages.some((s) => photoByAngle(s, a)))
-  const info = finalizationInfo(experiment, f)
+  const info = { ...finalizationInfo(experiment, f), routine }
   const names = stages.map((s) => STAGE_LABEL[s.stage_type]).join(', ')
   const hasAi = !!analysis || stages.some((s) => splitNote(s.notes).analysis)
   const version = (withAi: boolean): Pick<PdfOption, 'message' | 'build'> => ({
@@ -107,7 +109,11 @@ export function finalizationOption(
             return p ? { label: ANGLE_LABEL[a], url: urls[p.storage_path], crop: p.crop } : null
           }),
         })),
-        notes: [...withAbout(experiment), ...(pdfNotes(stages, withAi, true) as { title: string; text: string }[])],
+        notes: [
+          ...(routine ? [{ title: 'Rotina do dia', text: routine }] : []),
+          ...withAbout(experiment),
+          ...(pdfNotes(stages, withAi, true) as { title: string; text: string }[]),
+        ],
         reading: withAi && analysis ? pdfReading(analysis) : undefined,
       })
     },

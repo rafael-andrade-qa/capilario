@@ -43,6 +43,18 @@ não é guardada. Mudou o horário do momento, consulta de novo. Aparece no quad
 %), na tela do momento, no Comparar e nos PDFs, e vai junto para a análise da IA, que separa frizz de dia
 úmido do efeito do produto. Sem permissão de localização, nada acontece.
 
+**Rotina da finalização.** Cada finalização guarda o que a pessoa usou no dia, por etapa: lavar,
+condicionar, máscara (com o tipo do cronograma: hidratação, nutrição ou reconstrução), preparar, pentear
+e definir, fixar e finalizar (tabela `routine_items`, gravada pela função `set_routine`). **+ Nova
+finalização** abre "O que você usou hoje?" já igual à última rotina: toca só no que mudou, e a finalização
+fica no produto principal (o de fixar, senão o de pentear, senão o de finalizar; sem nenhum, Sem
+finalizador). A rotina é gravada junto com o primeiro momento. O início tem duas abas: **Dias** (cada
+finalização com a rotina, destacando o que mudou desde a anterior, o clima e os momentos, mais a faixa do
+cronograma) e **Produtos** (a lista de antes). No Comparar, duas finalizações diferentes mostram "O que
+mudou" (etapas diferentes e o clima). "Como fica com ele" (`#/produto/<id>`) mostra em quais
+finalizações o produto entrou e a média das notas da IA com e sem ele. A rotina vai no PDF, na mensagem
+e na análise da IA.
+
 **Identificar pela foto.** No Novo produto, uma foto qualquer da embalagem basta. A IA (Claude Haiku 5.5, pela
 função `identify-product`, sem busca na web) só lê marca e nome no rótulo; a foto vem do catálogo do app e,
 se o produto não estiver lá, da busca pública das lojas (até 3 fotos, padronizadas: retrato 3:4, fundo

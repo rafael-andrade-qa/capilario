@@ -82,6 +82,35 @@ function weatherOf(s: StageRow): string | null {
   return `${s.humidity}% de umidade, ${Math.round(Number(s.temperature))}°C`
 }
 
+const STEP_LABEL: Record<string, string> = {
+  wash: 'Lavar',
+  condition: 'Condicionar',
+  mask: 'Máscara',
+  prep: 'Preparar',
+  shape: 'Pentear e definir',
+  hold: 'Fixar',
+  finish: 'Finalizar',
+}
+const MASK_LABEL: Record<string, string> = { H: 'hidratação', N: 'nutrição', R: 'reconstrução' }
+
+/** Rotina do dia em texto, na ordem das etapas (vazia se a pessoa não registrou). */
+async function routineOf(headers: Record<string, string>, finalizationId: string): Promise<string | null> {
+  const items = await getJson<{ step: string; position: number; mask_kind: string | null; experiment_id: string }[]>(
+    headers,
+    `routine_items?finalization_id=eq.${finalizationId}&select=step,position,mask_kind,experiment_id&order=position`,
+  )
+  if (!items.length) return null
+  const ids = [...new Set(items.map((i) => i.experiment_id))]
+  const products = await getJson<{ id: string; product_name: string | null; brand: string | null }[]>(headers, `experiments?id=in.(${ids.join(',')})&select=id,product_name,brand`)
+  const name = new Map(products.map((p) => [p.id, p.brand ? `${p.product_name} (${p.brand})` : (p.product_name ?? 'produto')]))
+  const order = Object.keys(STEP_LABEL)
+  const parts = order.flatMap((step) => {
+    const list = items.filter((i) => i.step === step).map((i) => `${name.get(i.experiment_id) ?? 'produto'}${i.mask_kind ? ` (${MASK_LABEL[i.mask_kind]})` : ''}`)
+    return list.length ? [`${STEP_LABEL[step]}: ${list.join(', ')}`] : []
+  })
+  return parts.length ? parts.join(' · ') : null
+}
+
 function productOf(e: ExperimentRow | undefined): string {
   if (!e) return 'Produto não informado'
   if (e.product_mode === 'none') return 'Sem finalizador'
@@ -150,9 +179,11 @@ Deno.serve(async (req) => {
       `finalization_analyses?finalization_id=neq.${input.finalization_id}&select=created_at,result&order=created_at.desc&limit=8`,
     )
     const product = productOf(experiment)
+    const routine = await routineOf(headers, input.finalization_id)
     const present = new Set<Moment>(input.images.map((i) => i.moment))
     const content = buildContent(input.images, {
       product,
+      routine,
       moments: stages.map((s) => ({ moment: s.stage_type, when: WHEN.format(new Date(s.captured_at)), notes: ownNotes(s.notes), weather: weatherOf(s) })),
       past: past.map(
         (p): PastAnalysis => ({

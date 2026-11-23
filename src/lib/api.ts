@@ -7,6 +7,7 @@ import { uploadPhoto } from './upload'
 import { prepareImage, thumbPath } from './images'
 import { uuid } from './uuid'
 import type { StageWeather } from './weather'
+import type { DraftItem, RoutineItem, Routines } from './routine'
 
 const HISTORY_SELECT =
   'id, product_mode, product_name, brand, photo_path, category, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, humidity, temperature, weather_code, weather_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
@@ -89,6 +90,24 @@ export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult>
  * a política do Storage só libera objetos que já não estão ligados a uma foto.
  * Se a resposta se perde, confere no banco se a etapa sumiu antes de declarar falha.
  */
+/** Rotinas de todas as finalizações da pessoa, por finalização. */
+export async function fetchRoutines(): Promise<Routines> {
+  const { data, error } = await supabase.from('routine_items').select('finalization_id, experiment_id, step, position, mask_kind')
+  if (error) throw new Error(`Não foi possível carregar as rotinas: ${error.message}`)
+  const out: Routines = {}
+  for (const r of (data ?? []) as RoutineItem[]) (out[r.finalization_id] ??= []).push(r)
+  return out
+}
+
+/** Grava a rotina inteira de uma finalização (troca a anterior). */
+export async function saveRoutine(finalizationId: string, items: DraftItem[]): Promise<void> {
+  const { error } = await supabase.rpc('set_routine', {
+    p_finalization_id: finalizationId,
+    p_items: items.map((i) => ({ experiment_id: i.experimentId, step: i.step, mask_kind: i.step === 'mask' ? i.maskKind : null })),
+  })
+  if (error) throw new Error(`Não foi possível salvar a rotina: ${error.message}`)
+}
+
 /** Grava o clima da hora do momento. */
 export async function saveStageWeather(stageId: string, w: StageWeather): Promise<void> {
   const { error } = await supabase.from('stages').update(w).eq('id', stageId)

@@ -7,6 +7,11 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 import { adminClient, photoPath, testUser, type TestUser } from '../integration/helpers'
 import { BACK, FRONT, LEFT, type TestFile } from './images'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 const BUCKET = 'capilar-photos'
 const PRODUCT = 'Geleia Seladora'
 const admin = adminClient()
@@ -58,7 +63,7 @@ async function login(page: Page) {
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 /** Abre o produto no Histórico e toca no brilho da barra dele. */

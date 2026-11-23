@@ -2,6 +2,7 @@
 // Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
 // os dois registros têm ficam clicáveis (ver lib/compare.ts).
 import { PageSkeleton } from '../components/Skeleton'
+import { diffRoutine, draftOf, stepLabel } from '../lib/routine'
 import { DropIcon } from '../components/ActionIcons'
 import { weatherLong, withHumidity } from '../lib/weather'
 import { useEffect, useMemo, useState } from 'react'
@@ -13,7 +14,7 @@ import { dayMonth, productHero } from '../lib/finalizationShare'
 import { compareFileName, compareMessage, momentInfo, productTitle } from '../lib/share'
 import { PhotoView } from '../components/PhotoView'
 import { ProductThumb, productThumbPath } from '../components/ProductThumb'
-import { commonAngles, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
+import { commonAngles, compareUrl, defaultPair, initialAngle, initialType, isCompatible, missingSide, type CompareItem } from '../lib/compare'
 import {
   ANGLES,
   ANGLE_LABEL,
@@ -50,13 +51,6 @@ const toItem = (e: Entry): CompareItem => ({
 })
 const anglesOf = (e?: Entry): Angle[] => (e ? e.stage.photos.map((p) => p.angle) : [])
 
-function compareUrl(type: StageType, a?: string, b?: string, angle?: Angle) {
-  const q = new URLSearchParams({ etapa: type })
-  if (a) q.set('a', a)
-  if (b) q.set('b', b)
-  if (angle) q.set('angulo', angle)
-  return `/comparar?${q.toString()}`
-}
 
 /** Balão de fala: ver a observação do registro. */
 function NoteIcon() {
@@ -308,6 +302,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
             />
           )}
 
+          {a.stage.finalization_id !== b.stage.finalization_id && <CompareChanges a={a.stage} b={b.stage} />}
+
           <div className="compare-grid">
             {([['A', a], ['B', b]] as const).map(([label, e]) => {
               const p = photoByAngle(e.stage, angle)
@@ -363,5 +359,56 @@ export function Compare({ params }: { params: URLSearchParams }) {
         </>
       )}
     </main>
+  )
+}
+
+/** O que mudou entre as duas finalizações: só as etapas diferentes, o clima e o que ficou igual. */
+function CompareChanges({ a, b }: { a: Stage; b: Stage }) {
+  const { experiments, routines } = useHistory()
+  const list = experiments ?? []
+  const ra = draftOf(routines[a.finalization_id], list)
+  const rb = draftOf(routines[b.finalization_id], list)
+  if (!ra.length && !rb.length) return null
+  // De B para A: cada linha mostra o que A e B usaram.
+  const { changed, same } = diffRoutine(rb, ra, list)
+  const air = (s: Stage) => (s.humidity != null ? `${s.humidity}% · ${Math.round(s.temperature ?? 0)}°C` : '—')
+  const climate = a.humidity != null || b.humidity != null
+  return (
+    <section className="card compare-changes" aria-label="O que mudou">
+      <h2 className="compare-changes-title">{changed.length ? 'O que mudou' : 'Mesma rotina nos dois'}</h2>
+      {(changed.length > 0 || climate) && (
+        <table className="changes-table">
+          <thead>
+            <tr>
+              <th scope="col">
+                <span className="visually-hidden">Etapa</span>
+              </th>
+              <th scope="col">A</th>
+              <th scope="col">B</th>
+            </tr>
+          </thead>
+          <tbody>
+            {changed.map((c) => (
+              <tr key={c.step}>
+                <th scope="row">{stepLabel(c.step)}</th>
+                <td>{c.after.join(', ') || '—'}</td>
+                <td>{c.before.join(', ') || '—'}</td>
+              </tr>
+            ))}
+            {climate && (
+              <tr>
+                <th scope="row">Clima</th>
+                <td>{air(a)}</td>
+                <td>{air(b)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+      {changed.length > 0 && same.length > 0 && (
+        <p className="muted small compare-same">Igual nos dois: {same.map((s) => stepLabel(s).toLowerCase()).join(', ')}.</p>
+      )}
+      {changed.length > 1 && <p className="muted small compare-same">Mudou mais de uma coisa: para saber o efeito de um produto, troque só ele de uma vez.</p>}
+    </section>
   )
 }

@@ -3,6 +3,11 @@ import { randomUUID } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { testUser } from '../integration/helpers'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 test.use({ viewport: { width: 390, height: 700 }, hasTouch: true })
 
 async function swipe(page: Page, selector: string, dy: number) {
@@ -28,7 +33,7 @@ test('com a folha aberta o fundo fica parado; arrastar para baixo fecha', async 
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 
   // O último da lista, para a página precisar rolar até ele.
   const card = page.locator('.experiment').last()

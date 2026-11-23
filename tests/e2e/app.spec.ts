@@ -5,6 +5,11 @@ import { adminClient, testUser, type TestUser } from '../integration/helpers'
 import { BACK, FRONT, LEFT, RIGHT, noisyPng, type TestFile } from './images'
 import { thumbPath } from '../../src/lib/images'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 const BUCKET = 'capilar-photos'
 const admin = adminClient()
 
@@ -24,7 +29,7 @@ async function login(page: Page, user: TestUser) {
   await page.getByLabel('E-mail').fill(user.email)
   await page.getByLabel('Senha').fill(user.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 async function pick(page: Page, files: TestFile[]) {

@@ -33,6 +33,7 @@ describe('buildContent', () => {
   it('põe o contexto primeiro e cada foto com o rótulo antes, em ordem de momento e ângulo', () => {
     const content = buildContent([img('dry', 'left'), img('wet', 'back'), img('wet', 'front')], {
       product: 'Geleia Seladora (Widi Care)',
+      routine: 'Lavar: Shampoo X · Fixar: Geleia Seladora (Widi Care)',
       moments: [
         { moment: 'wet', when: '20/11 14:53', notes: 'Toalha e dedos.' },
         { moment: 'dry', when: '20/11 15:38', notes: null, weather: '82% de umidade, 24°C' },
@@ -40,6 +41,7 @@ describe('buildContent', () => {
       past: [{ product: 'Creme (Widi)', when: '18/11', hair_type: 'Ondulado 2B', scores: { definition: 4, frizz_control: 9, volume: 5, day2: 6 }, summary: 'Alinha.' }],
     }) as { type: string; text?: string }[]
     expect(content[0].text).toContain('Geleia Seladora (Widi Care)')
+    expect(content[0].text).toContain('Rotina do dia, por etapa: Lavar: Shampoo X · Fixar: Geleia Seladora (Widi Care).')
     expect(content[0].text).toContain('Observação da pessoa: "Toalha e dedos."')
     expect(content[0].text).toContain('- Seco (no mesmo dia), 20/11 15:38 (clima: 82% de umidade, 24°C): 1 foto(s).')
     expect(content[0].text).not.toMatch(/Molhado[^\n]*clima/)

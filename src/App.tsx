@@ -13,17 +13,21 @@ const loadProductEdit = () => import('./screens/ProductEdit')
 const loadStageForm = () => import('./screens/StageForm')
 const loadCompare = () => import('./screens/Compare')
 const loadGuide = () => import('./screens/Guide')
+const loadRoutine = () => import('./screens/RoutineEdit')
+const loadInsight = () => import('./screens/ProductInsight')
 const StageDetail = lazy(() => loadStageDetail().then((m) => ({ default: m.StageDetail })))
 const ProductEditRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductEditRoute })))
 const ProductNewRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductNewRoute })))
 const StageFormRoute = lazy(() => loadStageForm().then((m) => ({ default: m.StageFormRoute })))
 const Compare = lazy(() => loadCompare().then((m) => ({ default: m.Compare })))
 const Guide = lazy(() => loadGuide().then((m) => ({ default: m.Guide })))
+const RoutineEditRoute = lazy(() => loadRoutine().then((m) => ({ default: m.RoutineEditRoute })))
+const ProductInsight = lazy(() => loadInsight().then((m) => ({ default: m.ProductInsight })))
 
 function usePrefetchScreens() {
   useEffect(() => {
     const run = () => {
-      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide]) void load().catch(() => undefined)
+      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide, loadRoutine, loadInsight]) void load().catch(() => undefined)
     }
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
     const id = idle ? idle(run) : window.setTimeout(run, 1500)
@@ -102,7 +106,7 @@ function Route({ userId }: { userId: string }) {
   if ((m = match('/produto/:id/editar', path))) return <ProductEditRoute experimentId={m.id} />
   // Nova finalização com um produto que já está no histórico (o caminho antigo continua valendo).
   if ((m = match('/produto/:id/nova-finalizacao', path)) || (m = match('/experimento/:id/nova-etapa', path)))
-    return <StageFormRoute kind="add" userId={userId} experimentId={m.id} />
+    return <StageFormRoute kind="add" userId={userId} experimentId={m.id} finalizationId={params.get('finalizacao')} />
   // Próximo momento de uma finalização: /finalizacao/<id>/seco
   if ((m = match('/finalizacao/:id/:momento', path)))
     return <StageFormRoute kind="moment" userId={userId} finalizationId={m.id} moment={m.momento} />
@@ -110,6 +114,9 @@ function Route({ userId }: { userId: string }) {
   if ((m = match('/etapa/:id', path))) return <StageDetail stageId={m.id} />
   if (path === '/comparar') return <Compare params={params} />
   if (path === '/guia') return <Guide params={params} />
+  if (path === '/rotina/nova') return <RoutineEditRoute finalizationId={null} params={params} />
+  if ((m = match('/rotina/:id', path))) return <RoutineEditRoute finalizationId={m.id} params={params} />
+  if ((m = match('/produto/:id', path))) return <ProductInsight experimentId={m.id} />
   return (
     <History
       saved={params.get('salvo')}

@@ -1,6 +1,6 @@
-// Histórico: um produto por linha, recolhido. Tocar abre as finalizações daquele produto,
-// cada uma com os três momentos lado a lado (Molhado, Seco, Dia seguinte) e um atalho para o
-// próximo. O produto mais recente começa aberto; o que você abre/fecha é lembrado na sessão.
+// Início, em duas abas. Dias: cada finalização (dia de lavagem), da mais nova à mais antiga, com a
+// rotina do dia, o clima e os três momentos. Produtos: um produto por linha, recolhido; tocar abre
+// as finalizações daquele produto. A aba escolhida fica lembrada no aparelho.
 import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { useToast, useToastOnce } from '../components/Toasts'
@@ -41,6 +41,8 @@ import {
 import { href, navigate } from '../lib/router'
 import { ProductAbout } from '../components/ProductGuide'
 import { signOut, useHistory, useThumbUrls } from '../lib/state'
+import { allFinalizations, diffRoutine, draftOf, itemName, routineExtra, schedule, sortRoutine, stepLabel, type Routines, type RoutineStep } from '../lib/routine'
+import { compareUrl } from '../lib/compare'
 
 /** A partir de quantos produtos a busca aparece. */
 const SEARCH_FROM = 6
@@ -81,7 +83,12 @@ export function History({
   /** Produto recém-cadastrado (escolheu registrar Depois). */
   created?: string | null
 }) {
-  const { experiments, error, loading, reload, patchStage } = useHistory()
+  const { experiments, error, loading, reload, patchStage, routines } = useHistory()
+  const [tab, setTab] = useState<Tab>(readTab)
+  const pickTab = (t: Tab) => {
+    setTab(t)
+    writeTab(t)
+  }
   const [productToDelete, setProductToDelete] = useState<Experiment | null>(null)
   const [pdfFor, setPdfFor] = useState<Experiment | null>(null)
   // Análises das finalizações do produto do PDF (buscadas ao tocar, antes de abrir a folha).
@@ -148,13 +155,13 @@ export function History({
     for (const e of list) {
       const t = productThumbPath(e)
       if (t) out.add(t)
-      if (open.has(e.id)) for (const s of publishedStages(e)) {
+      if (open.has(e.id) || tab === 'dias') for (const s of publishedStages(e)) {
         const c = coverPhoto(s)
         if (c) out.add(c.storage_path)
       }
     }
     return [...out]
-  }, [list, open])
+  }, [list, open, tab])
   const { urls } = useThumbUrls(paths) // miniaturas: aqui as fotos aparecem pequenas
 
   function toggle(id: string) {
@@ -176,8 +183,8 @@ export function History({
       </header>
 
       <div className="actions-bar">
-        <a className="btn btn-primary" href={href('/produto/novo')}>
-          + Novo produto
+        <a className="btn btn-primary" href={href('/rotina/nova')}>
+          + Nova finalização
         </a>
         <CompareButton total={totalStages} loading={experiments === null} />
       </div>
@@ -200,7 +207,7 @@ export function History({
             produtos.
           </p>
           <a className="btn btn-primary" href={href('/produto/novo')}>
-            Cadastrar produto
+            + Novo produto
           </a>
           <a className="link empty-secondary" href={href(`/produto/${NO_FINISHER_ID}/nova-finalizacao`)}>
             Ou registre sem finalizador
@@ -208,12 +215,31 @@ export function History({
         </section>
       )}
 
-      {list.length >= SEARCH_FROM && (
+      {list.length > 0 && (
+        <div className="tabs" role="tablist" aria-label="Ver por">
+          <button type="button" role="tab" aria-selected={tab === 'dias'} className={`tab ${tab === 'dias' ? 'on' : ''}`} onClick={() => pickTab('dias')}>
+            Dias
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'produtos'} className={`tab ${tab === 'produtos' ? 'on' : ''}`} onClick={() => pickTab('produtos')}>
+            Produtos
+          </button>
+        </div>
+      )}
+
+      {tab === 'dias' && experiments !== null && list.length > 0 && <DaysView experiments={list} routines={routines} urls={urls} saved={saved} />}
+
+      {tab === 'produtos' && list.length > 0 && (
+        <a className="btn btn-ghost btn-block new-product" href={href('/produto/novo')}>
+          + Novo produto
+        </a>
+      )}
+
+      {tab === 'produtos' && list.length >= SEARCH_FROM && (
         <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar produto ou marca" />
       )}
-      {query && visible.length === 0 && <p className="muted center small">Nenhum produto com “{query.trim()}”.</p>}
+      {tab === 'produtos' && query && visible.length === 0 && <p className="muted center small">Nenhum produto com “{query.trim()}”.</p>}
 
-      {visible.length > 0 && (
+      {tab === 'produtos' && visible.length > 0 && (
         <div className="card product-list">
           {!query && !list.some((e) => e.product_mode === 'none') && <NoFinisherRow open={open.has(NO_FINISHER_ID)} onToggle={() => toggle(NO_FINISHER_ID)} />}
           {visible.map((exp) => {
@@ -254,11 +280,18 @@ export function History({
 
                 {isOpen && (
                   <div id={`produto-${exp.id}`} className="product-body">
-                    <ProductAbout experimentId={exp.id} mode={exp.product_mode} category={exp.category} />
+                    <div className="product-top">
+                      <ProductAbout experimentId={exp.id} mode={exp.product_mode} category={exp.category} />
+                      {exp.product_mode === 'named' && (
+                        <a className="link small insight-link" href={href(`/produto/${exp.id}`)}>
+                          Como fica com ele
+                        </a>
+                      )}
+                    </div>
                     {fins.length === 0 && (
                       <div className="fin-empty">
                         <p className="muted small">Registre a primeira finalização com este produto: molhado, seco e dia seguinte.</p>
-                        <a className="btn btn-outline-brand btn-block" href={href(`/produto/${exp.id}/nova-finalizacao`)}>
+                        <a className="btn btn-outline-brand btn-block" href={href(newFinalizationHref(exp))}>
                           + Registrar finalização
                         </a>
                       </div>
@@ -278,7 +311,7 @@ export function History({
                     <div className="product-actions">
                       <a
                         className="icon-btn product-add"
-                        href={href(`/produto/${exp.id}/nova-finalizacao`)}
+                        href={href(newFinalizationHref(exp))}
                         aria-label={`Nova finalização com ${productLabel(exp)}`}
                         title="Nova finalização com este produto"
                       >
@@ -333,7 +366,7 @@ export function History({
           })}
         </div>
       )}
-      {visible.length > 0 && (
+      {(tab === 'dias' ? list.length > 0 : visible.length > 0) && (
         <p className="center small guide-link">
           <a href={href('/guia')}>O que é cada tipo de produto?</a>
         </p>
@@ -347,7 +380,7 @@ export function History({
             return n > 2 ? `Escolha uma das ${n} finalizações de ${productLabel(pdfFor)} (deslize para ver todas):` : `Escolha a finalização de ${productLabel(pdfFor)}:`
           })()}
           pick="list"
-          options={finalizationChoices(pdfFor, urls, pdfAnalyses)}
+          options={finalizationChoices(pdfFor, urls, pdfAnalyses, (id) => routineExtra(routines[id], list))}
           onClose={() => setPdfFor(null)}
         />
       )}
@@ -438,8 +471,17 @@ function finalizationCards(exp: Experiment, urls: Record<string, string>): (Fina
 }
 
 /** Opções do PDF: uma por finalização, com data, momentos e miniaturas. */
-function finalizationChoices(exp: Experiment, urls: Record<string, string>, analyses: Map<string, FinalizationAnalysis>): PdfOption[] {
-  return finalizationCards(exp, urls).map(({ fin, when, detail, thumbs }) => ({ ...finalizationOption(exp, fin, when, analyses.get(fin.id) ?? null), detail, thumbs }))
+function finalizationChoices(
+  exp: Experiment,
+  urls: Record<string, string>,
+  analyses: Map<string, FinalizationAnalysis>,
+  routineOf: (finalizationId: string) => string | null,
+): PdfOption[] {
+  return finalizationCards(exp, urls).map(({ fin, when, detail, thumbs }) => ({
+    ...finalizationOption(exp, fin, when, analyses.get(fin.id) ?? null, routineOf(fin.id)),
+    detail,
+    thumbs,
+  }))
 }
 
 /** Uma finalização: os três momentos lado a lado; o que falta vira atalho (nos primeiros dias). */
@@ -457,13 +499,21 @@ function FinalizationRow({
   withTime: boolean
 }) {
   const when = withTime ? `${finalizationWhen(f)}, ${formatTime(f.start)}` : finalizationWhen(f)
+  return (
+    <li className="fin" aria-label={`Finalização de ${when}`}>
+      <div className="fin-when muted small">{when}</div>
+      <MomentStrip finalization={f} urls={urls} saved={saved} latest={latest} when={when} />
+    </li>
+  )
+}
+
+/** Os três momentos lado a lado; o que falta vira atalho (só na mais recente do produto, nos primeiros dias). */
+function MomentStrip({ finalization: f, urls, saved, latest, when }: { finalization: Finalization; urls: Record<string, string>; saved: string | null; latest: boolean; when: string }) {
   const next = nextMoment(f)
   // Completar só a mais recente do produto, nos primeiros dias (refazer = finalização nova).
   const addable = latest && canAddMoment(f)
   const first = STAGE_TYPES.findIndex((t) => f.moments[t])
   return (
-    <li className="fin" aria-label={`Finalização de ${when}`}>
-      <div className="fin-when muted small">{when}</div>
       <div className="fin-strip">
         {STAGE_TYPES.map((t, i) => {
           const st = f.moments[t]
@@ -491,7 +541,6 @@ function FinalizationRow({
           )
         })}
       </div>
-    </li>
   )
 }
 
@@ -556,4 +605,123 @@ function NoFinisherRow({ open, onToggle }: { open: boolean; onToggle: () => void
       )}
     </section>
   )
+}
+
+type Tab = 'dias' | 'produtos'
+const TAB_KEY = 'capilar:inicio:aba'
+function readTab(): Tab {
+  try {
+    return localStorage.getItem(TAB_KEY) === 'produtos' ? 'produtos' : 'dias'
+  } catch {
+    return 'dias'
+  }
+}
+function writeTab(t: Tab) {
+  try {
+    localStorage.setItem(TAB_KEY, t)
+  } catch {
+    // sem armazenamento: só não lembra a aba
+  }
+}
+
+/** Nova finalização a partir de um produto: a rotina já vem com ele (Sem finalizador vai direto às fotos). */
+function newFinalizationHref(exp: Experiment): string {
+  return exp.product_mode === 'named' ? `/rotina/nova?com=${exp.id}` : `/produto/${exp.id}/nova-finalizacao`
+}
+
+const KIND_CLASS = { H: 'kind-h', N: 'kind-n', R: 'kind-r' } as const
+const KIND_NAME = { H: 'hidratação', N: 'nutrição', R: 'reconstrução' } as const
+
+/** Aba Dias: as finalizações de todos os produtos, com a rotina, o clima e os momentos. */
+function DaysView({ experiments, routines, urls, saved }: { experiments: Experiment[]; routines: Routines; urls: Record<string, string>; saved: string | null }) {
+  const all = useMemo(() => allFinalizations(experiments), [experiments])
+  const sched = useMemo(() => schedule(experiments, routines), [experiments, routines])
+  const byId = useMemo(() => new Map(experiments.map((e) => [e.id, e])), [experiments])
+  if (!all.length) {
+    return (
+      <section className="card empty-days">
+        <p className="muted">
+          Nenhuma finalização ainda. Toque em <strong>+ Nova finalização</strong> e conte o que você usou.
+        </p>
+      </section>
+    )
+  }
+  return (
+    <>
+      {sched.length > 0 && (
+        <div className="schedule" aria-label="Cronograma capilar">
+          <span className="muted small">Cronograma</span>
+          <ol>
+            {sched.map((m) => (
+              <li
+                key={m.finalizationId}
+                className={`schedule-kind ${KIND_CLASS[m.kind]}`}
+                title={`${KIND_NAME[m.kind]} · ${finalizationWhen({ start: m.start })}`}
+                aria-label={`${KIND_NAME[m.kind]}, ${finalizationWhen({ start: m.start })}`}
+              >
+                {m.kind}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      <ol className="day-list">
+        {all.map(({ experiment, finalization: f }, i) => {
+          const prev = all[i + 1]
+          const items = sortRoutine(routines[f.id] ?? [])
+          const changed = prev
+            ? new Set<RoutineStep>(diffRoutine(draftOf(routines[prev.finalization.id], experiments), draftOf(routines[f.id], experiments), experiments).changed.map((c) => c.step))
+            : new Set<RoutineStep>()
+          const when = all.some((o) => o.finalization !== f && finalizationWhen(o.finalization) === finalizationWhen(f))
+            ? `${finalizationWhen(f)}, ${formatTime(f.start)}`
+            : finalizationWhen(f)
+          const weather = (['dry', 'wet', 'next_day'] as const).map((t) => f.moments[t]).find((s) => s?.humidity != null)
+          const latest = finalizationsOf(experiment)[0]?.id === f.id
+          const pair = prev ? comparePair(f, prev.finalization) : null
+          return (
+            <li key={f.id} className="card day-card" aria-label={`Finalização de ${when}`}>
+              <div className="day-head">
+                <strong>{when}</strong>
+                {weather && (
+                  <span className="muted small day-weather" title={weatherLong(weather) ?? undefined}>
+                    <DropIcon /> {weather.humidity}% · {Math.round(weather.temperature ?? 0)}°C
+                  </span>
+                )}
+              </div>
+              <ul className="day-chips" aria-label="Rotina">
+                {items.length === 0 && <li className="day-chip">{experiment.product_mode === 'named' ? productLabel(experiment) : 'Sem finalizador'}</li>}
+                {items.map((it) => (
+                  <li key={it.experiment_id} className={`day-chip ${changed.has(it.step) ? 'changed' : ''}`} title={stepLabel(it.step)}>
+                    {itemName(byId.get(it.experiment_id))}
+                    {it.mask_kind ? ` · ${it.mask_kind}` : ''}
+                  </li>
+                ))}
+              </ul>
+              <MomentStrip finalization={f} urls={urls} saved={saved} latest={latest} when={when} />
+              <div className="day-actions">
+                <a className="link small" href={href(`/rotina/${f.id}`)} aria-label={`Editar a rotina de ${when}`}>
+                  Rotina
+                </a>
+                {pair && (
+                  <a className="link small" href={href(compareUrl(pair.type, pair.a, pair.b))} aria-label={`Comparar ${when} com a anterior`}>
+                    Comparar com a anterior
+                  </a>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </>
+  )
+}
+
+/** Mesmo momento nas duas finalizações (Seco de preferência), para comparar. */
+function comparePair(a: Finalization, b: Finalization): { type: 'dry' | 'wet' | 'next_day'; a: string; b: string } | null {
+  for (const t of ['dry', 'wet', 'next_day'] as const) {
+    const x = a.moments[t]
+    const y = b.moments[t]
+    if (x && y) return { type: t, a: x.id, b: y.id }
+  }
+  return null
 }

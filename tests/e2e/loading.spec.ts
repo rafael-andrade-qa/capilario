@@ -4,6 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { testUser, type TestUser } from '../integration/helpers'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 let me: TestUser
 
 test.beforeAll(async () => {

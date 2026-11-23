@@ -8,6 +8,11 @@ import { photoPath, testUser, type TestUser } from '../integration/helpers'
 import { FRONT, LEFT } from './images'
 import { thumbPath } from '../../src/lib/images'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 const BUCKET = 'capilar-photos'
 let me: TestUser
 
@@ -44,7 +49,7 @@ async function login(page: Page) {
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 const thumbSrc = (page: Page, product: string) =>

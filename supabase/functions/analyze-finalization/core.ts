@@ -75,6 +75,8 @@ export interface PastAnalysis {
 export interface AnalyzeContext {
   /** "Nome do produto (Marca)" ou "Sem finalizador". */
   product: string
+  /** Rotina do dia por etapa ("Lavar: Shampoo X · Fixar: Geleia Y"), se a pessoa registrou. */
+  routine?: string | null
   moments: MomentContext[]
   past: PastAnalysis[]
 }
@@ -105,6 +107,7 @@ Como avaliar:
 - summary: 1 a 2 frases sobre o produto nesta finalização; se houver análises anteriores, compare com elas pelo nome do produto.
 - notes: uma observação por momento que tem fotos (2 a 3 frases curtas, até ~300 caracteres), no estilo de anotação de diário. Não repita o nome do produto. Para momento sem fotos, texto vazio.
 - Leve em conta as observações que a própria pessoa escreveu (rotina, sensação ao toque), sem repeti-las.
+- Quando vier a rotina do dia (os produtos de cada etapa), o resultado é da combinação, não só do finalizador. Ao comparar com análises anteriores, se a rotina mudou numa etapa (outro shampoo, outra máscara), diga que a diferença pode vir dali.
 - Quando vier o clima do momento (umidade e temperatura do ar), use para separar o efeito do tempo do efeito do produto: ar úmido (75% ou mais) costuma aumentar frizz e volume, ar seco (abaixo de 40%) tende a ressecar. Se fizer diferença, diga isso em uma frase; não repita os números.
 - Seja honesto: se a foto não permite avaliar algo (luz, ângulo, cabelo escondido), diga isso em vez de inventar.
 - Couro cabeludo: só comente se algo estiver claramente visível, em tom neutro e sem diagnóstico (ex.: "vale acompanhar"). Você não é médico.`
@@ -163,6 +166,7 @@ function scoreLine(s: Scores): string {
 /** Conteúdo da mensagem: contexto em texto e cada foto com o rótulo antes dela. */
 export function buildContent(images: InputImage[], ctx: AnalyzeContext): unknown[] {
   const lines = [`Produto desta finalização: ${ctx.product}.`]
+  if (ctx.routine) lines.push(`Rotina do dia, por etapa: ${ctx.routine}.`)
   for (const m of MOMENTS) {
     const mc = ctx.moments.find((x) => x.moment === m)
     const n = images.filter((i) => i.moment === m).length

@@ -87,6 +87,8 @@ export interface FinalizationInfo {
   /** O PDF leva a análise da IA (a mensagem avisa). */
   ai?: boolean
   about?: string | null
+  /** Rotina do dia em texto. */
+  routine?: string | null
 }
 
 export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, 'moments'>): FinalizationInfo {
@@ -125,6 +127,7 @@ export function finalizationMessage(f: FinalizationInfo): string {
     `Olha como meu cabelo evoluiu ${product}, na finalização de ${whenText(start).split(' às ')[0]}:`,
     ...lines,
     '',
+    ...(f.routine ? [`Rotina do dia: ${f.routine}.`, ''] : []),
     ...(f.about ? [f.about, ''] : []),
     `As fotos estão lado a lado no PDF${extra}.`,
   ].join('\n')

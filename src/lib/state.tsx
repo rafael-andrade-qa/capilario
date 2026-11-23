@@ -2,7 +2,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import { cachedSignedUrls, clearSignedUrlCache, fetchHistory, isMissingFile, saveStageWeather, signedUrls } from './api'
+import { cachedSignedUrls, clearSignedUrlCache, fetchHistory, fetchRoutines, isMissingFile, saveStageWeather, signedUrls } from './api'
+import type { RoutineItem, Routines } from './routine'
 import { fillWeather, stagesNeedingWeather } from './weather'
 import { thumbPath } from './images'
 import type { Experiment, Stage } from './domain'
@@ -56,6 +57,9 @@ interface HistoryState {
   patchStage: (id: string, patch: Partial<Stage>) => void
   removeStage: (id: string) => void
   removeExperiment: (id: string) => void
+  /** Rotina de cada finalização (vazio até carregar). */
+  routines: Routines
+  setRoutine: (finalizationId: string, items: RoutineItem[]) => void
 }
 const HistoryContext = createContext<HistoryState | null>(null)
 
@@ -72,9 +76,18 @@ export function readHistoryCache(userId: string): Experiment[] | null {
   }
 }
 
-function writeHistoryCache(userId: string, experiments: Experiment[]) {
+function readRoutinesCache(userId: string): Routines {
   try {
-    localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify({ savedAt: Date.now(), experiments }))
+    const v = JSON.parse(localStorage.getItem(CACHE_PREFIX + userId) ?? 'null')
+    return v?.routines && typeof v.routines === 'object' ? (v.routines as Routines) : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeHistoryCache(userId: string, experiments: Experiment[], routines: Routines) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify({ savedAt: Date.now(), experiments, routines }))
   } catch {
     // sem espaço ou armazenamento bloqueado: segue sem guardar
   }
@@ -91,6 +104,7 @@ export function clearHistoryCache() {
 
 export function HistoryProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [experiments, setExperiments] = useState<Experiment[] | null>(() => readHistoryCache(userId))
+  const [routines, setRoutines] = useState<Routines>(() => readRoutinesCache(userId))
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   // Já veio do servidor nesta abertura (o guardado no aparelho pode estar velho).
@@ -99,7 +113,9 @@ export function HistoryProvider({ userId, children }: { userId: string; children
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setExperiments(await fetchHistory())
+      const [list, rs] = await Promise.all([fetchHistory(), fetchRoutines()])
+      setExperiments(list)
+      setRoutines(rs)
       setFresh(true)
       setError(null)
     } catch (e) {
@@ -120,6 +136,10 @@ export function HistoryProvider({ userId, children }: { userId: string; children
     setExperiments((prev) => prev?.map((e) => (e.stages.some((s) => s.id === id) ? { ...e, stages: e.stages.filter((s) => s.id !== id) } : e)) ?? prev)
   }, [])
 
+  const setRoutine = useCallback((finalizationId: string, items: RoutineItem[]) => {
+    setRoutines((prev) => ({ ...prev, [finalizationId]: items }))
+  }, [])
+
   const removeExperiment = useCallback((id: string) => {
     setExperiments((prev) => prev?.filter((e) => e.id !== id) ?? prev)
   }, [])
@@ -129,8 +149,8 @@ export function HistoryProvider({ userId, children }: { userId: string; children
   }, [reload])
 
   useEffect(() => {
-    if (experiments) writeHistoryCache(userId, experiments)
-  }, [userId, experiments])
+    if (experiments) writeHistoryCache(userId, experiments, routines)
+  }, [userId, experiments, routines])
 
   // Clima dos momentos que ainda não têm: pega a localização e consulta sozinho. Cada momento é
   // tentado uma vez por abertura do app (sem localização ou sem internet, fica para a próxima).
@@ -160,8 +180,8 @@ export function HistoryProvider({ userId, children }: { userId: string; children
   }, [allPaths])
 
   const value = useMemo(
-    () => ({ experiments, error, loading, reload, patchStage, removeStage, removeExperiment }),
-    [experiments, error, loading, reload, patchStage, removeStage, removeExperiment],
+    () => ({ experiments, error, loading, reload, patchStage, removeStage, removeExperiment, routines, setRoutine }),
+    [experiments, error, loading, reload, patchStage, removeStage, removeExperiment, routines, setRoutine],
   )
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>
 }

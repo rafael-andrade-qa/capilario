@@ -16,7 +16,8 @@ import { brandLabel, finalizationsOf, productLabel, type Experiment } from '../l
 import { INPUT_ACCEPT, detectMime, validateFile } from '../lib/files'
 import { identifyFromPhoto, type Candidate , type IdentifyStep } from '../lib/identify'
 import { CatalogPicker, type CatalogChoice } from './CatalogPicker'
-import { href, navigate } from '../lib/router'
+import { href, navigate, useRoute } from '../lib/router'
+import { routineReturn } from './RoutineEdit'
 import { useHistory, useSession, useSignedUrls } from '../lib/state'
 import { uuid } from '../lib/uuid'
 
@@ -113,6 +114,7 @@ function ProductEdit({
   const { reload, experiments } = useHistory()
   const notify = useToast()
   const [created, setCreated] = useState(false)
+  const fromRoutine = useRoute().params.get('rotina') === '1'
   const brands = [...new Set(others.map((e) => e.brand).filter((b): b is string => !!b))].sort()
   const [name, setName] = useState(initial?.name ?? experiment.product_name ?? '')
   const [brand, setBrand] = useState(initial?.brand ?? experiment.brand ?? '')
@@ -238,6 +240,12 @@ function ProductEdit({
           )
         }
         await reload()
+        // Cadastrado no meio da rotina: volta para ela, já com o produto na etapa.
+        const back = fromRoutine ? routineReturn(experiment.id) : null
+        if (back) {
+          navigate(back, { replace: true })
+          return
+        }
         setCreated(true)
         setBusy(false)
         return

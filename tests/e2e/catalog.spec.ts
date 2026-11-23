@@ -6,6 +6,11 @@ import sharp from 'sharp'
 import { adminClient, testUser, type TestUser } from '../integration/helpers'
 import { FRONT, packshotPng } from './images'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 const admin = adminClient()
 const tag = randomUUID().slice(0, 6).replace(/[0-9]/g, 'q')
 const brandA = `e2e-crespa-${tag}`
@@ -75,7 +80,7 @@ async function login(page: Page) {
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 const results = (page: Page) => page.getByRole('list', { name: 'Produtos do catálogo' }).getByRole('button')

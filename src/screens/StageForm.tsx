@@ -10,11 +10,12 @@
 //    idempotente. Se a resposta se perder, consultamos o banco antes de declarar falha.
 //  * Arquivos descartados só são apagados depois de confirmar no banco que não foram associados.
 import { PageSkeleton } from '../components/Skeleton'
+import { takePendingRoutine } from './RoutineEdit'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { DateTimeField } from '../components/DateTimeField'
 import { PageHeader } from '../components/PageHeader'
 import { PhotoView } from '../components/PhotoView'
-import { AmbiguousError, uploadThumb, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, setPhotoCrops, type FinalizePhoto } from '../lib/api'
+import { AmbiguousError, uploadThumb, finalizeStage, linkedPhotoIds, removeUnlinkedObjects, saveRoutine, setPhotoCrops, type FinalizePhoto } from '../lib/api'
 import { medianDate, photoTakenAt } from '../lib/exif'
 import { analyzePhoto, warmUpAnalysis, type Analysis } from '../lib/faces'
 import { cropStyle, momentCrops, type Crop } from '../lib/framing'
@@ -50,7 +51,7 @@ import { prepareImage, type PreparedImage } from '../lib/images'
 import { uuid } from '../lib/uuid'
 
 type RouteProps =
-  | { kind: 'add'; userId: string; experimentId: string }
+  | { kind: 'add'; userId: string; experimentId: string; finalizationId?: string | null }
   | { kind: 'complete'; userId: string; stageId: string }
   | { kind: 'moment'; userId: string; finalizationId: string; moment: string }
 
@@ -63,11 +64,20 @@ export function StageFormRoute(props: RouteProps) {
     if (props.experimentId === NO_FINISHER_ID) {
       // Sem finalizador: usa o do histórico; se ainda não existe, a primeira finalização o cria.
       const existing = experiments.find((e) => e.product_mode === 'none')
-      return <StageForm key="sem-finalizador" kind="add" userId={props.userId} experiment={existing ?? newNoFinisher()} createsNoFinisher={!existing} />
+      return (
+        <StageForm
+          key="sem-finalizador"
+          kind="add"
+          userId={props.userId}
+          experiment={existing ?? newNoFinisher()}
+          createsNoFinisher={!existing}
+          presetFinalizationId={props.finalizationId ?? undefined}
+        />
+      )
     }
     const experiment = experiments.find((e) => e.id === props.experimentId)
     if (!experiment) return <NotFound text="Produto não encontrado." />
-    return <StageForm key={experiment.id} kind="add" userId={props.userId} experiment={experiment} />
+    return <StageForm key={experiment.id} kind="add" userId={props.userId} experiment={experiment} presetFinalizationId={props.finalizationId ?? undefined} />
   }
   if (props.kind === 'moment') {
     const type = momentFromSlug(props.moment)
@@ -139,6 +149,8 @@ interface FormProps {
   stage?: Stage
   finalization?: Finalization
   momentType?: StageType
+  /** Finalização nova com id já escolhido (vem da rotina, que é gravada junto). */
+  presetFinalizationId?: string
 }
 
 async function runPool<T>(list: T[], limit: number, fn: (t: T) => Promise<void>) {
@@ -149,12 +161,12 @@ async function runPool<T>(list: T[], limit: number, fn: (t: T) => Promise<void>)
   await Promise.all(workers)
 }
 
-function StageForm({ kind, userId, experiment, stage, finalization, momentType, createsNoFinisher = false }: FormProps) {
+function StageForm({ kind, userId, experiment, stage, finalization, momentType, createsNoFinisher = false, presetFinalizationId }: FormProps) {
   const { reload } = useHistory()
 
   // IDs reservados uma vez por formulário.
   const [stageId] = useState(() => stage?.id ?? uuid())
-  const [newFinalizationId] = useState(() => uuid())
+  const [newFinalizationId] = useState(() => presetFinalizationId ?? uuid())
   // Nova finalização = finalização nova; próximo momento = a finalização escolhida.
   const finalizationId = kind === 'moment' ? finalization!.id : kind === 'complete' ? stage!.finalization_id : newFinalizationId
 
@@ -479,6 +491,11 @@ function StageForm({ kind, userId, experiment, stage, finalization, momentType, 
       }
 
       finalizedRef.current = true
+      // Finalização nova que veio da rotina: grava a rotina junto (a finalização já existe).
+      if (kind === 'add') {
+        const pending = takePendingRoutine(finalizationId)
+        if (pending) await saveRoutine(finalizationId, pending).catch(() => undefined)
+      }
       await saveAutoCrops(done)
       // Fotos que falharam e foram deixadas de fora: entram na limpeza.
       for (const { key } of failed) discardItem(key)

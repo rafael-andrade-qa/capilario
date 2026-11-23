@@ -4,6 +4,11 @@ import { expect, test, type Page } from '@playwright/test'
 import { adminClient, photoPath, testUser, tinyJpeg, type TestUser } from '../integration/helpers'
 import { BACK, FRONT, LEFT } from './images'
 
+// Estes testes usam a lista de produtos: o início abre na aba Produtos.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
+})
+
 const BUCKET = 'capilar-photos'
 const admin = adminClient()
 
@@ -41,7 +46,7 @@ async function login(page: Page) {
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
-  await expect(page.getByRole('link', { name: '+ Novo produto' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
 const toggle = (page: Page, name: string) => page.locator('.experiment', { hasText: name }).locator('.product-toggle')
@@ -210,6 +215,10 @@ test('novo produto com foto da embalagem; registrar a finalização depois', asy
 
   // Registrar depois, dentro do produto: uma tela só, sem perguntar o produto.
   await card.getByRole('link', { name: '+ Registrar finalização' }).click()
+  // Primeiro a rotina (já com o produto, fixo); depois as fotos.
+  await expect(page.getByRole('heading', { name: 'O que você usou hoje?' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Fixar: Máscara Nova (produto desta finalização)' })).toBeVisible()
+  await page.getByRole('button', { name: 'Continuar para as fotos' }).click()
   await expect(page.getByRole('heading', { name: 'Nova finalização' })).toBeVisible()
   await expect(page.locator('.moment-context')).toContainText('Máscara Nova')
   await page.getByTestId('gallery-input').setInputFiles([FRONT])
