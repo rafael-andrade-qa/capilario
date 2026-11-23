@@ -71,8 +71,8 @@ test('nova finalização: igual à última, troca o shampoo e a máscara, e segu
   // O início abre em Dias, com a rotina da finalização e o cronograma.
   await expect(page.getByRole('tab', { name: 'Diário' })).toHaveAttribute('aria-selected', 'true')
   const day = page.getByRole('listitem', { name: /^Finalização de / }).first()
-  await expect(day.getByRole('list', { name: 'Rotina' })).toContainText('Shampoo A')
-  await expect(day.getByRole('list', { name: 'Rotina' })).toContainText('Máscara M · H')
+  // Selos curtos: o tipo de cada produto.
+  await expect(day.getByRole('list', { name: 'Rotina' }).getByRole('listitem')).toHaveText(['Shampoo', 'Máscara · H', 'Geleia'])
   await expect(page.getByLabel('Cronograma capilar')).toContainText('H')
 
   await page.getByRole('link', { name: '+ Nova finalização' }).click()
@@ -115,6 +115,9 @@ test('comparar com a anterior mostra o que mudou', async ({ page }) => {
   await login(page)
   await page.getByRole('listitem', { name: /^Finalização de / }).first().getByRole('link', { name: /Comparar .* com a anterior/ }).click()
   const changes = page.getByRole('region', { name: 'O que mudou' })
+  // Recolhido numa linha acima das fotos; tocar abre a tabela.
+  await expect(changes.locator('summary')).toHaveText('Mudou: lavar, máscara')
+  await changes.locator('summary').click()
   await expect(changes.getByRole('row', { name: /Lavar/ })).toContainText('Shampoo B')
   await expect(changes.getByRole('row', { name: /Lavar/ })).toContainText('Shampoo A')
   await expect(changes.getByRole('row', { name: /Máscara/ })).toContainText('Máscara M (nutrição)')

@@ -163,8 +163,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
   const optionsOf = (t: StageType) => recent.filter((e) => e.stage.stage_type === t)
   const toOption = (e: Entry): DropdownOption => ({
     value: e.stage.id,
-    label: productLabel(e.experiment),
-    sublabel: [optionWhen(e), brandLabel(e.experiment)].filter(Boolean).join(' · '),
+    // O dia primeiro (com a rotina, é ele que identifica a finalização); o produto embaixo.
+    label: optionWhen(e),
+    sublabel: productLabel(e.experiment),
     thumb: <ProductThumb experiment={e.experiment} stage={e.stage} urls={urls} className="dd-thumb" />,
   })
   // Aviso só quando não há nenhum ângulo em comum (os outros nem dá para escolher).
@@ -373,9 +374,13 @@ function CompareChanges({ a, b }: { a: Stage; b: Stage }) {
   const { changed, same } = diffRoutine(rb, ra, list)
   const air = (s: Stage) => (s.humidity != null ? `${s.humidity}% · ${Math.round(s.temperature ?? 0)}°C` : '—')
   const climate = a.humidity != null || b.humidity != null
+  // Uma linha só, acima das fotos; tocar abre a tabela.
+  const parts = [changed.length ? `Mudou: ${changed.map((c) => stepLabel(c.step).toLowerCase()).join(', ')}` : 'Mesma rotina']
+  if (a.humidity != null && b.humidity != null) parts.push(`umidade ${a.humidity}% × ${b.humidity}%`)
   return (
-    <section className="card compare-changes" aria-label="O que mudou">
-      <h2 className="compare-changes-title">{changed.length ? 'O que mudou' : 'Mesma rotina nos dois'}</h2>
+    <section className="compare-changes" aria-label="O que mudou">
+      <details className="card compare-changes-box">
+        <summary className="compare-changes-summary">{parts.join(' · ')}</summary>
       {(changed.length > 0 || climate) && (
         <table className="changes-table">
           <thead>
@@ -409,6 +414,7 @@ function CompareChanges({ a, b }: { a: Stage; b: Stage }) {
         <p className="muted small compare-same">Igual nos dois: {same.map((s) => stepLabel(s).toLowerCase()).join(', ')}.</p>
       )}
       {changed.length > 1 && <p className="muted small compare-same">Mudou mais de uma coisa: para saber o efeito de um produto, troque só ele de uma vez.</p>}
+      </details>
     </section>
   )
 }

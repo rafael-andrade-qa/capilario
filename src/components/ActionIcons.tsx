@@ -95,3 +95,24 @@ export function DropIcon({ size = 11 }: { size?: number }) {
     </svg>
   )
 }
+
+/** Comparar (duas fotos lado a lado). */
+export function CompareIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <rect x="3.5" y="5" width="7" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <rect x="13.5" y="5" width="7" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
+    </svg>
+  )
+}
+
+/** Mais opções (três pontos). */
+export function MoreIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <circle cx="5.5" cy="12" r="1.8" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+      <circle cx="18.5" cy="12" r="1.8" fill="currentColor" />
+    </svg>
+  )
+}

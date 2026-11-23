@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { routineExtra } from '../lib/routine'
 import { weatherLong } from '../lib/weather'
-import { CheckIcon, CloseIcon, CropIcon, DropIcon, EditIcon } from '../components/ActionIcons'
+import { CheckIcon, CloseIcon, CompareIcon, CropIcon, DropIcon, EditIcon } from '../components/ActionIcons'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
 import { useToast } from '../components/Toasts'
 import { PageHeader } from '../components/PageHeader'
@@ -41,14 +41,7 @@ import {
 import { href, navigate } from '../lib/router'
 import { findStage, useHistory, useSession, useSignedUrls } from '../lib/state'
 
-function CompareIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-      <rect x="3.5" y="5" width="7" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
-      <rect x="13.5" y="5" width="7" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
-    </svg>
-  )
-}
+
 
 export function StageDetail({ stageId }: { stageId: string }) {
   const { experiments, patchStage, loading, reload, routines } = useHistory()
@@ -290,9 +283,6 @@ export function StageDetail({ stageId }: { stageId: string }) {
           >
             {editing ? <CheckIcon /> : <EditIcon />}
           </button>
-          <button className="icon-btn danger-icon" onClick={() => setConfirmDelete(true)} disabled={!!working} aria-label="Excluir momento" title="Excluir momento">
-            <TrashIcon />
-          </button>
         </div>
         }
       />
@@ -320,6 +310,9 @@ export function StageDetail({ stageId }: { stageId: string }) {
             {framing ? 'Enquadrando…' : 'Enquadrar todas automaticamente'}
           </button>
           <p className="muted small edit-hint">Toque numa foto para trocar, ou num ângulo vazio para adicionar. Ângulo errado? Toque no nome dele.</p>
+          <button type="button" className="btn btn-ghost btn-block danger-text delete-moment" onClick={() => setConfirmDelete(true)} disabled={!!working}>
+            <TrashIcon /> Excluir momento
+          </button>
         </section>
       )}
       <input ref={fileInput} type="file" accept={INPUT_ACCEPT} hidden onChange={(e) => void onPicked(e)} data-testid="detail-photo-input" />

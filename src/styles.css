@@ -3933,3 +3933,123 @@ body:has(.save-bar) .toasts {
   flex-basis: 100%;
   margin: 0;
 }
+
+.delete-moment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Início: topo numa linha, botão principal no rodapé (ao alcance do polegar). */
+.home-page {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+.topbar {
+  margin-bottom: 10px;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.account-menu {
+  position: relative;
+}
+.account-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 140px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.account-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.account-item:hover {
+  background: var(--brand-soft);
+}
+.home-cta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 16px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--bg) 40%);
+  pointer-events: none;
+}
+.home-cta .btn {
+  max-width: 728px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+body:has(.home-cta) .toasts {
+  bottom: calc(84px + env(safe-area-inset-bottom));
+}
+.day-head {
+  align-items: center;
+}
+.day-head strong {
+  flex: 1;
+}
+.day-icons {
+  display: inline-flex;
+  gap: 4px;
+}
+.icon-btn-small {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+}
+
+.compare-changes {
+  margin: 0 0 12px;
+  padding: 0;
+}
+.compare-changes-box {
+  padding: 0 12px;
+}
+.compare-changes-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.compare-changes-summary::-webkit-details-marker {
+  display: none;
+}
+.compare-changes-summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+}
+.compare-changes-box[open] .compare-changes-summary::after {
+  transform: rotate(-135deg);
+}
+.compare-changes-box[open] {
+  padding-bottom: 10px;
+}

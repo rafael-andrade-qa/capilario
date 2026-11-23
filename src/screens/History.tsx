@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeleteProductDialog } from '../components/DeleteProductDialog'
 import { useToast, useToastOnce } from '../components/Toasts'
 import { TrashIcon } from '../components/TrashIcon'
-import { DropIcon, EditIcon, PlusIcon } from '../components/ActionIcons'
+import { CompareIcon, DropIcon, EditIcon, MoreIcon, PlusIcon } from '../components/ActionIcons'
 import { weatherLong } from '../lib/weather'
 import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
@@ -40,6 +40,7 @@ import {
 } from '../lib/domain'
 import { href, navigate } from '../lib/router'
 import { ProductAbout } from '../components/ProductGuide'
+import { productType } from '../lib/productGuide'
 import { signOut, useHistory, useThumbUrls } from '../lib/state'
 import { allFinalizations, diffRoutine, draftOf, itemName, routineExtra, schedule, sortRoutine, stepLabel, type Routines, type RoutineStep } from '../lib/routine'
 import { compareUrl } from '../lib/compare'
@@ -184,19 +185,19 @@ export function History({
   }
 
   return (
-    <main className="page">
+    <main className="page home-page">
       <header className="topbar">
         <h1>Projeto Capilar</h1>
-        <button className="btn btn-ghost btn-small" onClick={() => void signOut()}>
-          Sair
-        </button>
+        <div className="topbar-actions">
+          <CompareButton total={totalStages} loading={experiments === null} />
+          <AccountMenu />
+        </div>
       </header>
 
-      <div className="actions-bar">
-        <a className="btn btn-primary" href={href('/rotina/nova')}>
+      <div className="home-cta">
+        <a className="btn btn-primary btn-block" href={href('/rotina/nova')}>
           + Nova finalização
         </a>
-        <CompareButton total={totalStages} loading={experiments === null} />
       </div>
 
       {error && (
@@ -212,10 +213,10 @@ export function History({
       {experiments !== null && list.length === 0 && (
         <section className="empty-state card">
           <h2>Registre sua primeira finalização</h2>
-          <p className="muted">Conte o que você usou e tire as fotos do cabelo: molhado, seco e no dia seguinte. Depois é só comparar.</p>
-          <a className="btn btn-primary" href={href('/rotina/nova')}>
-            Começar
-          </a>
+          <p className="muted">
+            Toque em <strong>+ Nova finalização</strong>, conte o que você usou e tire as fotos do cabelo: molhado, seco e no dia seguinte. Depois é
+            só comparar.
+          </p>
           <a className="link empty-secondary" href={href('/produto/novo')}>
             + Novo produto
           </a>
@@ -441,13 +442,45 @@ function ChevronIcon() {
   )
 }
 
-/** Comparar: habilitado com ao menos dois momentos (o botão já se explica, sem aviso). */
+/** Comparar: habilitado com ao menos dois momentos. */
 function CompareButton({ total, loading }: { total: number; loading: boolean }) {
   const ready = !loading && total >= 2
   return (
-    <button className="btn" onClick={() => navigate('/comparar')} disabled={!ready}>
-      Comparar
+    <button className="icon-btn" onClick={() => navigate('/comparar')} disabled={!ready} aria-label="Comparar" title="Comparar">
+      <CompareIcon />
     </button>
+  )
+}
+
+/** Conta: o Sair fica num menu (é raro e não precisa ocupar o topo). */
+function AccountMenu() {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      if (!(e.target as HTMLElement).closest?.('.account-menu')) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('click', close)
+    window.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('click', close)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [open])
+  return (
+    <div className="account-menu">
+      <button className="icon-btn" aria-label="Conta" title="Conta" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((v) => !v)}>
+        <MoreIcon />
+      </button>
+      {open && (
+        <div className="account-pop" role="menu">
+          <button type="button" role="menuitem" className="account-item" onClick={() => void signOut()}>
+            Sair
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -517,7 +550,22 @@ function FinalizationRow({
 }
 
 /** Os três momentos lado a lado; o que falta vira atalho (só na mais recente do produto, nos primeiros dias). */
-function MomentStrip({ finalization: f, urls, saved, latest, when }: { finalization: Finalization; urls: Record<string, string>; saved: string | null; latest: boolean; when: string }) {
+function MomentStrip({
+  finalization: f,
+  urls,
+  saved,
+  latest,
+  when,
+  humidity = true,
+}: {
+  finalization: Finalization
+  urls: Record<string, string>
+  saved: string | null
+  latest: boolean
+  when: string
+  /** Mostrar a umidade em cada momento (no Diário ela já está no cabeçalho do dia). */
+  humidity?: boolean
+}) {
   const next = nextMoment(f)
   // Completar só a mais recente do produto, nos primeiros dias (refazer = finalização nova).
   const addable = latest && canAddMoment(f)
@@ -526,7 +574,7 @@ function MomentStrip({ finalization: f, urls, saved, latest, when }: { finalizat
       <div className="fin-strip">
         {STAGE_TYPES.map((t, i) => {
           const st = f.moments[t]
-          if (st) return <MomentTile key={t} stage={st} urls={urls} highlight={saved === st.id} />
+          if (st) return <MomentTile key={t} stage={st} urls={urls} highlight={saved === st.id} humidity={humidity} />
           if (addable && i > first) {
             return (
               <a
@@ -553,7 +601,7 @@ function MomentStrip({ finalization: f, urls, saved, latest, when }: { finalizat
   )
 }
 
-function MomentTile({ stage, urls, highlight }: { stage: Stage; urls: Record<string, string>; highlight: boolean }) {
+function MomentTile({ stage, urls, highlight, humidity = true }: { stage: Stage; urls: Record<string, string>; highlight: boolean; humidity?: boolean }) {
   const cover = coverPhoto(stage)
   return (
     <a className={`moment-tile ${highlight ? 'highlight' : ''}`} href={href(`/etapa/${stage.id}`)} title={formatDateTime(stage.captured_at)}>
@@ -573,7 +621,7 @@ function MomentTile({ stage, urls, highlight }: { stage: Stage; urls: Record<str
       <span className="moment-label">{STAGE_LABEL[stage.stage_type]}</span>
       <span className="moment-time muted">
         <time dateTime={stage.captured_at}>{formatTime(stage.captured_at)}</time>
-        {stage.humidity != null && (
+        {humidity && stage.humidity != null && (
           <span className="moment-humidity" title={weatherLong(stage) ?? undefined} aria-label={`umidade ${stage.humidity}%`}>
             <DropIcon />
             {stage.humidity}%
@@ -700,27 +748,33 @@ function DaysView({ experiments, routines, urls, saved }: { experiments: Experim
                     <DropIcon /> {weather.humidity}% · {Math.round(weather.temperature ?? 0)}°C
                   </span>
                 )}
+                <span className="day-icons">
+                  <a className="icon-btn icon-btn-small" href={href(`/rotina/${f.id}`)} aria-label={`Editar a rotina de ${when}`} title="Editar rotina">
+                    <EditIcon size={16} />
+                  </a>
+                  {pair && (
+                    <a className="icon-btn icon-btn-small" href={href(compareUrl(pair.type, pair.a, pair.b))} aria-label={`Comparar ${when} com a anterior`} title="Comparar com a anterior">
+                      <CompareIcon size={16} />
+                    </a>
+                  )}
+                </span>
               </div>
               <ul className="day-chips" aria-label="Rotina">
                 {items.length === 0 && <li className="day-chip">{experiment.product_mode === 'named' ? productLabel(experiment) : 'Sem finalizador'}</li>}
-                {items.map((it) => (
-                  <li key={it.experiment_id} className={`day-chip ${changed.has(it.step) ? 'changed' : ''}`} title={stepLabel(it.step)}>
-                    {itemName(byId.get(it.experiment_id))}
-                    {it.mask_kind ? ` · ${it.mask_kind}` : ''}
-                  </li>
-                ))}
+                {items.map((it) => {
+                  const e = byId.get(it.experiment_id)
+                  const isChanged = changed.has(it.step)
+                  // Curto: o tipo ("Shampoo"); no que mudou, o nome, para saber o que entrou.
+                  const label = isChanged || !e ? itemName(e) : (productType(e.category)?.label ?? itemName(e))
+                  return (
+                    <li key={it.experiment_id} className={`day-chip ${isChanged ? 'changed' : ''}`} title={`${stepLabel(it.step)}: ${itemName(e)}`}>
+                      {label}
+                      {it.mask_kind ? ` · ${it.mask_kind}` : ''}
+                    </li>
+                  )
+                })}
               </ul>
-              <MomentStrip finalization={f} urls={urls} saved={saved} latest={latest} when={when} />
-              <div className="day-actions">
-                <a className="link small" href={href(`/rotina/${f.id}`)} aria-label={`Editar a rotina de ${when}`}>
-                  Editar rotina
-                </a>
-                {pair && (
-                  <a className="link small" href={href(compareUrl(pair.type, pair.a, pair.b))} aria-label={`Comparar ${when} com a anterior`}>
-                    Comparar com a anterior
-                  </a>
-                )}
-              </div>
+              <MomentStrip finalization={f} urls={urls} saved={saved} latest={latest} when={when} humidity={false} />
             </li>
           )
         })}
