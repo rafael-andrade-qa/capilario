@@ -353,7 +353,8 @@ function PickSheet({
   const recentFirst = (a: Experiment, b: Experiment) => (lastUsed.get(b.id) ?? '').localeCompare(lastUsed.get(a.id) ?? '') || productLabel(a).localeCompare(productLabel(b))
   const mine = free.filter((p) => stepOfCategory(p.category) === step).sort(recentFirst)
   const others = free.filter((p) => stepOfCategory(p.category) !== step).sort(recentFirst)
-  const [showOthers, setShowOthers] = useState(mine.length === 0)
+  // Só os produtos desta etapa; os de outro tipo ficam escondidos atrás de um botão.
+  const [showOthers, setShowOthers] = useState(false)
   const row = (p: Experiment) => {
     const used = lastUsed.get(p.id)
     const on = current?.experimentId === p.id
@@ -394,16 +395,20 @@ function PickSheet({
           </button>
         )}
         {mine.length > 0 && <ul className="pick-list">{mine.map(row)}</ul>}
-        {mine.length === 0 && !others.length && <p className="muted small">Você ainda não tem produtos cadastrados para esta etapa.</p>}
+        {mine.length === 0 && (
+          <p className="muted small pick-none">
+            {products.some((p) => stepOfCategory(p.category) === step) ? 'Os seus produtos desta etapa já estão na rotina.' : 'Você ainda não tem produtos desta etapa.'}
+          </p>
+        )}
         {others.length > 0 &&
           (showOthers ? (
             <>
-              {mine.length > 0 && <p className="muted small pick-others-title">Outros produtos seus</p>}
+              <p className="muted small pick-others-title">Outros produtos seus (de outras etapas)</p>
               <ul className="pick-list">{others.map(row)}</ul>
             </>
           ) : (
             <button type="button" className="btn btn-ghost btn-block" onClick={() => setShowOthers(true)}>
-              Ver outros produtos seus
+              Usar um produto de outra etapa
             </button>
           ))}
         <button type="button" className="btn btn-outline-brand btn-block pick-new" onClick={onNew}>

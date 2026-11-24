@@ -81,10 +81,20 @@ test('nova finalização: igual à última, troca o shampoo e a máscara, e segu
 
   await page.getByRole('button', { name: 'Lavar: Shampoo A. Trocar' }).click()
   const sheet = page.getByRole('dialog', { name: 'Lavar: qual produto?' })
+  // Só os produtos da etapa: os dois shampoos (máscara e geleia não aparecem).
+  await expect(sheet.locator('.pick-row')).toHaveCount(2)
   await sheet.getByRole('button', { name: /Shampoo B/ }).click()
   await expect(sheet).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Lavar: Shampoo B. Trocar' })).toHaveClass(/changed/)
   await expect(page.getByTestId('routine-summary')).toHaveText('Mudou: lavar.')
+
+  // Etapa sem nenhum produto dela: avisa, sem listar os de outras etapas.
+  await page.getByRole('button', { name: 'Adicionar em Condicionar' }).click()
+  const cond = page.getByRole('dialog', { name: 'Condicionar: qual produto?' })
+  await expect(cond).toContainText('Você ainda não tem produtos desta etapa.')
+  await expect(cond.locator('.pick-row')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(cond).toHaveCount(0)
 
   // O tipo da máscara se escolhe na folha do produto; na rotina fica só a etiqueta.
   await expect(page.getByRole('button', { name: 'Máscara: Máscara M. Trocar' })).toContainText('Hidratação')
