@@ -6,6 +6,14 @@ import sharp from 'sharp'
 import { adminClient, testUser, type TestUser } from '../integration/helpers'
 import { FRONT, packshotPng } from './images'
 
+/** "+ Novo produto": na aba Produtos (no início vazio, o link do cartão). */
+async function newProduct(page: Page) {
+  const tab = page.getByRole('tab', { name: 'Produtos' })
+  await expect(tab.or(page.getByRole('link', { name: 'Novo produto' })).first()).toBeVisible()
+  if (await tab.count()) await tab.click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
+}
+
 // Estes testes usam a lista de produtos: o início abre na aba Produtos.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
@@ -87,7 +95,7 @@ const results = (page: Page) => page.getByRole('list', { name: 'Produtos do cat�
 
 test('busca no catálogo, escolhe e cadastra com a foto pronta', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await newProduct(page)
   const search = page.getByRole('searchbox', { name: 'Buscar no catálogo' })
   await search.fill(`gelatna ${tag}`) // erro de digitação de propósito
   await expect(results(page)).toHaveCount(1)
@@ -123,7 +131,7 @@ async function chooseBrand(page: Page, name: string) {
 
 test('filtro de marca (lista com busca); o que já está no histórico aparece marcado', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await newProduct(page)
   // Só marca: nada de "Masculino" misturado. "Todos" começa marcado.
   await expect(page.getByText('Masculino', { exact: true })).toHaveCount(0)
   const todos = page.getByRole('button', { name: 'Todos', exact: true })
@@ -151,7 +159,7 @@ for (const size of [
   test(`página cabe na tela sem rolar (${size.width}x${size.height}), com Anterior e Próxima`, async ({ page }) => {
     await page.setViewportSize(size)
     await login(page)
-    await page.getByRole('link', { name: 'Novo produto' }).click()
+    await newProduct(page)
     await chooseBrand(page, `Paginas ${tag}`)
     await expect(page.getByRole('button', { name: 'Próxima ›' })).toBeEnabled()
     const n = await results(page).count()
@@ -196,7 +204,7 @@ test('pela foto: a função acha no catálogo e a foto pronta vem primeiro', asy
         }),
   )
   await login(page)
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await newProduct(page)
   await page.getByTestId('catalog-identify-input').setInputFiles(FRONT)
   await expect(page.getByRole('textbox', { name: 'Produto' })).toHaveValue('Gelatina Super Definição')
   const first = page.getByRole('button', { name: 'Usar a foto 1, de catálogo do app' })

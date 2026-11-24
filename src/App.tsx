@@ -15,6 +15,7 @@ const loadCompare = () => import('./screens/Compare')
 const loadGuide = () => import('./screens/Guide')
 const loadRoutine = () => import('./screens/RoutineEdit')
 const loadInsight = () => import('./screens/ProductInsight')
+const loadDay = () => import('./screens/FinalizationDetail')
 const StageDetail = lazy(() => loadStageDetail().then((m) => ({ default: m.StageDetail })))
 const ProductEditRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductEditRoute })))
 const ProductNewRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductNewRoute })))
@@ -23,11 +24,12 @@ const Compare = lazy(() => loadCompare().then((m) => ({ default: m.Compare })))
 const Guide = lazy(() => loadGuide().then((m) => ({ default: m.Guide })))
 const RoutineEditRoute = lazy(() => loadRoutine().then((m) => ({ default: m.RoutineEditRoute })))
 const ProductInsight = lazy(() => loadInsight().then((m) => ({ default: m.ProductInsight })))
+const FinalizationDetail = lazy(() => loadDay().then((m) => ({ default: m.FinalizationDetail })))
 
 function usePrefetchScreens() {
   useEffect(() => {
     const run = () => {
-      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide, loadRoutine, loadInsight]) void load().catch(() => undefined)
+      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide, loadRoutine, loadInsight, loadDay]) void load().catch(() => undefined)
     }
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
     const id = idle ? idle(run) : window.setTimeout(run, 1500)
@@ -117,6 +119,7 @@ function Route({ userId }: { userId: string }) {
   if (path === '/rotina/nova') return <RoutineEditRoute finalizationId={null} params={params} />
   if ((m = match('/rotina/:id', path))) return <RoutineEditRoute finalizationId={m.id} params={params} />
   if ((m = match('/produto/:id', path))) return <ProductInsight experimentId={m.id} />
+  if ((m = match('/finalizacao/:id', path))) return <FinalizationDetail finalizationId={m.id} />
   return (
     <History
       saved={params.get('salvo')}

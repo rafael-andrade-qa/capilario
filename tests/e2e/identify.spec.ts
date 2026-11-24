@@ -4,6 +4,14 @@ import { expect, test, type Page, type Route } from '@playwright/test'
 import { adminClient, testUser, type TestUser } from '../integration/helpers'
 import { FRONT, packshotPng } from './images'
 
+/** "+ Novo produto": na aba Produtos (no início vazio, o link do cartão). */
+async function newProduct(page: Page) {
+  const tab = page.getByRole('tab', { name: 'Produtos' })
+  await expect(tab.or(page.getByRole('link', { name: 'Novo produto' })).first()).toBeVisible()
+  if (await tab.count()) await tab.click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
+}
+
 // Estes testes usam a lista de produtos: o início abre na aba Produtos.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
@@ -67,7 +75,7 @@ test('identifica pela foto: preenche nome e marca e usa a foto oficial padroniza
     }),
   )
   await login(page)
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await newProduct(page)
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
 
@@ -101,7 +109,7 @@ test('identifica pela foto: preenche nome e marca e usa a foto oficial padroniza
 test('limite do dia: avisa e deixa preencher à mão', async ({ page }) => {
   mockIdentify(page, (route) => json(route, 429, { error: 'identify_limit' }))
   await login(page)
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await newProduct(page)
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
   await expect(page.getByText('Você já usou as 20 identificações de hoje.', { exact: false })).toBeVisible()
@@ -117,7 +125,7 @@ test('não reconheceu: avisa; achou sem foto: preenche e mantém o quadrado da f
       : json(route, 200, { found: true, brand: 'Widi Care', name: 'Juba Encaracolando', confidence: 'medium', candidates: [] }),
   )
   await login(page)
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await newProduct(page)
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
   await expect(page.getByText('Não reconheci um produto de cabelo nessa foto.', { exact: false })).toBeVisible()

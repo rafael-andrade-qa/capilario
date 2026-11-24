@@ -59,10 +59,10 @@ test('pega a localização, consulta o clima e mostra a umidade', async ({ page 
   expect(asked[0].searchParams.get('latitude')).toBe('-18.92')
   expect(asked[0].searchParams.get('longitude')).toBe('-48.28')
 
-  const card = page.locator('.experiment', { hasText: 'Geleia do Tempo' })
-  const toggle = card.locator('.product-toggle')
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
-  await expect(card.getByLabel('umidade 82%')).toBeVisible()
+  // No Diário, o dia mostra o clima no cabeçalho.
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  const card = page.locator('.day-card')
+  await expect(card.locator('.day-weather')).toContainText('82% · 24°C')
 
   await card.locator('.moment-tile').first().click()
   await expect(page.getByTestId('stage-weather')).toHaveText('Ar úmido: 82% de umidade, 24°C, nublado.')
@@ -81,7 +81,7 @@ test('pega a localização, consulta o clima e mostra a umidade', async ({ page 
   const weather = page.locator('.day-weather').first()
   await expect(weather).toHaveText(/82% · 24°C/)
   const box = (await weather.boundingBox())!
-  const date = (await page.locator('.day-head strong').first().boundingBox())!
+  const date = (await page.locator('.day-head .day-title').first().boundingBox())!
   expect(box.height).toBeLessThan(24)
   expect(Math.abs(box.y + box.height / 2 - (date.y + date.height / 2))).toBeLessThan(6)
 })

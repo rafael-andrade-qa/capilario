@@ -5,10 +5,15 @@ import { adminClient, testUser, type TestUser } from '../integration/helpers'
 import { BACK, FRONT, LEFT, RIGHT, noisyPng, type TestFile } from './images'
 import { thumbPath } from '../../src/lib/images'
 
-// Estes testes usam a lista de produtos: o início abre na aba Produtos.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
-})
+/** "+ Novo produto": na aba Produtos (no início vazio, o link do cartão). */
+async function openNewProduct(page: Page) {
+  const tab = page.getByRole('tab', { name: 'Produtos' })
+  await expect(tab.or(page.getByRole('link', { name: 'Novo produto' })).first()).toBeVisible()
+  if (await tab.count()) await tab.click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
+}
+
+// Estes testes começam no Diário (o dia mais recente aparece grande, com os momentos).
 
 const BUCKET = 'capilar-photos'
 const admin = adminClient()
@@ -45,7 +50,7 @@ const brandInput = (page: Page) => page.getByRole('combobox', { name: 'Marca' })
 
 /** Cadastra o produto (Novo produto) e segue para a primeira finalização dele. */
 async function newProduct(page: Page, name: string, brand: string) {
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await openNewProduct(page)
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await productInput(page).fill(name)
   await brandInput(page).fill(brand)
@@ -101,7 +106,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await noHorizontalScroll(page)
 
   // Cadastrar produto: só nome, marca e (opcional) a foto da embalagem; nome e marca obrigatórios.
-  await page.getByRole('link', { name: 'Novo produto' }).click()
+  await openNewProduct(page)
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByRole('button', { name: 'Cadastrar produto' }).click()
   await expect(page.getByText('Informe o nome do produto.')).toBeVisible()
@@ -126,7 +131,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await expect(slot(page, 'front').locator('.slot-target')).toHaveAttribute('aria-label', /esquerdo\.png/)
   ids.wet = await saveAndGetStage(page)
 
-  await expect(page.locator('.experiment:not(.fixed-product)')).toHaveCount(1)
+  await expect(page.getByRole('listitem', { name: /^Finalização de / })).toHaveCount(1)
   await expect(page.locator('.moment-tile')).toHaveCount(1)
   const photos = await photosOf(ids.wet)
   expect(Object.keys(photos).sort()).toEqual(['back', 'front', 'left', 'right'])
@@ -138,11 +143,9 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
 
 test('A2: + Seco completa a finalização direto nas fotos; observação e favorita persistem', async ({ page }) => {
   await login(page, me)
-  // Ao abrir o app tudo vem recolhido: abre o produto.
-  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
-  // A finalização de hoje tem o Molhado; o próximo momento aparece como atalho.
-  const fin = page.locator('.fin').first()
-  await expect(fin.locator('.fin-when')).toHaveText('Hoje')
+  // O dia mais recente aparece grande no Diário: tem o Molhado; o próximo momento é um atalho.
+  const fin = page.locator('.day-card').first()
+  await expect(fin.locator('.day-title')).toHaveText('Hoje')
   await expect(fin.locator('.moment-add.next')).toContainText('Seco')
   await fin.getByRole('link', { name: 'Registrar Seco da finalização de Hoje' }).click()
 
@@ -154,10 +157,9 @@ test('A2: + Seco completa a finalização direto nas fotos; observação e favor
   await pick(page, [FRONT, LEFT, BACK, RIGHT])
   ids.dry = await saveAndGetStage(page)
 
-  await expect(page.locator('.experiment:not(.fixed-product)')).toHaveCount(1)
-  await expect(page.locator('.fin')).toHaveCount(1)
-  await expect(page.locator('.fin .moment-tile')).toHaveCount(2)
-  await expect(page.locator('.fin .moment-add.next')).toContainText('Dia seguinte')
+  await expect(page.getByRole('listitem', { name: /^Finalização de / })).toHaveCount(1)
+  await expect(page.locator('.day-card .moment-tile')).toHaveCount(2)
+  await expect(page.locator('.day-card .moment-add.next')).toContainText('Dia seguinte')
   const { data: st } = await admin.from('stages').select('finalization_id').in('id', [ids.wet, ids.dry])
   expect(new Set(st!.map((r) => r.finalization_id)).size).toBe(1)
 
@@ -184,8 +186,7 @@ test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ pag
   ids.dryNone = await saveAndGetStage(page)
   expect(Object.keys(await photosOf(ids.dryNone)).sort()).toEqual(['front', 'left'])
 
-  // O dia sem finalizador aparece no Diário (não é um produto da prateleira).
-  await page.getByRole('tab', { name: 'Diário' }).click()
+  // O dia sem finalizador é o mais recente: aparece grande no Diário.
   await page.locator(`a[href="#/etapa/${ids.dryNone}"]`).click()
   await expect(page.locator('.angle-cell img')).toHaveCount(2)
   await page.getByRole('link', { name: 'Adicionar foto: Direito' }).click()
@@ -265,9 +266,10 @@ test('A5: só os ângulos que os dois registros têm ficam clicáveis', async ({
   await slot(page, 'front').locator('.slot-target').click()
   await slot(page, 'back').locator('.slot-target').click()
   ids.backOnly = await saveAndGetStage(page)
-  const card = page.locator('.experiment', { hasText: 'Gelatina A5' })
-  await expect(card.locator('.product-name')).toHaveText('Gelatina A5')
-  await expect(card.locator('.brand-name')).toHaveText('Marca Teste')
+  // O dia novo aparece grande no Diário, com o produto na rotina.
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  const card = page.locator('.day-card')
+  await expect(card.locator('.day-chip')).toHaveText(['Gelatina A5'])
   // O momento com 1 de 4 fotos mostra o contador na miniatura.
   await expect(card.locator('.count-pill')).toHaveText('1/4')
 

@@ -4263,3 +4263,270 @@ body::before {
   border-radius: 14px;
   color: var(--brand);
 }
+
+/* Botão do rodapé: barra sólida com uma linha em cima (nada fica embaçado por trás). */
+.home-cta {
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.home-page {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+/* Diário compacto: dias anteriores numa linha, por mês. */
+.day-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.month {
+  margin-top: 14px;
+}
+.month-title {
+  position: sticky;
+  top: env(safe-area-inset-top);
+  z-index: 2;
+  margin: 0;
+  padding: 6px 0;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.day-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.day-rows li + li {
+  border-top: 1px solid var(--line);
+}
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 0;
+  color: var(--text);
+  text-decoration: none;
+}
+.day-thumb {
+  flex: none;
+  width: 44px;
+  height: 56px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.day-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.day-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.day-row-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+.day-row-head .day-weather {
+  margin-left: auto;
+}
+.day-dots {
+  flex: none;
+  display: inline-flex;
+  gap: 4px;
+}
+.day-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+.day-dot.off {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  box-sizing: border-box;
+}
+.day-row .day-chips {
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+/* Tela do dia. */
+.day-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 12px;
+}
+.day-routine,
+.day-notes {
+  margin-top: 14px;
+  padding: 8px 14px 10px;
+}
+.day-routine-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.day-routine h2,
+.day-notes h2 {
+  margin: 6px 0;
+  font-size: 0.95rem;
+}
+.day-steps {
+  margin: 0;
+}
+.day-step {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.day-step dt {
+  color: var(--muted);
+}
+.day-step dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.day-notes p {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+.day-none {
+  margin: 6px 0 0;
+}
+
+/* Produtos: uma linha por produto, por etapa. */
+.shelf-group {
+  margin-top: 6px;
+}
+.shelf-list {
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+}
+.shelf-list li + li {
+  border-top: 1px solid var(--line);
+}
+.shelf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 0;
+  color: var(--text);
+  text-decoration: none;
+}
+.shelf-thumb {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.shelf-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.shelf-name,
+.shelf-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shelf-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.shelf-chev {
+  color: var(--muted);
+  font-size: 1.3rem;
+}
+
+/* Tela do produto: cabeçalho com a embalagem e as ações. */
+.insight-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -6px 0 12px;
+}
+.insight-pack {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.insight-head-text {
+  min-width: 0;
+}
+.insight-head .insight-sub {
+  margin: 0 0 4px;
+}
+.insight-head .type-tag {
+  margin: 0;
+}
+.insight-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.insight-actions .btn {
+  min-height: 44px;
+  padding: 0 8px;
+}
+
+.insight-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.insight-act.brand {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.insight-text .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

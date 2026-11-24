@@ -69,9 +69,12 @@ async function login(page: Page) {
 
 /** Abre o menu ⋯ do cartão do dia (Diário) e escolhe uma ação. 0 = a finalização mais recente. */
 async function dayAction(page: Page, action: string, which = 0) {
+  await page.goto('./#/')
   await page.getByRole('tab', { name: 'Diário' }).click()
   const day = page.getByRole('listitem', { name: /^Finalização de / }).nth(which)
-  await day.getByRole('button', { name: /^Ações da finalização de / }).click()
+  // Dias anteriores: o menu fica na tela do dia.
+  if (which > 0) await day.locator('.day-row').click()
+  await page.getByRole('button', { name: /^Ações da finalização de / }).first().click()
   await page.getByRole('menuitem', { name: action }).click()
 }
 

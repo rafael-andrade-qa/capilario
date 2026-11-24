@@ -35,12 +35,16 @@ async function login(page: Page) {
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
-const card = (page: Page, name: string) => page.locator('.experiment', { hasText: name })
+/** Abre a tela do produto pela prateleira (aba Produtos). */
+async function openProduct(page: Page, name: string) {
+  await page.locator('.shelf-row', { hasText: name }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+}
 
-test('produto aberto mostra o tipo; a explicação e o guia por etapa', async ({ page }) => {
+test('a tela do produto mostra o tipo; a explicação e o guia por etapa', async ({ page }) => {
   await login(page)
-  await card(page, 'Geleia Seladora').locator('.product-toggle').click()
-  const about = card(page, 'Geleia Seladora').getByRole('button', { name: 'O que é geleia' })
+  await openProduct(page, 'Geleia Seladora')
+  const about = page.getByRole('button', { name: 'O que é geleia' })
   await expect(about).toHaveText('Geleia')
 
   await about.click()
@@ -73,8 +77,8 @@ test('produto aberto mostra o tipo; a explicação e o guia por etapa', async ({
 
 test('sem tipo: convida a escolher; o campo Tipo explica e grava', async ({ page }) => {
   await login(page)
-  await card(page, 'Creme Misterioso').locator('.product-toggle').click()
-  await card(page, 'Creme Misterioso').getByRole('link', { name: 'Escolher o tipo do produto' }).click()
+  await openProduct(page, 'Creme Misterioso')
+  await page.getByRole('link', { name: 'Escolher o tipo do produto' }).click()
 
   await expect(page.getByRole('heading', { name: 'Editar produto' })).toBeVisible()
   const type = page.getByRole('combobox', { name: 'Tipo' })
@@ -85,8 +89,7 @@ test('sem tipo: convida a escolher; o campo Tipo explica e grava', async ({ page
   await expect(page.getByText('Produto atualizado.')).toBeVisible()
   await expect.poll(async () => (await admin.from('experiments').select('category').eq('id', ids['Creme Misterioso']).single()).data?.category).toBe('creme_pentear')
 
-  // Depois de salvar, o produto editado já volta aberto.
-  const toggle = card(page, 'Creme Misterioso').locator('.product-toggle')
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
-  await expect(card(page, 'Creme Misterioso').getByRole('button', { name: 'O que é creme de pentear' })).toBeVisible()
+  // A tela do produto já mostra o tipo escolhido.
+  await openProduct(page, 'Creme Misterioso')
+  await expect(page.getByRole('button', { name: 'O que é creme de pentear' })).toBeVisible()
 })

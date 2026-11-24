@@ -119,9 +119,12 @@ test('PDF do comparativo: A e B lado a lado', async ({ page }) => {
 
 /** "Enviar PDF" pelo menu ⋯ do cartão do dia que tem esse texto (o selo da rotina). */
 async function dayPdf(page: Page, text: string) {
+  await page.goto('./#/')
   await page.getByRole('tab', { name: 'Diário' }).click()
   const day = page.getByRole('listitem', { name: /^Finalização de / }).filter({ hasText: text }).first()
-  await day.getByRole('button', { name: /^Ações da finalização de / }).click()
+  // Dia anterior (linha compacta): o menu fica na tela do dia.
+  if (await day.locator('.day-row').count()) await day.locator('.day-row').click()
+  await page.getByRole('button', { name: /^Ações da finalização de / }).first().click()
   await page.getByRole('menuitem', { name: 'Enviar PDF' }).click()
 }
 
@@ -174,8 +177,6 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   await adminClient().from('experiments').update({ category: 'geleia' }).eq('id', experimentId)
 
   await login(page)
-  const card = page.locator('.experiment', { hasText: 'Geleia IA' })
-  await card.locator('.product-toggle').click()
   await dayPdf(page, 'Geleia')
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF da finalização' })
   const toggle = dialog.getByRole('checkbox', { name: 'Incluir a análise da IA' })
@@ -226,8 +227,6 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
 
   await login(page)
   // Diário: menu ⋯ do cartão da finalização.
-  const card = page.locator('.experiment', { hasText: 'Creme Evolução' })
-  await card.locator('.product-toggle').click()
   await dayPdf(page, 'Creme Evolução')
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF da finalização' })
   const choices = dialog.getByRole('radio')

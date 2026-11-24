@@ -52,8 +52,7 @@ async function login(page: Page) {
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
 
-const thumbSrc = (page: Page, product: string) =>
-  page.getByRole('region', { name: `Produto ${product}` }).locator('.product-thumb img')
+const thumbSrc = (page: Page, product: string) => page.locator('.shelf-row', { hasText: product.replace(/ \(.*\)$/, '') }).locator('img')
 
 test('lista usa a miniatura (ou a foto, se faltar) e reaproveita os endereços ao reabrir', async ({ page }) => {
   await login(page)

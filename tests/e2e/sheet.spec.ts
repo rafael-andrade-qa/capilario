@@ -27,37 +27,38 @@ async function swipe(page: Page, selector: string, dy: number) {
 
 test('com a folha aberta o fundo fica parado; arrastar para baixo fecha', async ({ page }) => {
   const me = await testUser('folha-e2e')
-  for (let i = 0; i < 8; i++)
-    await me.client.rpc('create_product', { p_experiment_id: randomUUID(), p_name: `Produto ${i}`, p_brand: 'Marca', p_category: 'geleia' })
+  for (let i = 0; i < 3; i++)
+    await me.client.rpc('create_product', { p_experiment_id: randomUUID(), p_name: `Óleo ${i}`, p_brand: 'Marca', p_category: 'oleo' })
+  await page.setViewportSize({ width: 390, height: 480 })
   await page.goto('./')
   await page.getByLabel('E-mail').fill(me.email)
   await page.getByLabel('Senha').fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 
-  // O último da lista, para a página precisar rolar até ele.
-  const card = page.locator('.experiment').last()
-  const toggle = card.locator('.product-toggle')
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  // A rotina é mais alta que a tela: rola até a última etapa e abre a folha dela.
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await expect(page.getByRole('heading', { name: 'O que você usou?' })).toBeVisible()
+  const last = page.getByRole('button', { name: 'Adicionar em Finalizar' })
+  await last.scrollIntoViewIfNeeded()
   const y = await page.evaluate(() => window.scrollY)
   expect(y).toBeGreaterThan(0)
 
-  await card.getByRole('button', { name: 'O que é geleia' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Geleia' })
+  await last.click()
+  const sheet = page.getByRole('dialog', { name: 'Finalizar: qual produto?' })
   await expect(sheet).toBeVisible()
   // O fundo fica preso no lugar, sem pular para o topo.
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).position)).toBe('fixed')
-  const top = await card.locator('.product-toggle').boundingBox()
-  await page.mouse.move(195, 100)
+  const top = await last.boundingBox()
+  await page.mouse.move(195, 60)
   await page.mouse.wheel(0, 600)
   await page.waitForTimeout(200)
-  expect((await card.locator('.product-toggle').boundingBox())?.y).toBeCloseTo(top!.y, 0)
+  expect((await last.boundingBox())?.y).toBeCloseTo(top!.y, 0)
 
   // Arrastar pouco: a folha volta. Arrastar bastante: fecha.
-  await swipe(page, '.guide-sheet', 40)
+  await swipe(page, '.pick-sheet', 40)
   await expect(sheet).toBeVisible()
-  await swipe(page, '.guide-sheet', 200)
+  await swipe(page, '.pick-sheet', 200)
   await expect(sheet).toHaveCount(0)
 
   // Ao fechar, a página volta a rolar e continua onde estava.

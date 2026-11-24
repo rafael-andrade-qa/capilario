@@ -50,11 +50,14 @@ tipo do cronograma: hidratação, nutrição ou reconstrução), preparar, defin
 igual à última rotina: toca só no que mudou; qualquer produto pode entrar ou sair. Por dentro, a
 finalização fica guardada num produto (o de fixar, senão o de definir, senão o de finalizar; sem nenhum,
 Sem finalizador) e muda de produto sozinha quando a rotina muda (os momentos vão junto). A rotina é
-gravada junto com o primeiro momento. O início tem duas abas: **Diário** (cada finalização com a rotina em
-selos curtos, o que mudou desde a anterior, o clima, os momentos e um menu ⋯ com editar rotina, comparar
-com a anterior, analisar com IA, PDF e excluir) e **Produtos** (a prateleira: cada produto com as
-finalizações em que entrou e "Como fica com ele", `#/produto/<id>`, com a média das notas da IA com e
-sem ele; "Sem finalizador" não entra: é como foi o dia, e aparece como selo no Diário e no Comparar).
+gravada junto com o primeiro momento. O início tem duas abas: **Diário** (o dia mais recente grande, com fotos, rotina em selos curtos, clima e o
+menu ⋯; os anteriores numa linha cada, separados por mês, com miniatura, pontinhos dos momentos e
+selos; tocar abre a tela do dia, `#/finalizacao/<id>`, com os momentos, a rotina completa, as
+observações e o menu ⋯: editar rotina, analisar com IA, PDF e excluir) e **Produtos** (a prateleira:
+uma linha por produto, agrupados por etapa; tocar abre a tela do produto, `#/produto/<id>`, com o
+tipo, nova finalização com ele, editar, excluir, "Com ele na rotina" e as finalizações em que entrou;
+"Sem finalizador" não entra: é como foi o dia, e aparece como selo no Diário e no Comparar). O botão
++ Nova finalização fica numa barra sólida no rodapé.
 Excluir um produto não apaga finalizações: ele só sai das rotinas. O Comparar compara duas
 finalizações (dia, foto e rotina de cada uma; "O que mudou" embaixo das fotos), e o PDF, a mensagem e a
 análise da IA usam a rotina como contexto.

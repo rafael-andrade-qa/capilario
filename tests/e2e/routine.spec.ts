@@ -139,13 +139,11 @@ test('comparar com a anterior mostra o que mudou', async ({ page }) => {
 test('o produto mostra em quais finalizações entrou; a rotina dá para editar depois', async ({ page }) => {
   await login(page)
   await page.getByRole('tab', { name: 'Produtos' }).click()
-  const card = page.locator('.experiment', { hasText: 'Shampoo A' })
-  await card.locator('.product-toggle').click()
-  await card.getByRole('link', { name: 'Como fica com ele' }).click()
+  await page.locator('.shelf-row', { hasText: 'Shampoo A' }).click()
   await expect(page.getByRole('heading', { name: 'Shampoo A' })).toBeVisible()
   await expect(page.locator('.insight-sub')).toContainText('em 1 finalização')
   await expect(page.locator('.insight-row')).toHaveCount(1)
-  await expect(page.locator('.insight-row')).toContainText('+ Máscara M, Geleia G')
+  await expect(page.locator('.insight-row')).toContainText('+ Máscara H · Geleia')
 
   // Editar a rotina da finalização de ontem: tirar a máscara. Nenhum produto fica preso.
   await page.goto(`./#/rotina/${firstFin}`)

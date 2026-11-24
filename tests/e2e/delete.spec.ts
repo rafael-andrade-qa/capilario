@@ -3,10 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { adminClient, photoPath, testUser, tinyJpeg, type TestUser } from '../integration/helpers'
 
-// Estes testes usam a lista de produtos: o início abre na aba Produtos.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('capilar:inicio:aba', 'produtos'))
-})
+// Estes testes começam no Diário: o dia mais recente aparece grande, com os momentos.
 
 const BUCKET = 'capilar-photos'
 const admin = adminClient()
@@ -74,10 +71,9 @@ async function deleteFromDetail(page: Page, label: string) {
 
 test('excluir pelo botão no detalhe do momento, com opção de cancelar', async ({ page }) => {
   await login(page)
-  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   // Os três momentos estão na mesma finalização.
-  await expect(page.locator('.fin')).toHaveCount(1)
-  await expect(page.locator('.fin .moment-tile')).toHaveCount(3)
+  await expect(page.locator('.day-card')).toHaveCount(1)
+  await expect(page.locator('.day-card .moment-tile')).toHaveCount(3)
 
   const dialog = await deleteFromDetail(page, 'Seco')
   await expect(dialog).toContainText('As 3 fotos e a observação serão apagadas')
@@ -99,11 +95,10 @@ test('excluir pelo botão no detalhe do momento, com opção de cancelar', async
 
 test('excluir o Dia seguinte mantém a finalização com o Molhado', async ({ page }) => {
   await login(page)
-  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   const dialog = await deleteFromDetail(page, 'Dia seguinte')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Momento excluído.')).toBeVisible()
-  await expect(page.locator('.fin')).toHaveCount(1)
+  await expect(page.locator('.day-card')).toHaveCount(1)
   await expect(page.locator('.moment-tile')).toHaveCount(1)
   expect(await stageExists(stages[2].id)).toBe(false)
   for (const p of stages[2].paths) expect(await objectExists(p)).toBe(false)
@@ -111,12 +106,12 @@ test('excluir o Dia seguinte mantém a finalização com o Molhado', async ({ pa
 
 test('último momento: a finalização sai e o produto fica, sem finalização', async ({ page }) => {
   await login(page)
-  await page.locator('.experiment:not(.fixed-product) .product-toggle').first().click()
   const dialog = await deleteFromDetail(page, 'Molhado')
   await dialog.getByRole('button', { name: 'Excluir', exact: true }).click()
   await expect(page.getByText('Momento excluído.')).toBeVisible()
-  const card = page.locator('.experiment', { hasText: 'Creme de Teste' })
-  await expect(card.locator('.experiment-sub')).toContainText('Nenhuma finalização ainda')
+  await expect(page.getByText('Nenhuma finalização ainda.')).toBeVisible()
+  await page.getByRole('tab', { name: 'Produtos' }).click()
+  await expect(page.locator('.shelf-row', { hasText: 'Creme de Teste' }).locator('.shelf-meta')).toContainText('nenhuma finalização ainda')
 
   const { data } = await admin.from('experiments').select('id').eq('id', experimentId)
   expect(data).toEqual([{ id: experimentId }])
