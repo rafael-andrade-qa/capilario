@@ -1,4 +1,4 @@
--- Projeto Capilar | tipo do produto (geleia, creme de pentear, leave-in...)
+-- Capilário | tipo do produto (geleia, creme de pentear, leave-in...)
 --
 -- O app explica cada tipo (o que é, pra que serve, em que etapa entra). O tipo vem do item do
 -- catálogo quando o produto foi escolhido de lá; no cadastro à mão, a pessoa escolhe. Os

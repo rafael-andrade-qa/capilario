@@ -1,4 +1,4 @@
--- Projeto Capilar | análise da finalização pela IA
+-- Capilário | análise da finalização pela IA
 --
 -- A função analyze-finalization manda as fotos de uma finalização (molhado, seco, dia
 -- seguinte) para a IA e guarda aqui a leitura: tipo de cabelo, notas de 0 a 10, um resumo e

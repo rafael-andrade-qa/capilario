@@ -1,4 +1,4 @@
--- Projeto Capilar | esquema principal
+-- Capilário | esquema principal
 -- Experimentos -> etapas -> fotos. Cada linha pertence a um usuário do Auth.
 -- A posse é garantida por chaves estrangeiras compostas (id, user_id),
 -- de modo que uma etapa só pode apontar para um experimento do mesmo dono

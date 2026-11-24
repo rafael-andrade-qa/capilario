@@ -1,4 +1,4 @@
--- Projeto Capilar | busca do catálogo mais rápida
+-- Capilário | busca do catálogo mais rápida
 --
 -- Mesmo resultado de antes, menos trabalho:
 --   * busca exata: "todas as palavras aparecem" vira um único LIKE ALL (antes, uma subconsulta

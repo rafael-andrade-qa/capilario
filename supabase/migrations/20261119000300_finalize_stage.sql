@@ -1,4 +1,4 @@
--- Projeto Capilar | finalização atômica de uma etapa
+-- Capilário | finalização atômica de uma etapa
 --
 -- Fluxo do app:
 --   1. o navegador reserva IDs (experimento, etapa, fotos) e caminhos;

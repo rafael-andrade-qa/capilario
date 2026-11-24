@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 // E2E contra o build de produção servido no MESMO subcaminho do GitHub Pages
 // e contra o Supabase local (`npx supabase start`). Usa o Chrome instalado
 // (PW_CHANNEL=msedge para Edge, ou PW_CHANNEL= vazio para o Chromium do Playwright).
-const BASE_PATH = '/projeto-capilar/'
+const BASE_PATH = '/capilario/'
 const PORT = 4173
 const channel = process.env.PW_CHANNEL ?? 'chrome'
 

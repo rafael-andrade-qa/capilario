@@ -1,4 +1,4 @@
--- Projeto Capilar | edição
+-- Capilário | edição
 --
 -- * Produto: corrigir nome e marca (a foto da embalagem já tem set_experiment_photo).
 -- * Momento: trocar a foto de um ângulo, pôr foto num ângulo vazio ou remover uma foto.

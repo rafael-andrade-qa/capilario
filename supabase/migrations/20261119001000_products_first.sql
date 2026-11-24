@@ -1,4 +1,4 @@
--- Projeto Capilar | produto primeiro
+-- Capilário | produto primeiro
 --
 -- O produto passa a existir por conta própria: dá para cadastrar um produto sem nenhuma
 -- foto e registrar as finalizações depois, dentro dele. Por isso:

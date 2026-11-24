@@ -108,7 +108,7 @@ registros têm ficam clicáveis.
 | `npm test` | Testes unitários (ângulos, comparador, produto, validação de arquivos) |
 | `npx supabase start` | Sobe o Supabase local no Docker e aplica as migrações |
 | `npm run test:integration` | Backend real local: RLS, duas contas, idempotência, limites do bucket |
-| `npm run test:e2e` | Critérios A1–A9 no Chrome (viewport de celular), build no subcaminho `/projeto-capilar/` |
+| `npm run test:e2e` | Critérios A1–A9 no Chrome (viewport de celular), build no subcaminho `/capilario/` |
 | `npm run icons` | Regera os ícones PNG do PWA |
 
 ## Rodar localmente (sem conta na nuvem)

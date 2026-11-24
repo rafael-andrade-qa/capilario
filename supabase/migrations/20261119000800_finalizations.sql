@@ -1,4 +1,4 @@
--- Projeto Capilar | finalizações
+-- Capilário | finalizações
 --
 -- Uma finalização é um dia de lavagem com um produto: o cabelo molhado logo depois
 -- de finalizar, o mesmo cabelo seco e no dia seguinte. Fica entre o produto

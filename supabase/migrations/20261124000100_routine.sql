@@ -1,4 +1,4 @@
--- Projeto Capilar | rotina da finalização
+-- Capilário | rotina da finalização
 --
 -- Uma finalização deixa de ser "um produto" e passa a guardar a rotina inteira do dia, por
 -- etapa: lavar, condicionar, máscara, preparar, pentear e definir, fixar, finalizar. A

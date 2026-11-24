@@ -1,4 +1,4 @@
--- Projeto Capilar | exclusão de uma etapa
+-- Capilário | exclusão de uma etapa
 --
 -- Apaga a etapa e as fotos dela numa transação. Se era a última etapa do
 -- experimento, o experimento também sai (não fica produto vazio no histórico).

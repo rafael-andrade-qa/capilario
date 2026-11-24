@@ -1,4 +1,4 @@
--- Projeto Capilar | enquadramento das fotos e horário do momento
+-- Capilário | enquadramento das fotos e horário do momento
 --
 -- Enquadramento: cada foto pode guardar um recorte 3:4 (x, y, largura e altura, de 0 a 1, em
 -- relação à imagem original). O arquivo nunca muda; o app só mostra o recorte. Vem do

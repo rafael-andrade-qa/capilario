@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// BASE_PATH define o subcaminho de publicação (ex.: /projeto-capilar/ no GitHub Pages).
+// BASE_PATH define o subcaminho de publicação (ex.: /capilario/ no GitHub Pages).
 // Sem a variável, o app roda na raiz, como no `npm run dev`.
 const base = process.env.BASE_PATH ?? '/'
 

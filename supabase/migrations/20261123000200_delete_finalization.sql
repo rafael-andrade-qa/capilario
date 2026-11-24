@@ -1,4 +1,4 @@
--- Projeto Capilar | excluir uma finalização inteira
+-- Capilário | excluir uma finalização inteira
 --
 -- O lixinho da barra do produto agora escolhe a finalização: saem os momentos dela (molhado,
 -- seco, dia seguinte), as fotos e a análise da IA (em cascata). O produto fica, mesmo sem

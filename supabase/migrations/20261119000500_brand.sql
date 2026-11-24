@@ -1,4 +1,4 @@
--- Projeto Capilar | marca do produto
+-- Capilário | marca do produto
 --
 -- O produto passa a ter nome e marca separados. O app mostra o nome em destaque
 -- e a marca, mais discreta, embaixo. A marca é opcional e só existe quando há

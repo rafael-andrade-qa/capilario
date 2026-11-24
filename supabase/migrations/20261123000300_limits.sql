@@ -1,4 +1,4 @@
--- Projeto Capilar | limites para mais gente usar
+-- Capilário | limites para mais gente usar
 --
 -- Análise com IA: 3 por pessoa por dia e 20 por dia somando todas as contas (horário de
 -- Brasília). O teto geral segura a conta de quem mantém o app mesmo com muitas pessoas.

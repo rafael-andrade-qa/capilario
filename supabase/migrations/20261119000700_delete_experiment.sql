@@ -1,4 +1,4 @@
--- Projeto Capilar | exclusão de um produto inteiro (experimento)
+-- Capilário | exclusão de um produto inteiro (experimento)
 --
 -- Apaga o experimento com todas as etapas e fotos numa transação e devolve os
 -- caminhos dos arquivos (fotos das etapas e foto do produto) para o app remover

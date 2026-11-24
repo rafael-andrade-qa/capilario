@@ -1,4 +1,4 @@
--- Projeto Capilar | bucket privado de fotos
+-- Capilário | bucket privado de fotos
 -- Objetos ficam em <user_id>/<stage_id>/<photo_id>.<ext>.
 -- Limite de 15 MiB por arquivo, coerente com a validação da interface.
 

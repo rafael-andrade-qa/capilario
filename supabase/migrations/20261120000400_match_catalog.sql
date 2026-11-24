@@ -1,4 +1,4 @@
--- Projeto Capilar | casar o rótulo lido pela IA com o catálogo
+-- Capilário | casar o rótulo lido pela IA com o catálogo
 --
 -- A busca da tela (search_catalog) exige todas as palavras; o nome lido no rótulo costuma vir
 -- com frases de embalagem a mais ("Definição e Muito Brilho") e aí nada bate. Esta função

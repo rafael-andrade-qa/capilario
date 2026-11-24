@@ -1,4 +1,4 @@
--- Projeto Capilar | trocar o ângulo de uma foto
+-- Capilário | trocar o ângulo de uma foto
 --
 -- Cadastrou a foto no ângulo errado (ex.: esquerdo no lugar do direito)? move_photo leva a foto
 -- para o ângulo certo: se ele estiver vazio, a foto só muda de lugar; se tiver foto, as duas

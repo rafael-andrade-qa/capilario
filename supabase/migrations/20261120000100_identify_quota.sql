@@ -1,4 +1,4 @@
--- Projeto Capilar | limite diário de "Identificar pela foto"
+-- Capilário | limite diário de "Identificar pela foto"
 --
 -- Cada identificação chama a IA e custa centavos na conta de quem mantém o app. A função
 -- identify-product consome uma unidade antes de chamar a IA; passou do limite do dia

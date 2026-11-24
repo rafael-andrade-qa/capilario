@@ -1,4 +1,4 @@
--- Projeto Capilar | a rotina decide onde a finalização fica
+-- Capilário | a rotina decide onde a finalização fica
 --
 -- A finalização é a unidade do app; o produto é um ingrediente dela. Ela continua guardada num
 -- produto (o "principal", para a aba Produtos e o histórico antigo), mas a pessoa não escolhe nem

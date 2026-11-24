@@ -1,4 +1,4 @@
--- Projeto Capilar | clima de cada momento (umidade e temperatura do ar)
+-- Capilário | clima de cada momento (umidade e temperatura do ar)
 --
 -- Cabelo ondulado e cacheado muda muito com a umidade: com os mesmos produtos, um dia úmido
 -- dá mais frizz. O app pega a localização do aparelho, consulta o clima daquela hora (Open-Meteo)

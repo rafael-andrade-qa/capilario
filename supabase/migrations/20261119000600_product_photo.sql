@@ -1,4 +1,4 @@
--- Projeto Capilar | foto do produto
+-- Capilário | foto do produto
 --
 -- Cada experimento (produto) pode ter uma foto da embalagem. Ela aparece como
 -- miniatura no histórico. Fica no mesmo bucket privado, em

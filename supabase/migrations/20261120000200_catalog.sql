@@ -1,4 +1,4 @@
--- Projeto Capilar | catálogo de produtos de cabelo
+-- Capilário | catálogo de produtos de cabelo
 --
 -- Um catálogo compartilhado (o mesmo para todas as contas) com marcas e produtos já com foto
 -- padronizada. Quem está logado só lê; quem grava é o script de carga (chave secreta, fora do
