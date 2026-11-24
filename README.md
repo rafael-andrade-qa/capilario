@@ -122,8 +122,10 @@ cp .env.example .env.local  # preencha com a URL e a PUBLISHABLE_KEY que o coman
 npm run dev
 ```
 
-O cadastro público está desligado (`enable_signup = false`). Crie um usuário local no Studio
-(http://127.0.0.1:54323 → Authentication → Add user → *Auto confirm*) e entre no app.
+Localmente o cadastro fica aberto e pede confirmação por e-mail, para testar o fluxo inteiro: os e-mails
+chegam no Mailpit (http://127.0.0.1:54324). O botão **Criar conta** só aparece com `VITE_SIGNUP_OPEN=true`
+no `.env.local`. Também dá para criar um usuário no Studio (http://127.0.0.1:54323 → Authentication →
+Add user → *Auto confirm*).
 
 ## Configurar o Supabase na nuvem
 
@@ -135,7 +137,14 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
    npx supabase db push
    ```
    Alternativa sem CLI: cole, em ordem, os arquivos de `supabase/migrations/` no SQL Editor.
-3. **Desligar cadastro público:** Authentication → Sign In / Providers → desmarque *Allow new users to sign up*.
+3. **Configuração de login:** `npx supabase config diff` mostra o que muda e `npx supabase config push` aplica
+   a base do `supabase/config.toml` com o bloco `[remotes.production]` (endereço do site, links permitidos,
+   modelos de e-mail em português e cadastro fechado). O cadastro abre quando a variável de repositório
+   `VITE_SIGNUP_OPEN` = `true` e `enable_signup = true` nesse bloco (com os termos e a privacidade prontos).
+   **E-mail de envio:** o SMTP padrão do Supabase só entrega para membros do projeto. Use um SMTP próprio
+   (Authentication → Emails → SMTP Settings), por exemplo o Resend com o domínio verificado: host
+   `smtp.resend.com`, porta 465, usuário `resend`, senha = a chave do Resend, remetente
+   `nao-responda@capilario.com.br`, nome `Capilário`. A chave fica só no painel do Supabase.
 4. **Criar a conta pessoal:** Authentication → Users → *Add user* → *Create new user*, com e-mail, senha e *Auto Confirm User*.
 5. **Chaves:** Project Settings → API Keys. Use só a **Publishable key** (`sb_publishable_...`) ou a *anon* legada.
    A *secret/service_role* nunca vai para o app, o build ou o repositório.
@@ -220,6 +229,16 @@ bloco **Leitura da IA** (tipo e tendência, características, as 4 notas em barr
 observações; nos dois PDFs, a observação da IA de cada momento aparece com rótulo ("Seco · análise da IA"),
 separada do que a pessoa escreveu. Na mensagem pronta, "Minha observação" leva só o texto da pessoa. A folha mostra
 **Incluir a análise da IA** (marcado); desmarcar troca o PDF e a mensagem por uma versão sem a análise.
+
+## Conta
+
+Na entrada: **Entrar**, **Esqueci minha senha** e, quando o cadastro estiver aberto, **Criar conta** (com
+confirmação por e-mail). Os e-mails (modelos em `supabase/templates`) trazem um link para `#/acesso` com um
+`token_hash`: confirmar a conta, criar a senha nova ou confirmar a troca de e-mail funciona em qualquer
+navegador, mesmo quando o pedido saiu do app instalado. O ícone de pessoa no alto do diário abre **Minha
+conta**: trocar o e-mail (vale depois de confirmar nos dois endereços), trocar a senha (pede a atual), sair e
+**excluir a conta**. Excluir pede a senha e chama a função `delete-account`, que apaga os arquivos da pessoa no
+Storage e o usuário; o banco apaga o resto em cascata. Depois de trocar a senha, chega um aviso por e-mail.
 
 ## Avisos
 
@@ -315,6 +334,8 @@ PNG de 8 MB (reduzido no aparelho antes do envio), arquivo de 16 MB, GIF e HEIC 
 - O service worker guarda só os arquivos estáticos do próprio app (incluindo o motor e os modelos do enquadramento
   automático); Supabase, imagens privadas e URLs assinadas nunca passam por ele.
 - O repositório usa apenas imagens sintéticas geradas nos testes.
+- Excluir a conta: a função `delete-account` confere a sessão e só apaga o prefixo `<id>/` da própria pessoa e o
+  próprio usuário (a chave de serviço fica só no servidor). O app confere a senha antes de chamar.
 - Identificar pela foto: a função confere a sessão (pelo RPC `consume_identify_quota`, que também conta o
   limite diário e não tem tabela acessível pela API), só abre endereços https públicos (sem IP, localhost ou
   nomes internos, conferindo cada redirecionamento) e limita tempo e tamanho de páginas e imagens. A foto da

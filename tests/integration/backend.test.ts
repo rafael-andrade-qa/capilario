@@ -1,6 +1,7 @@
 // Verificações do backend: finalização atômica e idempotente, ângulos únicos,
 // isolamento entre contas (RLS em tabelas e Storage) e acesso sem sessão.
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { anonClient, ids, photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
 
@@ -164,7 +165,7 @@ describe('backend', () => {
     expect(list.data ?? []).toEqual([])
   })
 
-  it('bloqueia acesso sem sessão e cadastro público', async () => {
+  it('bloqueia acesso sem sessão; cadastro só entra depois de confirmar o e-mail', async () => {
     const anon = anonClient()
     const r = await anon.from('experiments').select('id')
     expect(r.data ?? []).toEqual([])
@@ -174,8 +175,18 @@ describe('backend', () => {
     expect(dl.error).not.toBeNull()
     const up = await anon.storage.from(BUCKET).upload(`${a.id}/x/${randomUUID()}.jpg`, tinyJpeg(), { contentType: 'image/jpeg' })
     expect(up.error).not.toBeNull()
+    // Local o cadastro fica aberto (para testar o fluxo), mas sem confirmar o e-mail não há sessão.
     const signup = await anon.auth.signUp({ email: `novo-${randomUUID().slice(0, 6)}@teste.local`, password: 'SenhaQualquer-123' })
-    expect(signup.error).not.toBeNull()
+    expect(signup.error).toBeNull()
+    expect(signup.data.session).toBeNull()
+  })
+
+  it('no projeto no ar o cadastro continua fechado e o e-mail precisa de confirmação', () => {
+    const config = readFileSync(new URL('../../supabase/config.toml', import.meta.url), 'utf8')
+    const block = config.slice(config.indexOf('[remotes.production.auth]'))
+    expect(block.slice(0, block.indexOf('\n[', 1))).toMatch(/^enable_signup = false$/m)
+    expect(config).toMatch(/^enable_confirmations = true$/m)
+    expect(block).toContain('site_url = "https://capilario.com.br"')
   })
 
   it('só apaga arquivos que não foram associados a uma foto salva', async () => {

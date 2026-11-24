@@ -453,6 +453,105 @@ input[type='datetime-local']::-webkit-datetime-edit-fields-wrapper {
   font-size: 1.08rem;
   font-weight: 600;
 }
+.login-mode-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.login-hint {
+  margin: -6px 0 0;
+}
+/* Dica embaixo do campo (fora do rótulo, para não entrar no nome do campo). */
+.field-hint {
+  margin-top: -8px;
+  font-size: 0.82rem;
+}
+.login-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+/* Botão com cara de link (ações secundárias). */
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 8px 2px;
+  min-height: 40px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--brand);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
+.danger-link {
+  color: var(--err);
+}
+
+/* Minha conta ------------------------------------------------------------ */
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.account-row + .account-row,
+.account-form + .account-row {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.account-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.account-email {
+  overflow-wrap: anywhere;
+}
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.account-form .alert {
+  margin: 0;
+}
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.account-signout {
+  margin-top: 4px;
+}
+.account-danger {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.account-delete {
+  width: 100%;
+  border-color: var(--err);
+  margin: 0;
+}
+.account-delete-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--err);
+}
+.account-delete p {
+  margin: 0;
+}
 
 /* Histórico ------------------------------------------------------------- */
 .topbar {

@@ -3,6 +3,7 @@ import { HistoryProvider, SessionProvider, useSession } from './lib/state'
 import { match, useRoute } from './lib/router'
 import { Suspense, lazy, useEffect } from 'react'
 import { Login } from './screens/Login'
+import { AuthLink } from './screens/AuthLink'
 import { History } from './screens/History'
 import { PageSkeleton } from './components/Skeleton'
 import { LogoMark, Strands } from './components/Brand'
@@ -17,6 +18,7 @@ const loadGuide = () => import('./screens/Guide')
 const loadRoutine = () => import('./screens/RoutineEdit')
 const loadInsight = () => import('./screens/ProductInsight')
 const loadDay = () => import('./screens/FinalizationDetail')
+const loadAccount = () => import('./screens/Account')
 const StageDetail = lazy(() => loadStageDetail().then((m) => ({ default: m.StageDetail })))
 const ProductEditRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductEditRoute })))
 const ProductNewRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductNewRoute })))
@@ -26,11 +28,12 @@ const Guide = lazy(() => loadGuide().then((m) => ({ default: m.Guide })))
 const RoutineEditRoute = lazy(() => loadRoutine().then((m) => ({ default: m.RoutineEditRoute })))
 const ProductInsight = lazy(() => loadInsight().then((m) => ({ default: m.ProductInsight })))
 const FinalizationDetail = lazy(() => loadDay().then((m) => ({ default: m.FinalizationDetail })))
+const Account = lazy(() => loadAccount().then((m) => ({ default: m.Account })))
 
 function usePrefetchScreens() {
   useEffect(() => {
     const run = () => {
-      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide, loadRoutine, loadInsight, loadDay]) void load().catch(() => undefined)
+      for (const load of [loadStageDetail, loadStageForm, loadProductEdit, loadCompare, loadGuide, loadRoutine, loadInsight, loadDay, loadAccount]) void load().catch(() => undefined)
     }
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
     const id = idle ? idle(run) : window.setTimeout(run, 1500)
@@ -77,6 +80,12 @@ function UpdateBanner() {
 
 function Gate() {
   const { session, ready } = useSession()
+  const { path, params } = useRoute()
+  // Links dos e-mails (confirmar conta, senha nova, troca de e-mail): com ou sem sessão.
+  // Cada link abre do zero; ao sair dele (Abrir o diário), o endereço é trocado e os tokens saem do histórico.
+  if (path === '/acesso') return <AuthLink key={params.toString()} params={params} />
+  // Formato padrão do Supabase (#access_token=…, #error=…): o hash inteiro são os parâmetros.
+  if (/^(access_token|error|message)=/.test(path)) return <AuthLink key={path} params={new URLSearchParams(path)} />
   if (!ready)
     return (
       <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Capilário">
@@ -120,6 +129,7 @@ function Route({ userId }: { userId: string }) {
   if ((m = match('/etapa/:id/completar', path))) return <StageFormRoute kind="complete" userId={userId} stageId={m.id} />
   if ((m = match('/etapa/:id', path))) return <StageDetail stageId={m.id} />
   if (path === '/comparar') return <Compare params={params} />
+  if (path === '/conta') return <Account />
   if (path === '/guia') return <Guide params={params} />
   if (path === '/rotina/nova') return <RoutineEditRoute finalizationId={null} params={params} />
   if ((m = match('/rotina/:id', path))) return <RoutineEditRoute finalizationId={m.id} params={params} />

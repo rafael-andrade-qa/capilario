@@ -117,6 +117,17 @@ export function MoreIcon({ size = 20 }: { size?: number }) {
   )
 }
 
+/** Minha conta (pessoa num círculo). */
+export function AccountIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M6.6 18.2c1.2-2.2 3.1-3.3 5.4-3.3s4.2 1.1 5.4 3.3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /** Sair (porta com seta para fora). */
 export function LogoutIcon({ size = 20 }: { size?: number }) {
   return (

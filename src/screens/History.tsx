@@ -3,7 +3,7 @@
 // produto, agrupados por etapa da rotina; tocar abre a tela do produto. A aba fica lembrada.
 import { useMemo, useState } from 'react'
 import { useToastOnce } from '../components/Toasts'
-import { CompareIcon, LogoutIcon, PlusIcon } from '../components/ActionIcons'
+import { AccountIcon, CompareIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
 import { HistorySkeleton } from '../components/Skeleton'
 import { SearchField } from '../components/SearchField'
@@ -11,7 +11,7 @@ import { ProductThumb, coverPhoto, productThumbPath } from '../components/Produc
 import { DayChips, DayWeather, FinalizationMenu, MomentStrip, dayCover, stagesOf } from '../components/DayParts'
 import { STAGE_LABEL, STAGE_TYPES, brandLabel, finalizationWhen, finalizationsOf, formatTime, productLabel, publishedStages, sortHistory, type Experiment, type Finalization } from '../lib/domain'
 import { href, navigate } from '../lib/router'
-import { signOut, useHistory, useThumbUrls } from '../lib/state'
+import { useHistory, useThumbUrls } from '../lib/state'
 import { ROUTINE_STEPS, allFinalizations, diffRoutine, draftOf, finalizationsWith, schedule, stepOfCategory, type Routines, type RoutineStep } from '../lib/routine'
 
 /** A partir de quantos produtos a busca aparece (ao lado do "+", na mesma linha). */
@@ -91,9 +91,9 @@ export function History({
         <h1 className="wordmark">capilário</h1>
         <div className="topbar-actions">
           <CompareButton total={totalStages} loading={experiments === null} />
-          <button className="icon-btn" onClick={() => void signOut()} aria-label="Sair" title="Sair">
-            <LogoutIcon />
-          </button>
+          <a className="icon-btn" href={href('/conta')} aria-label="Minha conta" title="Minha conta">
+            <AccountIcon />
+          </a>
         </div>
       </header>
 
