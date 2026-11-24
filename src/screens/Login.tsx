@@ -29,7 +29,7 @@ export function Login() {
     <main className="page login">
       <div className="brand">
         <img src="icons/icon-192.png" alt="" width={72} height={72} />
-        <h1>Projeto Capilar</h1>
+        <h1 className="wordmark">capilário</h1>
         <p className="muted">Diário fotográfico do cabelo</p>
       </div>
       <form onSubmit={submit} className="card stack">

@@ -146,7 +146,7 @@ const day = (iso: string) => {
 
 /**
  * Nome do arquivo como a pessoa escreveu, sem o ".pdf": tira caracteres que os sistemas não
- * aceitam em nome de arquivo, espaços sobrando e limita o tamanho. Vazio vira "Projeto Capilar".
+ * aceitam em nome de arquivo, espaços sobrando e limita o tamanho. Vazio vira "Capilário".
  */
 export function cleanFileName(name: string): string {
   const s = name
@@ -156,7 +156,7 @@ export function cleanFileName(name: string): string {
     .trim()
     .slice(0, 120)
     .trim()
-  return s || 'Projeto Capilar'
+  return s || 'Capilário'
 }
 
 const productName = (m: Pick<MomentInfo, 'noFinisher' | 'productName'>) => (m.noFinisher ? 'Sem finalizador' : m.productName)

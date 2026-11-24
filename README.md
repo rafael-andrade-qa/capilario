@@ -1,4 +1,4 @@
-# Projeto Capilar
+# Capilário
 
 Diário fotográfico capilar pessoal, em português, pensado para o celular. Cada **finalização** é um
 dia de lavagem com um produto, fotografado em três **momentos**: **Molhado**, **Seco** e

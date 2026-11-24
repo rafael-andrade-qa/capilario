@@ -92,7 +92,7 @@ describe('nomes de arquivo', () => {
   it('nome editado: sem caracteres proibidos, sem .pdf repetido, nunca vazio', () => {
     expect(cleanFileName('  Meu cabelo: antes/depois?  ')).toBe('Meu cabelo- antes-depois-')
     expect(cleanFileName('Seco 19-11.PDF')).toBe('Seco 19-11')
-    expect(cleanFileName('   ')).toBe('Projeto Capilar')
+    expect(cleanFileName('   ')).toBe('Capilário')
     expect(cleanFileName('a'.repeat(200))).toHaveLength(120)
   })
 })

@@ -45,7 +45,7 @@ export function App() {
   if (configError) {
     return (
       <main className="page">
-        <h1>Projeto Capilar</h1>
+        <h1 className="wordmark">capilário</h1>
         <p className="alert alert-error">{configError}</p>
       </main>
     )
@@ -78,7 +78,7 @@ function Gate() {
   const { session, ready } = useSession()
   if (!ready)
     return (
-      <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Projeto Capilar">
+      <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Capilário">
         <img src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" />
       </main>
     )

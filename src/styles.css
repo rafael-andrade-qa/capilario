@@ -4530,3 +4530,17 @@ body::before {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Marca: o nome "capilário" em Fraunces (só no nome; o resto do app usa a fonte do sistema). */
+.wordmark {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--brand);
+}
+.topbar h1.wordmark {
+  font-size: 1.6rem;
+}
+.brand h1.wordmark {
+  font-size: 2.4rem;
+}

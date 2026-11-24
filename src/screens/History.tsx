@@ -88,7 +88,7 @@ export function History({
   return (
     <main className="page home-page">
       <header className="topbar">
-        <h1>Projeto Capilar</h1>
+        <h1 className="wordmark">capilário</h1>
         <div className="topbar-actions">
           <CompareButton total={totalStages} loading={experiments === null} />
           <button className="icon-btn" onClick={() => void signOut()} aria-label="Sair" title="Sair">

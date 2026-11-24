@@ -1,7 +1,7 @@
 {
-  "name": "Projeto Capilar",
-  "short_name": "Capilar",
-  "description": "Diário fotográfico capilar: registre etapas e compare ângulos.",
+  "name": "Capilário",
+  "short_name": "Capilário",
+  "description": "Seu diário capilar: registre cada finalização, a rotina de produtos e compare o antes e depois.",
   "lang": "pt-BR",
   "start_url": "./#/",
   "scope": "./",

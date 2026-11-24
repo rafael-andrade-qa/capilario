@@ -195,7 +195,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   expect(text).toContain('Geleia · Marca G')
   expect(text).toMatch(/O que . geleia: Gel leve/)
   // O PDF circula: sem endereço do app e sem nome do modelo.
-  expect(text).toContain('Feito com o Projeto Capilar')
+  expect(text).toContain('Feito com o Capilário')
   expect(text).not.toMatch(/localhost|github|127\.0\.0\.1/i)
   expect(text).not.toMatch(/Opus|Haiku|Sonnet/)
 

@@ -1,7 +1,7 @@
 // Service worker mínimo: só guarda os arquivos estáticos do próprio app.
 // Requisições ao Supabase (outra origem), imagens privadas, URLs assinadas e
 // blobs NÃO passam por aqui: o handler ignora tudo que não for da mesma origem.
-const CACHE = 'capilar-static-v3'
+const CACHE = 'capilar-static-v4'
 const scopeUrl = new URL(self.registration.scope)
 
 self.addEventListener('install', (event) => {

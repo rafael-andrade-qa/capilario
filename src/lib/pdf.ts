@@ -139,7 +139,7 @@ function drawBanner(doc: Doc, lib: JsPdf, b: Banner, a: { icon: string | null; h
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
   doc.setTextColor(...TAN)
-  doc.text('PROJETO CAPILAR', bx, 13)
+  doc.text('CAPILÁRIO', bx, 13)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(...LIGHT)
@@ -222,7 +222,7 @@ function drawBanner(doc: Doc, lib: JsPdf, b: Banner, a: { icon: string | null; h
   doc.setFontSize(7)
   doc.setTextColor(...LIGHT)
   // Sem o endereço do app: o PDF circula, o app não é para divulgar.
-  doc.text('Feito com o Projeto Capilar', PAGE_W - MARGIN, BANNER_H - 7.5, { align: 'right' })
+  doc.text('Feito com o Capilário', PAGE_W - MARGIN, BANNER_H - 7.5, { align: 'right' })
 }
 
 function photoBox(doc: Doc, img: string | null, x: number, y: number, w: number, label: string) {
@@ -256,7 +256,7 @@ function footers(doc: Doc) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...MUTED)
-    doc.text(`Gerado pelo Projeto Capilar em ${today}`, MARGIN, PAGE_H - 9)
+    doc.text(`Gerado pelo Capilário em ${today}`, MARGIN, PAGE_H - 9)
     if (total > 1) doc.text(`${i}/${total}`, PAGE_W - MARGIN, PAGE_H - 9, { align: 'right' })
   }
 }
