@@ -5,6 +5,7 @@ import { Suspense, lazy, useEffect } from 'react'
 import { Login } from './screens/Login'
 import { History } from './screens/History'
 import { PageSkeleton } from './components/Skeleton'
+import { LogoMark, Strands } from './components/Brand'
 
 // Cada tela além do histórico é baixada à parte: o app abre mais rápido e, logo depois, as outras
 // telas são buscadas em segundo plano (e ficam guardadas), para a navegação não esperar.
@@ -79,7 +80,8 @@ function Gate() {
   if (!ready)
     return (
       <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Capilário">
-        <img src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" />
+        <Strands className="login-strands" />
+        <LogoMark className="splash-mark" size={72} />
       </main>
     )
   if (!session) return <Login />
@@ -94,9 +96,12 @@ function Gate() {
 function Screens({ userId }: { userId: string }) {
   usePrefetchScreens()
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <Route userId={userId} />
-    </Suspense>
+    <>
+      <Strands className="page-strands" rows={3} />
+      <Suspense fallback={<PageSkeleton />}>
+        <Route userId={userId} />
+      </Suspense>
+    </>
   )
 }
 

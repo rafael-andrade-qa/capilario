@@ -56,6 +56,11 @@ body {
 html {
   overflow-x: hidden;
 }
+/* Camada própria para o app: os fios do fundo (z-index -1) ficam atrás do conteúdo, mas na frente do fundo da página. */
+#root {
+  position: relative;
+  isolation: isolate;
+}
 body {
   overflow-x: clip;
 }
@@ -349,16 +354,28 @@ input[type='datetime-local']::-webkit-datetime-edit-fields-wrapper {
   flex-direction: column;
   padding: max(24px, env(safe-area-inset-top)) 24px calc(28px + env(safe-area-inset-bottom));
 }
-.login-strands {
+/* Fios do fundo (components/Brand.tsx): atrás de tudo, somem aos poucos para baixo. */
+.strands {
   position: absolute;
-  inset: 0 0 auto;
+  left: 0;
+  top: 0;
   width: 100%;
-  height: 62%;
   z-index: -1;
+  pointer-events: none;
   stroke: var(--brand);
-  opacity: 0.16;
   -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent);
   mask-image: linear-gradient(to bottom, #000 30%, transparent);
+}
+.login-strands {
+  height: 62%;
+  opacity: 0.16;
+}
+/* Nas telas do app: só uma faixa no alto, atrás do título (rola junto), que some antes dos botões. */
+.page-strands {
+  height: calc(env(safe-area-inset-top) + 92px);
+  opacity: 0.14;
+  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent);
+  mask-image: linear-gradient(to bottom, #000 35%, transparent);
 }
 .login::before {
   /* Luz quente atrás do logo. */
@@ -3128,14 +3145,16 @@ body:has(.save-bar) .toasts {
 
 /* Abertura do app: o ícone, sem texto */
 .splash {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   min-height: 100dvh;
   display: grid;
   place-items: center;
 }
-.splash img {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+.splash-mark {
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgb(122 75 42 / 0.28);
   animation: sk-appear 0.25s ease-out 0.15s both;
 }
 
