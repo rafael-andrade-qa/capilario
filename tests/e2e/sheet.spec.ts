@@ -32,7 +32,7 @@ test('com a folha aberta o fundo fica parado; arrastar para baixo fecha', async 
   await page.setViewportSize({ width: 390, height: 480 })
   await page.goto('./')
   await page.getByLabel('E-mail').fill(me.email)
-  await page.getByLabel('Senha').fill(me.password)
+  await page.getByLabel('Senha', { exact: true }).fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 

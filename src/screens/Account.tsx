@@ -1,6 +1,7 @@
 // Minha conta: e-mail, senha, sair e excluir a conta.
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { PageHeader } from '../components/PageHeader'
+import { PasswordField } from '../components/PasswordField'
 import { PlanCard } from '../components/PlanCard'
 import { useToast } from '../components/Toasts'
 import { MIN_PASSWORD, changeEmail, changePassword, deleteAccount, passwordProblem } from '../lib/account'
@@ -139,21 +140,9 @@ function PasswordForm({ email, onDone }: { email: string; onDone: () => void }) 
   })
   return (
     <form className="account-form" onSubmit={(e) => void submit(e, () => passwordProblem(next, repeat))}>
-      <label className="field">
-        <span>Senha atual</span>
-        <input type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
-      </label>
-      <label className="field">
-        <span>Senha nova</span>
-        <input type="password" autoComplete="new-password" required aria-describedby="senha-nova-dica" value={next} onChange={(e) => setNext(e.target.value)} />
-      </label>
-      <small id="senha-nova-dica" className="muted field-hint">
-        Pelo menos {MIN_PASSWORD} caracteres.
-      </small>
-      <label className="field">
-        <span>Repita a senha nova</span>
-        <input type="password" autoComplete="new-password" required value={repeat} onChange={(e) => setRepeat(e.target.value)} />
-      </label>
+      <PasswordField label="Senha atual" value={current} onChange={setCurrent} autoComplete="current-password" />
+      <PasswordField label="Senha nova" value={next} onChange={setNext} autoComplete="new-password" hint={`Pelo menos ${MIN_PASSWORD} caracteres.`} />
+      <PasswordField label="Repita a senha nova" value={repeat} onChange={setRepeat} autoComplete="new-password" />
       <Fields error={error} busy={busy} label="Salvar senha" busyLabel="Salvando…" />
     </form>
   )
@@ -172,10 +161,7 @@ function DeleteForm({ email, onCancel }: { email: string; onCancel: () => void }
       <p className="small">
         Apaga para sempre as suas fotos, finalizações, produtos, rotinas e análises. <strong>Não dá para desfazer.</strong>
       </p>
-      <label className="field">
-        <span>Confirme com a sua senha</span>
-        <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
+      <PasswordField label="Confirme com a sua senha" value={password} onChange={setPassword} autoComplete="current-password" />
       <Fields error={error} busy={busy} label="Excluir para sempre" busyLabel="Excluindo…" danger onCancel={onCancel} />
     </form>
   )

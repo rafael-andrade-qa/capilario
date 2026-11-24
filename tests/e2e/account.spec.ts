@@ -26,7 +26,7 @@ async function mailLink(to: string, subject: RegExp): Promise<string> {
 async function login(page: Page, email: string, password: string) {
   await page.goto('./')
   await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Senha').fill(password)
+  await page.getByLabel('Senha', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }
@@ -37,7 +37,7 @@ test('esqueci a senha: o link do e-mail abre a tela da senha nova e depois o di�
   await expect(page.getByRole('button', { name: 'Criar conta' })).toHaveCount(0) // cadastro fechado
   await page.getByRole('button', { name: 'Esqueci minha senha' }).click()
   await expect(page.getByRole('heading', { name: 'Recuperar a senha' })).toBeVisible()
-  await expect(page.getByLabel('Senha')).toHaveCount(0)
+  await expect(page.getByLabel('Senha', { exact: true })).toHaveCount(0)
   await page.getByLabel('E-mail').fill(user.email)
   await page.getByRole('button', { name: 'Enviar link' }).click()
   await expect(page.getByRole('status')).toContainText(`Se houver uma conta com ${user.email}`)
@@ -81,6 +81,26 @@ test('link no formato padrão do Supabase (#access_token=…) também cria a sen
 
   await page.goto('./#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired')
   await expect(page.getByRole('alert')).toHaveText('Esse link expirou ou já foi usado. Peça um novo.')
+})
+
+test('campo de senha: o olho mostra e esconde, e o Caps Lock ligado vira um ícone ao lado do olho', async ({ page }) => {
+  await page.goto('./')
+  const field = page.getByLabel('Senha', { exact: true })
+  await field.fill('segredo-123')
+  await expect(field).toHaveAttribute('type', 'password')
+  await page.getByRole('button', { name: 'Mostrar senha' }).click()
+  await expect(field).toHaveAttribute('type', 'text')
+  await expect(field).toHaveValue('segredo-123')
+  await expect(field).toBeFocused() // o toque no olho não tira o foco (o teclado do celular não fecha)
+  await page.getByRole('button', { name: 'Esconder senha' }).click()
+  await expect(field).toHaveAttribute('type', 'password')
+
+  // Caps Lock: o navegador informa no evento da tecla.
+  await field.evaluate((el) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'A', bubbles: true, modifierCapsLock: true } as KeyboardEventInit)))
+  await expect(page.getByTitle('Caps Lock ligado')).toBeVisible() // só o ícone, com o aviso para leitor de tela
+  await expect(field).toHaveAttribute('aria-describedby', /caps/)
+  await field.evaluate((el) => el.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true, modifierCapsLock: false } as KeyboardEventInit)))
+  await expect(page.getByTitle('Caps Lock ligado')).toHaveCount(0)
 })
 
 test('link incompleto avisa e volta para a entrada', async ({ page }) => {

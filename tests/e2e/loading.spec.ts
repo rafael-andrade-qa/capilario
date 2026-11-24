@@ -28,7 +28,7 @@ async function slowHistory(page: Page, ms: number) {
 async function login(page: Page) {
   await page.goto('./')
   await page.getByLabel('E-mail').fill(me.email)
-  await page.getByLabel('Senha').fill(me.password)
+  await page.getByLabel('Senha', { exact: true }).fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
 }
 

@@ -460,6 +460,75 @@ input[type='datetime-local']::-webkit-datetime-edit-fields-wrapper {
 .login-hint {
   margin: -6px 0 0;
 }
+/* Campo de senha (PasswordField): olho dentro do campo e aviso de Caps Lock do app. */
+.field > label {
+  font-weight: 600;
+}
+.login-form .field > label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.password-wrap {
+  position: relative;
+}
+.password-wrap input {
+  padding-right: 52px;
+}
+/* Os indicadores do próprio navegador (olho do Edge, Caps Lock do Safari) saem: o app tem os seus. */
+.password-wrap input::-ms-reveal,
+.password-wrap input::-ms-clear {
+  display: none;
+}
+.password-wrap input::-webkit-caps-lock-indicator {
+  display: none;
+  visibility: hidden;
+}
+.password-wrap input::-webkit-credentials-auto-fill-button {
+  margin-right: 40px;
+}
+.password-eye {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.password-eye:hover,
+.password-eye[aria-pressed='true'] {
+  color: var(--brand);
+}
+.password-eye:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -4px;
+}
+/* Caps Lock ligado: só o ícone, à esquerda do olho. */
+.password-wrap.has-caps input {
+  padding-right: 84px;
+}
+.caps-icon {
+  position: absolute;
+  top: 50%;
+  right: 48px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--brand);
+}
+.password-field .field-hint {
+  margin-top: -2px;
+}
+
 /* Dica embaixo do campo (fora do rótulo, para não entrar no nome do campo). */
 .field-hint {
   margin-top: -8px;

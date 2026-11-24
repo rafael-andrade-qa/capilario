@@ -4,6 +4,7 @@
 // modelos de e-mail em português não estão no ar.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { LogoMark, Strands } from '../components/Brand'
+import { PasswordField } from '../components/PasswordField'
 import { LINK_TYPES, MIN_PASSWORD, authMessage, passwordProblem, setNewPassword, enterWithTokens, verifyLink, type LinkType } from '../lib/account'
 import { navigate } from '../lib/router'
 
@@ -112,17 +113,8 @@ function NewPasswordForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={submit} className="login-form">
       <h2 className="login-mode-title">Crie uma senha nova</h2>
-      <label className="field">
-        <span>Senha nova</span>
-        <input type="password" autoComplete="new-password" required aria-describedby="senha-nova-dica" value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
-      <small id="senha-nova-dica" className="muted field-hint">
-        Pelo menos {MIN_PASSWORD} caracteres.
-      </small>
-      <label className="field">
-        <span>Repita a senha nova</span>
-        <input type="password" autoComplete="new-password" required value={repeat} onChange={(e) => setRepeat(e.target.value)} />
-      </label>
+      <PasswordField label="Senha nova" value={password} onChange={setPassword} autoComplete="new-password" hint={`Pelo menos ${MIN_PASSWORD} caracteres.`} />
+      <PasswordField label="Repita a senha nova" value={repeat} onChange={setRepeat} autoComplete="new-password" />
       {error && (
         <p className="alert alert-error" role="alert">
           {error}

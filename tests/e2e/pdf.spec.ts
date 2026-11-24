@@ -59,7 +59,7 @@ async function login(page: Page) {
   await page.addInitScript(() => Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }))
   await page.goto('./')
   await page.getByLabel('E-mail').fill(me.email)
-  await page.getByLabel('Senha').fill(me.password)
+  await page.getByLabel('Senha', { exact: true }).fill(me.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByRole('link', { name: '+ Nova finalização' })).toBeVisible()
 }

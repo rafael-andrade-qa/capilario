@@ -1,6 +1,7 @@
 // Entrada: entrar, recuperar a senha e (quando o cadastro estiver aberto) criar conta.
 import { useState, type FormEvent } from 'react'
 import { LogoMark, Strands } from '../components/Brand'
+import { PasswordField } from '../components/PasswordField'
 import { MIN_PASSWORD, SIGNUP_OPEN, passwordProblem, requestPasswordReset, signIn, signUp } from '../lib/account'
 
 type Mode = 'login' | 'signup' | 'forgot'
@@ -76,22 +77,13 @@ export function Login() {
             <input type="email" inputMode="email" autoComplete={mode === 'signup' ? 'email' : 'username'} autoCapitalize="none" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           {mode !== 'forgot' && (
-            <label className="field">
-              <span>Senha</span>
-              <input
-                type="password"
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                required
-                aria-describedby={mode === 'signup' ? 'senha-dica' : undefined}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-          )}
-          {mode === 'signup' && (
-            <small id="senha-dica" className="muted field-hint">
-              Pelo menos {MIN_PASSWORD} caracteres.
-            </small>
+            <PasswordField
+              label="Senha"
+              value={password}
+              onChange={setPassword}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              hint={mode === 'signup' ? `Pelo menos ${MIN_PASSWORD} caracteres.` : undefined}
+            />
           )}
           {error && (
             <p className="alert alert-error" role="alert">

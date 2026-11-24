@@ -75,7 +75,7 @@ test('rotina completa contra uma só com o principal: resumo curto e o que só u
   })
   await page.goto('./')
   await page.getByLabel('E-mail').fill(u.email)
-  await page.getByLabel('Senha').fill(u.password)
+  await page.getByLabel('Senha', { exact: true }).fill(u.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.locator('.day-chip').first()).toBeVisible()
   await page.goto(`./#/comparar?etapa=dry&a=${a.st}&b=${b.st}`)
