@@ -2,7 +2,9 @@
 // principal não sai, só produtos da própria pessoa e o tipo da máscara só na máscara.
 import { randomUUID } from 'node:crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
+import { PRODUCT_TYPES } from '../../src/lib/productGuide'
+import { stepOfCategory } from '../../src/lib/routine'
+import { adminClient, photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
 
 const BUCKET = 'capilar-photos'
 
@@ -125,5 +127,16 @@ describe('rotina da finalização', () => {
       expect(r.error).toBeNull()
     }
     expect((await routineOf(a, fin)).map((i) => i.experiment_id)).not.toContain(shampoo)
+  })
+})
+
+describe('etapa de cada tipo', () => {
+  it('o banco põe cada tipo na mesma etapa do app (guia, prateleira e rotina)', async () => {
+    const admin = adminClient()
+    for (const c of [...Object.keys(PRODUCT_TYPES), null]) {
+      const r = await admin.rpc('routine_step_of', { p_category: c })
+      if (r.error) throw r.error
+      expect(r.data, String(c)).toBe(stepOfCategory(c))
+    }
   })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 // @ts-expect-error módulo JS dos scripts (sem tipos)
 import { CATEGORIES } from '../../scripts/catalog/normalize.mjs'
 import { CATEGORY_LABEL } from './catalog'
+import { ROUTINE_STEPS } from './routine'
 import { PRODUCT_TYPES, STEPS, aboutLine, pdfAbout, typeAndBrand, typesByStep } from './productGuide'
 import { compareMessage, finalizationMessage, momentMessage, type MomentInfo } from './share'
 
@@ -19,6 +20,10 @@ describe('guia dos tipos', () => {
       expect(t.short.length).toBeLessThanOrEqual(60)
       expect(steps.has(t.step)).toBe(true)
     }
+  })
+
+  it('as etapas do guia são as mesmas da rotina e da prateleira', () => {
+    expect(STEPS.map((s) => [s.id, s.label])).toEqual(ROUTINE_STEPS.map((s) => [s.id, s.label]))
   })
 
   it('agrupa na ordem da rotina, sem etapa vazia', () => {

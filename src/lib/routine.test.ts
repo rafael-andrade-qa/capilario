@@ -59,6 +59,10 @@ describe('etapas', () => {
     expect(stepOfCategory('creme_pentear')).toBe('shape')
     expect(stepOfCategory('geleia')).toBe('hold')
     expect(stepOfCategory('oleo')).toBe('finish')
+    expect(stepOfCategory('cera')).toBe('finish')
+    expect(stepOfCategory('reativador')).toBe('finish')
+    expect(stepOfCategory('shampoo_seco')).toBe('wash')
+    expect(stepOfCategory('finalizador')).toBe('shape')
     expect(stepOfCategory(null)).toBe('hold')
   })
   it('ordena por etapa e depois pela ordem da pessoa', () => {

@@ -58,7 +58,7 @@ test('a tela do produto mostra o tipo; a explicação e o guia por etapa', async
   // Abre direto na etapa do produto, só com os tipos dela.
   await expect(page.getByRole('heading', { name: 'Tipos de produto' })).toBeVisible()
   const tabs = page.getByRole('tablist', { name: 'Etapas da rotina' }).getByRole('tab')
-  await expect(tabs).toHaveCount(9)
+  await expect(tabs).toHaveCount(7)
   await expect(tabs.first()).toHaveText('1Lavar')
   await expect(page.getByRole('tab', { name: /Fixar/ })).toHaveAttribute('aria-selected', 'true')
   const panel = page.getByRole('tabpanel')
@@ -71,8 +71,8 @@ test('a tela do produto mostra o tipo; a explicação e o guia por etapa', async
 
   await page.getByRole('tab', { name: /Lavar/ }).click()
   await expect(panel.getByRole('button', { name: /Shampoo/ }).first()).toBeVisible()
-  await page.getByRole('button', { name: /Próxima etapa: Tratar/ }).click()
-  await expect(page.getByRole('tab', { name: /Tratar/ })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('button', { name: /Próxima etapa: Condicionar/ }).click()
+  await expect(page.getByRole('tab', { name: /Condicionar/ })).toHaveAttribute('aria-selected', 'true')
 })
 
 test('sem tipo: convida a escolher; o campo Tipo explica e grava', async ({ page }) => {

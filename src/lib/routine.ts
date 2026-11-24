@@ -36,41 +36,9 @@ export interface RoutineItem {
 /** Rotinas por finalização. */
 export type Routines = Record<string, RoutineItem[]>
 
-/** Etapa de um produto pelo tipo dele. Sem tipo: fixar (o uso mais comum no app). */
+/** Etapa de um produto pelo tipo dele (a do guia, igual à routine_step_of do banco). Sem tipo: fixar (o uso mais comum no app). */
 export function stepOfCategory(category: string | null | undefined): RoutineStep {
-  switch (category) {
-    case 'shampoo':
-    case 'shampoo_seco':
-    case 'co_wash':
-    case 'pre_shampoo':
-      return 'wash'
-    case 'condicionador':
-      return 'condition'
-    case 'mascara':
-    case 'ampola':
-    case 'tratamento':
-      return 'mask'
-    case 'leave_in':
-    case 'protetor_termico':
-    case 'tonico':
-    case 'acidificante':
-      return 'prep'
-    case 'creme_pentear':
-    case 'ativador':
-    case 'manteiga':
-    case 'finalizador':
-      return 'shape'
-    case 'oleo':
-    case 'serum':
-    case 'spray':
-    case 'pomada':
-    case 'cera':
-    case 'pasta':
-    case 'reativador':
-      return 'finish'
-    default:
-      return 'hold'
-  }
+  return productType(category)?.step ?? 'hold'
 }
 
 export const stepLabel = (s: RoutineStep) => ROUTINE_STEPS.find((x) => x.id === s)!.label

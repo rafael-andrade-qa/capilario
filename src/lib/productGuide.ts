@@ -2,19 +2,19 @@
 // Texto geral, sem marca: vale para qualquer geleia, qualquer creme de pentear... Os tipos são
 // os mesmos do catálogo (scripts/catalog/normalize.mjs) e da coluna experiments.category.
 
-export type RoutineStep = 'wash' | 'treat' | 'scalp' | 'prep' | 'shape' | 'hold' | 'finish' | 'style' | 'refresh'
+/** As etapas são as mesmas da rotina e da prateleira (lib/routine.ts e routine_step_of no banco). */
+import type { RoutineStep } from './routine'
+export type { RoutineStep }
 
-/** Etapas na ordem de uma rotina, com o que acontece em cada uma. */
+/** Etapas na ordem de uma rotina, com o que acontece em cada uma. Mesmos nomes de ROUTINE_STEPS. */
 export const STEPS: { id: RoutineStep; label: string; text: string }[] = [
   { id: 'wash', label: 'Lavar', text: 'O começo de tudo: tira sujeira, oleosidade e resto de produto.' },
-  { id: 'treat', label: 'Tratar', text: 'Devolve o que a lavagem tira: maciez, hidratação, nutrição ou força. Vai e sai no banho.' },
-  { id: 'scalp', label: 'Couro cabeludo', text: 'Cuida da raiz: oleosidade, queda, caspa.' },
-  { id: 'prep', label: 'Preparar', text: 'Logo depois do banho, sem enxágue: desembaraça e protege.' },
-  { id: 'shape', label: 'Pentear e definir', text: 'Forma o cacho ou a onda e dá maciez.' },
+  { id: 'condition', label: 'Condicionar', text: 'Depois do shampoo: fecha a cutícula, desembaraça e devolve a maciez. Vai e sai no banho.' },
+  { id: 'mask', label: 'Máscara', text: 'O tratamento mais forte: hidratação, nutrição ou reconstrução. Vai e sai no banho.' },
+  { id: 'prep', label: 'Preparar', text: 'Logo depois do banho: desembaraça, protege o fio e cuida da raiz.' },
+  { id: 'shape', label: 'Definir', text: 'Forma o cacho ou a onda e dá maciez.' },
   { id: 'hold', label: 'Fixar', text: 'Segura o formato até secar: definição, volume e menos frizz.' },
-  { id: 'finish', label: 'Finalizar', text: 'O acabamento no fim: brilho, pontas e fios soltos.' },
-  { id: 'style', label: 'Modelar', text: 'Para cabelo curto: monta e segura o penteado.' },
-  { id: 'refresh', label: 'Dia seguinte', text: 'Renova o cabelo sem lavar de novo.' },
+  { id: 'finish', label: 'Finalizar', text: 'O acabamento no fim: brilho, pontas e fios soltos. Em cabelo curto, é aqui que a pomada, a cera e a pasta montam o penteado.' },
 ]
 
 export interface ProductType {
@@ -47,7 +47,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   shampoo_seco: {
     label: 'Shampoo a seco',
     short: 'Tira a oleosidade da raiz sem água.',
-    step: 'refresh',
+    step: 'wash',
     what: 'Pó ou spray que absorve a oleosidade da raiz e dá volume, para esticar o dia entre uma lavagem e outra.',
     how: 'Com o cabelo seco, borrife a uns 20 cm da raiz, espere um minuto e espalhe com os dedos ou a escova.',
     pairs: 'Não substitui o shampoo: a lavagem de verdade continua necessária.',
@@ -63,7 +63,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   condicionador: {
     label: 'Condicionador',
     short: 'Desembaraça e devolve a maciez depois do shampoo.',
-    step: 'treat',
+    step: 'condition',
     what: 'Fecha a cutícula que o shampoo abriu, desembaraça e deixa o fio macio.',
     how: 'No comprimento e nas pontas, longe da raiz. Deixe 2 a 3 minutos, desembarace com os dedos ou um pente largo e enxágue.',
     pairs: 'Vem depois do shampoo. Nos dias de máscara, pode ser trocado por ela.',
@@ -71,7 +71,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   mascara: {
     label: 'Máscara',
     short: 'Tratamento mais forte que o condicionador.',
-    step: 'treat',
+    step: 'mask',
     what: 'Concentrada em hidratação, nutrição ou reconstrução (o rótulo diz qual). Trata o fio por dentro.',
     how: 'Depois do shampoo, no comprimento e nas pontas. Deixe o tempo do rótulo (de 5 a 20 minutos) e enxágue. Uma ou duas vezes por semana.',
     pairs: 'Entra no lugar do condicionador. Alternar os tipos ao longo das semanas é o tal cronograma capilar.',
@@ -79,7 +79,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   ampola: {
     label: 'Ampola',
     short: 'Dose concentrada de tratamento.',
-    step: 'treat',
+    step: 'mask',
     what: 'Uma dose pequena e forte de um ativo, para reforçar a máscara ou tratar algo específico.',
     how: 'Sozinha ou misturada à máscara, como o rótulo indicar. Algumas são enxaguadas, outras não.',
     pairs: 'Costuma ir junto da máscara.',
@@ -143,7 +143,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   pomada: {
     label: 'Pomada',
     short: 'Modela cabelo curto, com brilho ou efeito seco.',
-    step: 'style',
+    step: 'finish',
     what: 'Modelador para cabelo curto: segura o penteado. Conforme o tipo, dá brilho ou efeito seco (matte).',
     how: 'Aqueça um pouco entre as mãos e passe no cabelo seco ou levemente úmido, modelando com os dedos ou o pente.',
     pairs: 'Costuma ser o único produto do penteado.',
@@ -151,7 +151,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   cera: {
     label: 'Cera',
     short: 'Modelador firme para cabelo curto.',
-    step: 'style',
+    step: 'finish',
     what: 'Segura o penteado com fixação média a forte e deixa remodelar ao longo do dia.',
     how: 'Aqueça um pouco entre as mãos e passe no cabelo seco, modelando com os dedos ou o pente.',
     pairs: 'Costuma ser o único produto do penteado.',
@@ -159,7 +159,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   pasta: {
     label: 'Pasta modeladora',
     short: 'Textura e fixação flexível, efeito seco.',
-    step: 'style',
+    step: 'finish',
     what: 'Modelador de acabamento seco (sem brilho), que dá textura e deixa o penteado com cara natural.',
     how: 'Pouca quantidade, aquecida nas mãos, no cabelo seco. Bagunce com os dedos para dar textura.',
     pairs: 'Costuma ser o único produto do penteado.',
@@ -199,7 +199,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   reativador: {
     label: 'Reativador',
     short: 'Revive o cacho no dia seguinte, sem lavar.',
-    step: 'refresh',
+    step: 'finish',
     what: 'Spray ou creme leve que devolve a forma ao cacho ou à onda amassados pela noite.',
     how: 'Borrife nas mechas, amasse ou passe os dedos para redefinir e deixe secar.',
     pairs: 'No dia seguinte, no lugar de lavar de novo.',
@@ -207,7 +207,7 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   tonico: {
     label: 'Tônico',
     short: 'Trata o couro cabeludo.',
-    step: 'scalp',
+    step: 'prep',
     what: 'Loção para o couro cabeludo: queda, crescimento, oleosidade ou caspa, conforme o rótulo.',
     how: 'Direto na raiz, massageando. Geralmente não tem enxágue.',
     pairs: 'Não interfere no resto da rotina: entra antes dos finalizadores.',
@@ -215,9 +215,9 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   acidificante: {
     label: 'Acidificante',
     short: 'Fecha a cutícula: mais brilho, menos frizz.',
-    step: 'treat',
+    step: 'prep',
     what: 'Baixa o pH do fio depois da lavagem ou da química, fechando a cutícula.',
-    how: 'Depois do shampoo (ou como o rótulo indicar), deixe agir e enxágue.',
+    how: 'Depois do shampoo, como o rótulo indicar: alguns são enxaguados, outros ficam no cabelo.',
     pairs: 'Combina com dias de tratamento e pós-química.',
   },
   manteiga: {
@@ -230,16 +230,16 @@ export const PRODUCT_TYPES: Record<string, ProductType> = {
   },
   finalizador: {
     label: 'Finalizador',
-    short: 'O acabamento que vai no fim, sem enxágue.',
-    step: 'finish',
-    what: 'Nome amplo para o que vai no fim e fica no cabelo: definição, brilho ou controle do frizz. Varia muito de produto para produto.',
+    short: 'Nome amplo para o que define o cabelo, sem enxágue.',
+    step: 'shape',
+    what: 'Nome amplo para o que vai depois do leave-in e fica no cabelo: definição, brilho ou controle do frizz. Varia muito de produto para produto.',
     how: 'Siga o rótulo: ele diz se fixa (como uma gelatina) ou só dá acabamento (como um óleo).',
     pairs: 'Em geral, vem depois do leave-in ou do creme de pentear.',
   },
   tratamento: {
     label: 'Tratamento',
     short: 'Cuidado específico, como diz o rótulo.',
-    step: 'treat',
+    step: 'mask',
     what: 'Produto para um problema específico: reconstrução, antiqueda, antirresíduo, etc.',
     how: 'Siga o rótulo. Costuma entrar no lugar do condicionador ou da máscara nos dias de tratamento.',
     pairs: 'Depende do tipo: o rótulo diz o que vem antes e depois.',
