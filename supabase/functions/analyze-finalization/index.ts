@@ -5,7 +5,7 @@
 // próprio usuário (RLS normal). A chave da Anthropic fica só nos segredos do Supabase.
 //
 // Segredos opcionais para testar custo × qualidade sem mexer no código:
-//   ANALYZE_MODEL  (padrão claude-opus-5-5; ex.: claude-sonnet-5-5, claude-haiku-5-5)
+//   ANALYZE_MODEL  (padrão claude-sonnet-5-5; ex.: claude-opus-5-5. O Haiku foi testado e erra demais)
 //   ANALYZE_EFFORT (padrão medium; low | medium | high)
 import Anthropic from '@anthropic-ai/sdk'
 import {
@@ -130,7 +130,7 @@ async function consumeQuota(headers: Record<string, string>): Promise<number> {
 
 async function askClaude(apiKey: string, input: AnalyzeInput, content: unknown[]): Promise<{ turn: Turn; model: string }> {
   const client = new Anthropic({ apiKey, baseURL: Deno.env.get('ANTHROPIC_BASE_URL') || undefined, maxRetries: 0, timeout: 120_000 })
-  const model = Deno.env.get('ANALYZE_MODEL') || 'claude-opus-5-5'
+  const model = Deno.env.get('ANALYZE_MODEL') || 'claude-sonnet-5-5'
   const effort = Deno.env.get('ANALYZE_EFFORT') || 'medium'
   // Se a IA recusar por engano (filtro de segurança), a própria API tenta outro modelo.
   const fallback = /^claude-(opus-5-5|sonnet-5-5|fable-5-2)$/.test(model)

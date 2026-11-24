@@ -7,9 +7,9 @@ import { ANGLES, STAGE_TYPES, type Angle, type Finalization, type StageType } fr
 import { coverCrop, type Crop } from './framing'
 import { supabase } from './supabase'
 
-/** Tamanho de cada foto enviada: ~1.000 tokens, detalhe suficiente para frizz e pontas. */
-export const SEND_W = 768
-export const SEND_H = 1024
+/** Tamanho de cada foto enviada: ~600 tokens. No teste de 24/11 deu a mesma leitura que 768×1024, com um terço a menos de custo. */
+export const SEND_W = 576
+export const SEND_H = 768
 
 export interface AnalysisScores {
   definition: number

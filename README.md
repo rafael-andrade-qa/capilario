@@ -72,8 +72,8 @@ tirada só serve para identificar e não é guardada. Limite de 20 identificaç�
 **Analisar com IA**: escolhe a finalização (cartões como os do PDF; as já analisadas têm um brilho) e analisa a
 finalização inteira (molhado, seco e dia seguinte) pela função `analyze-finalization`. Só a finalização inteira:
 não há análise de uma etapa sozinha. A folha diz quantas fotos vão e quantas análises restam no dia, porque cada uma
-custa centavos (as fotos vão recortadas como no app, 768×1024, ~1.000 tokens cada; com Claude Opus 5.5 dá uns
-US$ 0,05–0,12 por finalização). Volta a leitura do cabelo (tipo, até 4 características, notas de 0 a 10 para
+custa centavos (as fotos vão recortadas como no app, 576×768, ~600 tokens cada; com Claude Sonnet 5.5 dá uns
+US$ 0,01–0,03 por finalização, ≈ R$ 0,12 numa finalização de 12 fotos). Volta a leitura do cabelo (tipo, até 4 características, notas de 0 a 10 para
 definição, controle do frizz, volume e dia seguinte, e um resumo que compara com as análises anteriores), com a
 data (modelo e custo ficam só nos registros do servidor, não na tela nem no PDF), e as observações sugeridas de cada momento: **Usar nas N observações** grava (o seu texto
 fica; a análise entra no fim, depois de "Análise: ", e analisar de novo troca só essa parte) ou o **x** descarta.
@@ -144,7 +144,7 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
    (ou `npx supabase secrets set ANTHROPIC_API_KEY=...`). Publique a função com
    `npx supabase functions deploy identify-product`. Opcional: `IDENTIFY_MODEL` (padrão `claude-haiku-5-5`).
    A análise da finalização usa a mesma chave: `npx supabase functions deploy analyze-finalization`. Opcionais:
-   `ANALYZE_MODEL` (padrão `claude-opus-5-5`; ex.: `claude-sonnet-5-5`, `claude-haiku-5-5`) e `ANALYZE_EFFORT`
+   `ANALYZE_MODEL` (padrão `claude-sonnet-5-5`, escolhido num teste cego de 24/11 contra o Opus e o Haiku; ex.: `claude-opus-5-5`) e `ANALYZE_EFFORT`
    (padrão `medium`), para comparar custo e qualidade sem mudar o código.
    A chave fica só no Supabase; nunca vai para o app, o build ou o repositório.
 7. **Limite de upload:** o bucket `capilar-photos` aceita JPEG/PNG/WebP até 15 MiB. Confira em

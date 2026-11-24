@@ -141,7 +141,7 @@ test('pelo menu da finalização: analisa e usa as observações sugeridas', asy
   expect(calls).toHaveLength(1)
   expect(calls[0].finalization_id).toBe(fin)
   expect(calls[0].images.map((i) => `${i.moment}:${i.angle}`)).toEqual(['wet:front', 'wet:left', 'dry:front', 'dry:back'])
-  // Cada foto vai recortada e reduzida (JPEG 768×1024).
+  // Cada foto vai recortada e reduzida (JPEG 576×768).
   expect(Buffer.from(calls[0].images[0].data, 'base64').subarray(0, 2).toString('hex')).toBe('ffd8')
 
   // Na folha a leitura já vem aberta: notas, resumo e quando foi feita (sem modelo nem custo).
