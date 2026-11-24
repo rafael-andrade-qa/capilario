@@ -80,7 +80,7 @@ function Gate() {
   if (!ready)
     return (
       <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Capilário">
-        <Strands className="login-strands" />
+        <Strands className="login-strands" scale={1.7} />
         <LogoMark className="splash-mark" size={72} />
       </main>
     )
@@ -97,7 +97,7 @@ function Screens({ userId }: { userId: string }) {
   usePrefetchScreens()
   return (
     <>
-      <Strands className="page-strands" rows={3} />
+      <Strands className="page-strands" rows={3} top={22} />
       <Suspense fallback={<PageSkeleton />}>
         <Route userId={userId} />
       </Suspense>

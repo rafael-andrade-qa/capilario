@@ -28,7 +28,7 @@ export function Login() {
 
   return (
     <main className="login">
-      <Strands className="login-strands" />
+      <Strands className="login-strands" scale={1.7} />
       <div className="login-brand">
         <LogoMark className="login-mark" />
         <h1 className="wordmark">capilário</h1>

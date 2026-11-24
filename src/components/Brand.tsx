@@ -19,18 +19,25 @@ export function LogoMark({ size = 84, className }: { size?: number; className?: 
   )
 }
 
-/** Fios ondulados (a onda do logo) para o fundo. `rows` = quantos fios. */
-export function Strands({ className, rows = 7 }: { className: string; rows?: number }) {
+/**
+ * Fios ondulados (a onda do logo) para o fundo. Sem viewBox: o desenho fica sempre do mesmo
+ * tamanho (em px) e a largura da tela só mostra mais ou menos fios, sem esticar no computador.
+ * `scale` aumenta tudo (a tela de entrada usa fios maiores); `top` = onde fica o primeiro fio.
+ */
+export function Strands({ className, rows = 7, scale = 1, top = 40 }: { className: string; rows?: number; scale?: number; top?: number }) {
+  const waves = " t50 0".repeat(60)
   return (
-    <svg className={`strands ${className}`} viewBox={`0 0 400 ${rows * 34 + 60}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      {Array.from({ length: rows }, (_, i) => (
-        <path
-          key={i}
-          d={`M${-20 - (i % 2) * 25} ${40 + i * 34} q25 -${14 + i * 2} 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0`}
-          fill="none"
-          strokeWidth={i % 3 === 1 ? 3 : 2}
-        />
-      ))}
+    <svg className={`strands ${className}`} aria-hidden="true">
+      <g transform={`scale(${scale})`}>
+        {Array.from({ length: rows }, (_, i) => (
+          <path
+            key={i}
+            d={`M${-20 - (i % 2) * 25} ${top + i * 34} q25 -${14 + i * 2} 50 0${waves}`}
+            fill="none"
+            strokeWidth={(i % 3 === 1 ? 3 : 2) / scale}
+          />
+        ))}
+      </g>
     </svg>
   )
 }
