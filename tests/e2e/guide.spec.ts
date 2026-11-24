@@ -90,13 +90,3 @@ test('sem tipo: convida a escolher; o campo Tipo explica e grava', async ({ page
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
   await expect(card(page, 'Creme Misterioso').getByRole('button', { name: 'O que é creme de pentear' })).toBeVisible()
 })
-
-test('Sem finalizador explica que é a referência', async ({ page }) => {
-  await login(page)
-  await page.locator('.experiment.fixed-product .product-toggle').click()
-  await page.getByRole('button', { name: 'O que é Sem finalizador' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Sem finalizador' })
-  await expect(sheet).toContainText('É a referência')
-  await sheet.getByRole('button', { name: 'Entendi' }).click()
-  await expect(sheet).toHaveCount(0)
-})

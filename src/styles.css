@@ -4234,3 +4234,8 @@ body::before {
 .day-item:hover {
   background: var(--brand-soft);
 }
+
+.day-chip-none {
+  border-style: dashed;
+  color: var(--muted);
+}

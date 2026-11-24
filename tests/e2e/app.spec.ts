@@ -184,6 +184,8 @@ test('A3: salvar com duas fotos e completar depois na mesma etapa', async ({ pag
   ids.dryNone = await saveAndGetStage(page)
   expect(Object.keys(await photosOf(ids.dryNone)).sort()).toEqual(['front', 'left'])
 
+  // O dia sem finalizador aparece no Diário (não é um produto da prateleira).
+  await page.getByRole('tab', { name: 'Diário' }).click()
   await page.locator(`a[href="#/etapa/${ids.dryNone}"]`).click()
   await expect(page.locator('.angle-cell img')).toHaveCount(2)
   await page.getByRole('link', { name: 'Adicionar foto: Direito' }).click()

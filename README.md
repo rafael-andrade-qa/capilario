@@ -54,7 +54,8 @@ gravada junto com o primeiro momento. O início tem duas abas: **Diário** (cada
 selos curtos, o que mudou desde a anterior, o clima, os momentos e um menu ⋯ com editar rotina, comparar
 com a anterior, analisar com IA, PDF e excluir) e **Produtos** (a prateleira: cada produto com as
 finalizações em que entrou e "Como fica com ele", `#/produto/<id>`, com a média das notas da IA com e
-sem ele). Excluir um produto não apaga finalizações: ele só sai das rotinas. O Comparar compara duas
+sem ele; "Sem finalizador" não entra: é como foi o dia, e aparece como selo no Diário e no Comparar).
+Excluir um produto não apaga finalizações: ele só sai das rotinas. O Comparar compara duas
 finalizações (dia, foto e rotina de cada uma; "O que mudou" embaixo das fotos), e o PDF, a mensagem e a
 análise da IA usam a rotina como contexto.
 

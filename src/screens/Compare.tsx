@@ -162,8 +162,11 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
   const optionsOf = (t: StageType) => recent.filter((e) => e.stage.stage_type === t)
   // Cada lado é uma finalização: a rotina em selos curtos (sem rotina, o produto ou "Sem finalizador").
-  const routineOf = (e: Entry) =>
-    routineShort(routines[e.stage.finalization_id], groups) ?? (e.experiment.product_mode === 'named' ? productLabel(e.experiment) : 'Sem finalizador')
+  const routineOf = (e: Entry) => {
+    const r = routineShort(routines[e.stage.finalization_id], groups)
+    if (e.experiment.product_mode !== 'named') return r ? `${r} · sem finalizador` : 'Sem finalizador'
+    return r ?? productLabel(e.experiment)
+  }
   const heroOf = (e: Entry, label: string) => {
     const c = coverPhoto(e.stage)
     return { label, photo: c ? { label, url: urls[c.storage_path], crop: c.crop } : null }
@@ -285,8 +288,8 @@ export function Compare({ params }: { params: URLSearchParams }) {
               label: 'Comparativo',
               summary: `${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`,
               message: compareMessage(
-                { ...momentInfo(a.experiment, a.stage), routine: routineShort(routines[a.stage.finalization_id], groups) },
-                { ...momentInfo(b.experiment, b.stage), routine: routineShort(routines[b.stage.finalization_id], groups) },
+                { ...momentInfo(a.experiment, a.stage), routine: routineShort(routines[a.stage.finalization_id], groups) ? routineOf(a) : null },
+                { ...momentInfo(b.experiment, b.stage), routine: routineShort(routines[b.stage.finalization_id], groups) ? routineOf(b) : null },
                 changeLines,
               ),
               fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),

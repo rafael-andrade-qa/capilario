@@ -233,19 +233,14 @@ test('novo produto com foto da embalagem; registrar a finalização depois', asy
   expect(after.data).toEqual([{ id: data!.id }])
 })
 
-test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async ({ page }) => {
+test('dia sem finalizador: vem da rotina sem finalizador, ganha o selo e não vira produto', async ({ page }) => {
   await login(page)
-  // Sempre o primeiro da lista, antes dos produtos (mesmo dos mais recentes).
-  await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
-  const row = page.locator('.experiment', { hasText: 'Sem finalizador' })
-  // Pode já existir (excluir um produto leva as finalizações dele para cá): conta antes.
-  const noneBefore = (await admin.from('experiments').select('id').eq('user_id', me.id).eq('product_mode', 'none')).data ?? []
-  const finsBefore = noneBefore.length
-    ? new Set(((await admin.from('stages').select('finalization_id').eq('experiment_id', noneBefore[0].id)).data ?? []).map((x) => x.finalization_id)).size
-    : 0
-  await expect(row.locator('.experiment-sub')).toContainText(finsBefore ? `${finsBefore} finaliza` : 'Só lavado, sem creme nem gel')
-  await row.locator('.product-toggle').click()
-  await row.getByRole('link', { name: finsBefore ? 'Nova finalização com Sem finalizador' : '+ Registrar finalização' }).click()
+  // A prateleira só tem produtos de verdade.
+  await expect(page.locator('.experiment', { hasText: 'Sem finalizador' })).toHaveCount(0)
+
+  await page.getByRole('link', { name: '+ Nova finalização' }).click()
+  await page.getByRole('button', { name: 'Começar do zero' }).click()
+  await page.getByRole('button', { name: 'Continuar para as fotos' }).click()
   await expect(page.locator('.moment-context')).toContainText('Sem finalizador')
   await page.locator('label.seg', { hasText: 'Seco' }).click()
   await page.getByTestId('gallery-input').setInputFiles([LEFT])
@@ -254,7 +249,10 @@ test('Sem finalizador fica sempre na lista e pode ser usado sem cadastro', async
   await expect(page.getByText('Seco salvo.')).toBeVisible()
   const { data } = await admin.from('experiments').select('id').eq('user_id', me.id).eq('product_mode', 'none')
   expect(data).toHaveLength(1)
-  await expect(page.locator('.experiment', { hasText: 'Sem finalizador' }).locator('.experiment-sub')).toContainText(`${finsBefore + 1} finaliza`)
-  // Depois de usado, continua fixo no topo.
-  await expect(page.locator('.product-list .experiment').first()).toContainText('Sem finalizador')
+
+  // No Diário, o dia mostra o selo; na aba Produtos, continua sem "Sem finalizador".
+  await page.getByRole('tab', { name: 'Diário' }).click()
+  await expect(page.getByRole('listitem', { name: /^Finalização de / }).first().locator('.day-chip-none')).toHaveText('Sem finalizador')
+  await page.getByRole('tab', { name: 'Produtos' }).click()
+  await expect(page.locator('.experiment', { hasText: 'Sem finalizador' })).toHaveCount(0)
 })

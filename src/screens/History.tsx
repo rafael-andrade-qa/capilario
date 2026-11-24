@@ -35,7 +35,6 @@ import {
   type Experiment,
   type Finalization,
   type Stage,
-  NO_FINISHER_ID,
 } from '../lib/domain'
 import { href, navigate } from '../lib/router'
 import { ProductAbout } from '../components/ProductGuide'
@@ -149,11 +148,12 @@ export function History({
     }
   }, [list, routines])
 
+  const shelf = useMemo(() => list.filter((e) => e.product_mode !== 'none'), [list])
   const visible = useMemo(() => {
     const q = normalize(query.trim())
-    if (!q) return list
-    return list.filter((e) => normalize(`${productLabel(e)} ${brandLabel(e) ?? ''}`).includes(q))
-  }, [list, query])
+    if (!q) return shelf
+    return shelf.filter((e) => normalize(`${productLabel(e)} ${brandLabel(e) ?? ''}`).includes(q))
+  }, [shelf, query])
 
   const paths = useMemo(() => {
     const out = new Set<string>()
@@ -241,14 +241,15 @@ export function History({
         </a>
       )}
 
-      {tab === 'produtos' && list.length >= SEARCH_FROM && (
+      {tab === 'produtos' && shelf.length >= SEARCH_FROM && (
         <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar produto ou marca" />
       )}
       {tab === 'produtos' && query && visible.length === 0 && <p className="muted center small">Nenhum produto com “{query.trim()}”.</p>}
 
+      {tab === 'produtos' && shelf.length === 0 && <p className="muted center small">Nenhum produto cadastrado ainda.</p>}
+
       {tab === 'produtos' && visible.length > 0 && (
         <div className="card product-list">
-          {!query && !list.some((e) => e.product_mode === 'none') && <NoFinisherRow open={open.has(NO_FINISHER_ID)} onToggle={() => toggle(NO_FINISHER_ID)} />}
           {visible.map((exp) => {
             const used = finsOf(exp)
             const fins = used.map((u) => u.finalization)
@@ -561,37 +562,6 @@ function MomentTile({ stage, urls, highlight, humidity = true }: { stage: Stage;
   )
 }
 
-/** "Sem finalizador" fica sempre na lista, mesmo antes da primeira finalização sem produto. */
-function NoFinisherRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const placeholder: Experiment = { id: NO_FINISHER_ID, product_mode: 'none', product_name: null, brand: null, photo_path: null, created_at: '', stages: [] }
-  return (
-    <section className={`experiment fixed-product ${open ? 'open' : ''}`} aria-label="Produto Sem finalizador">
-      <h2 className="product-title">
-        <button type="button" className="product-toggle" aria-expanded={open} aria-controls="produto-sem-finalizador" onClick={onToggle}>
-          <ProductThumb experiment={placeholder} urls={{}} />
-          <span className="product-text">
-            <span className="product-name muted-title">Sem finalizador</span>
-            <span className="muted small experiment-sub">
-              <span className="dates">Só lavado, sem creme nem gel</span>
-            </span>
-          </span>
-          <ChevronIcon />
-        </button>
-      </h2>
-      {open && (
-        <div id="produto-sem-finalizador" className="product-body">
-          <ProductAbout experimentId={NO_FINISHER_ID} mode="none" />
-          <div className="fin-empty">
-            <p className="muted small">Registre como o cabelo fica sem nenhum produto, para comparar com os outros.</p>
-            <a className="btn btn-outline-brand btn-block" href={href(`/produto/${NO_FINISHER_ID}/nova-finalizacao`)}>
-              + Registrar finalização
-            </a>
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
 
 type Tab = 'dias' | 'produtos'
 const TAB_KEY = 'capilar:inicio:aba'
@@ -701,7 +671,8 @@ function DaysView({
                 />
               </div>
               <ul className="day-chips" aria-label="Rotina">
-                {items.length === 0 && <li className="day-chip">{experiment.product_mode === 'named' ? productLabel(experiment) : 'Sem finalizador'}</li>}
+                {experiment.product_mode === 'none' && <li className="day-chip day-chip-none">Sem finalizador</li>}
+                {items.length === 0 && experiment.product_mode === 'named' && <li className="day-chip">{productLabel(experiment)}</li>}
                 {items.map((it) => {
                   const e = byId.get(it.experiment_id)
                   const isChanged = changed.has(it.step)
