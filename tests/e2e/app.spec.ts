@@ -45,7 +45,7 @@ const brandInput = (page: Page) => page.getByRole('combobox', { name: 'Marca' })
 
 /** Cadastra o produto (Novo produto) e segue para a primeira finalização dele. */
 async function newProduct(page: Page, name: string, brand: string) {
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await productInput(page).fill(name)
   await brandInput(page).fill(brand)
@@ -101,7 +101,7 @@ test('A1: quatro fotos em um envio, troca de posição antes de salvar', async (
   await noHorizontalScroll(page)
 
   // Cadastrar produto: só nome, marca e (opcional) a foto da embalagem; nome e marca obrigatórios.
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByRole('button', { name: 'Cadastrar produto' }).click()
   await expect(page.getByText('Informe o nome do produto.')).toBeVisible()

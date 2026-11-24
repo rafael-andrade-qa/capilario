@@ -67,7 +67,7 @@ test('produtos recolhidos: tudo fechado ao abrir o app, busca e abrir/fechar', a
   await toggle(page, 'Óleo Finalizador').click()
   await expect(page.locator('.experiment.open')).toHaveCount(1)
 
-  // Busca (aparece a partir de 6 produtos), sem diferenciar acentos.
+  // Busca (ao lado do "+", a partir de 2 produtos), sem diferenciar acentos.
   const search = page.getByRole('searchbox', { name: 'Buscar produto ou marca' })
   await search.fill('linhaca')
   await expect(page.locator('.experiment')).toHaveCount(1)
@@ -188,7 +188,7 @@ test('excluir um produto: ele sai das rotinas e as finalizações e fotos contin
 
 test('novo produto com foto da embalagem; registrar a finalização depois', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await expect(page.getByRole('heading', { name: 'Novo produto' })).toBeVisible()
   // Produto repetido (mesmo nome e marca, sem diferenciar maiúsculas e acentos) é recusado.

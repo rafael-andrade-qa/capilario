@@ -4239,3 +4239,27 @@ body::before {
   border-style: dashed;
   color: var(--muted);
 }
+
+/* Aba Produtos: busca e "+" na mesma linha. */
+.shelf-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.shelf-bar.only-add {
+  justify-content: flex-end;
+}
+.shelf-bar .search-field {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.shelf-add {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  margin: 0;
+  border-radius: 14px;
+  color: var(--brand);
+}

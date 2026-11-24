@@ -87,7 +87,7 @@ const results = (page: Page) => page.getByRole('list', { name: 'Produtos do cat�
 
 test('busca no catálogo, escolhe e cadastra com a foto pronta', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
   const search = page.getByRole('searchbox', { name: 'Buscar no catálogo' })
   await search.fill(`gelatna ${tag}`) // erro de digitação de propósito
   await expect(results(page)).toHaveCount(1)
@@ -123,7 +123,7 @@ async function chooseBrand(page: Page, name: string) {
 
 test('filtro de marca (lista com busca); o que já está no histórico aparece marcado', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
   // Só marca: nada de "Masculino" misturado. "Todos" começa marcado.
   await expect(page.getByText('Masculino', { exact: true })).toHaveCount(0)
   const todos = page.getByRole('button', { name: 'Todos', exact: true })
@@ -151,7 +151,7 @@ for (const size of [
   test(`página cabe na tela sem rolar (${size.width}x${size.height}), com Anterior e Próxima`, async ({ page }) => {
     await page.setViewportSize(size)
     await login(page)
-    await page.getByRole('link', { name: '+ Novo produto' }).click()
+    await page.getByRole('link', { name: 'Novo produto' }).click()
     await chooseBrand(page, `Paginas ${tag}`)
     await expect(page.getByRole('button', { name: 'Próxima ›' })).toBeEnabled()
     const n = await results(page).count()
@@ -196,7 +196,7 @@ test('pela foto: a função acha no catálogo e a foto pronta vem primeiro', asy
         }),
   )
   await login(page)
-  await page.getByRole('link', { name: '+ Novo produto' }).click()
+  await page.getByRole('link', { name: 'Novo produto' }).click()
   await page.getByTestId('catalog-identify-input').setInputFiles(FRONT)
   await expect(page.getByRole('textbox', { name: 'Produto' })).toHaveValue('Gelatina Super Definição')
   const first = page.getByRole('button', { name: 'Usar a foto 1, de catálogo do app' })

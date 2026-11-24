@@ -42,8 +42,8 @@ import { productType } from '../lib/productGuide'
 import { signOut, useHistory, useThumbUrls } from '../lib/state'
 import { allFinalizations, diffRoutine, draftOf, finalizationsWith, itemName, routineExtra, schedule, sortRoutine, stepLabel, type Routines, type RoutineStep } from '../lib/routine'
 
-/** A partir de quantos produtos a busca aparece. */
-const SEARCH_FROM = 6
+/** A partir de quantos produtos a busca aparece (ao lado do "+", na mesma linha). */
+const SEARCH_FROM = 2
 
 // Produtos abertos, lembrados enquanto o app estiver em uso (voltar do detalhe não fecha tudo).
 // Ao abrir o app, tudo começa recolhido; se o app voltar do segundo plano depois de um tempo
@@ -235,14 +235,16 @@ export function History({
 
       {tab === 'dias' && experiments !== null && list.length > 0 && <DaysView experiments={list} routines={routines} urls={urls} saved={saved} onAction={openAction} />}
 
+      {/* Busca e "+" numa linha só (com poucos produtos, só o "+", à direita). */}
       {tab === 'produtos' && list.length > 0 && (
-        <a className="btn btn-ghost btn-block new-product" href={href('/produto/novo')}>
-          + Novo produto
-        </a>
-      )}
-
-      {tab === 'produtos' && shelf.length >= SEARCH_FROM && (
-        <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar produto ou marca" />
+        <div className={`shelf-bar ${shelf.length >= SEARCH_FROM ? '' : 'only-add'}`}>
+          {shelf.length >= SEARCH_FROM && (
+            <SearchField value={query} onChange={setQuery} placeholder="Buscar produto ou marca" label="Buscar produto ou marca" />
+          )}
+          <a className="icon-btn shelf-add" href={href('/produto/novo')} aria-label="Novo produto" title="Novo produto">
+            <PlusIcon />
+          </a>
+        </div>
       )}
       {tab === 'produtos' && query && visible.length === 0 && <p className="muted center small">Nenhum produto com “{query.trim()}”.</p>}
 
