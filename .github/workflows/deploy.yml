@@ -26,10 +26,12 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - name: Build no subcaminho do repositório
+      - name: Build
         run: npx vite build
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # Subcaminho: /<repositório>/ no github.io. Com domínio próprio (capilario.com.br), a
+          # variável BASE_PATH do repositório vale "/" e o app fica na raiz.
+          BASE_PATH: ${{ vars.BASE_PATH || format('/{0}/', github.event.repository.name) }}
           # Valores públicos do cliente (Settings > Secrets and variables > Actions > Variables).
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}

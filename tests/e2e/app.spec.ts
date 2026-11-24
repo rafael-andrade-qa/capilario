@@ -438,7 +438,7 @@ test('A8: subcaminho, manifesto, ícones e service worker', async ({ page, reque
 
   await login(page, me)
   const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope)
-  expect(scope).toMatch(/\/capilario\/$/)
+  expect(scope).toBe(new URL('./', page.url()).href)
   // Supabase não passa pelo service worker (outra origem).
   await page.goto('./#/comparar')
   await page.reload()

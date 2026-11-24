@@ -163,6 +163,21 @@ O cadastro público está desligado (`enable_signup = false`). Crie um usuário 
 
 Variáveis de build: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `BASE_PATH` (subcaminho; padrão `/`).
 
+### Domínio próprio (capilario.com.br)
+
+1. **DNS** (no painel de quem cuida do domínio): apague os registros A/AAAA/CNAME de estacionamento
+   e crie quatro registros **A** na raiz (`@`) com 185.199.108.153, 185.199.109.153, 185.199.110.153 e
+   185.199.111.153, e um **CNAME** `www` → `rafael-andrade-qa.github.io`.
+2. **GitHub:** Settings → Pages → *Custom domain* `capilario.com.br` (ou
+   `gh api -X PUT repos/<usuário>/<repositório>/pages -f cname=capilario.com.br`). Quando o certificado sair,
+   marque *Enforce HTTPS*.
+3. **Raiz:** crie a variável de repositório `BASE_PATH` = `/` e rode o workflow de novo. Sem ela, o build usa
+   `/<repositório>/` (o endereço do github.io).
+4. O endereço antigo (`<usuário>.github.io/<repositório>/`) passa a redirecionar para o domínio. O app instalado
+   na tela inicial precisa ser adicionado de novo (é outro endereço, com outro login guardado).
+
+Para testar como na raiz: `E2E_BASE_PATH=/ npx playwright test`.
+
 ## Instalar no celular
 
 - **Android (Chrome):** abra a URL, entre na conta, menu ⋮ → **Instalar app** (ou *Adicionar à tela inicial*).
