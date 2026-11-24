@@ -8,6 +8,7 @@ import { prepareImage, thumbPath } from './images'
 import { uuid } from './uuid'
 import type { StageWeather } from './weather'
 import type { DraftItem, RoutineItem, Routines } from './routine'
+import { limitReached, refreshPlan } from './plan'
 
 const HISTORY_SELECT =
   'id, product_mode, product_name, brand, photo_path, category, created_at, stages(id, experiment_id, finalization_id, stage_type, captured_at, notes, is_favorite, created_at, humidity, temperature, weather_code, weather_at, photos(id, stage_id, angle, storage_path, mime_type, created_at, crop))'
@@ -66,7 +67,13 @@ const FRIENDLY: Record<string, string> = {
   photo_not_found: 'Foto não encontrada.',
   invalid_angle: 'Ângulo inválido.',
   invalid_storage_path: 'Não foi possível salvar a foto. Tente de novo.',
-  photo_limit: 'Você chegou ao limite de 1.000 fotos. Apague fotos antigas para guardar novas.',
+  photo_limit: 'Você chegou ao limite de fotos do seu plano. Exclua fotos antigas para guardar novas.',
+}
+
+/** Mensagem em português; limite de fotos também abre o "Conheça o Pro". */
+function friendly(code: string): string | undefined {
+  if (code === 'photo_limit') limitReached('photos')
+  return FRIENDLY[code]
 }
 
 export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult> {
@@ -80,8 +87,9 @@ export async function finalizeStage(args: FinalizeArgs): Promise<FinalizeResult>
   if (error) {
     // Sem código do Postgres = falha de rede: o servidor pode ter gravado.
     if (!error.code) throw new AmbiguousError(error.message || 'Falha de conexão')
-    throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar: ${error.message}`)
+    throw new Error(friendly(error.message) ?? `Não foi possível salvar: ${error.message}`)
   }
+  void refreshPlan()
   return data as FinalizeResult
 }
 
@@ -117,7 +125,7 @@ export async function saveStageWeather(stageId: string, w: StageWeather): Promis
 export async function deleteStage(stageId: string, paths: string[]): Promise<void> {
   const { data: result, error } = await supabase.rpc('delete_stage', { p_stage_id: stageId })
   if (error) {
-    if (error.code) throw new Error(FRIENDLY[error.message] ?? `Não foi possível excluir: ${error.message}`)
+    if (error.code) throw new Error(friendly(error.message) ?? `Não foi possível excluir: ${error.message}`)
     const { data, error: checkErr } = await supabase.from('stages').select('id').eq('id', stageId)
     if (checkErr || data?.length) throw new Error('Não foi possível excluir. Verifique a conexão e tente de novo.')
   }
@@ -164,7 +172,7 @@ export async function setProductPhoto(userId: string, experimentId: string, file
   const { data, error } = await supabase.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: path })
   if (error) {
     await removeFiles([path])
-    throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar a foto do produto: ${error.message}`)
+    throw new Error(friendly(error.message) ?? `Não foi possível salvar a foto do produto: ${error.message}`)
   }
   const old = (data as { old_path?: string | null } | null)?.old_path
   if (old) await removeFiles([old])
@@ -189,13 +197,13 @@ export async function createProduct(experimentId: string, name: string, brand: s
     p_catalog_id: catalogId ?? null,
     p_category: category || null,
   })
-  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível cadastrar o produto: ${error.message}`)
+  if (error) throw new Error(friendly(error.message) ?? `Não foi possível cadastrar o produto: ${error.message}`)
 }
 
 /** Corrige nome e marca do produto (vale para todas as finalizações dele). */
 export async function updateExperiment(experimentId: string, name: string, brand: string): Promise<void> {
   const { error } = await supabase.rpc('update_experiment', { p_experiment_id: experimentId, p_name: name, p_brand: brand })
-  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível salvar o produto: ${error.message}`)
+  if (error) throw new Error(friendly(error.message) ?? `Não foi possível salvar o produto: ${error.message}`)
 }
 
 /** Troca o tipo do produto (geleia, creme de pentear...); vazio tira. */
@@ -208,7 +216,7 @@ export async function setProductCategory(experimentId: string, category: string 
 /** Remove a foto da embalagem do produto e apaga o arquivo. */
 export async function removeProductPhoto(experimentId: string): Promise<void> {
   const { data, error } = await supabase.rpc('set_experiment_photo', { p_experiment_id: experimentId, p_path: null })
-  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível remover a foto: ${error.message}`)
+  if (error) throw new Error(friendly(error.message) ?? `Não foi possível remover a foto: ${error.message}`)
   const old = (data as { old_path?: string | null } | null)?.old_path
   if (old) await removeFiles([old])
 }
@@ -231,7 +239,7 @@ export async function replacePhoto(userId: string, stageId: string, angle: Angle
   })
   if (error) {
     await removeFiles([path])
-    throw new Error(FRIENDLY[error.message] ?? `Não foi possível trocar a foto: ${error.message}`)
+    throw new Error(friendly(error.message) ?? `Não foi possível trocar a foto: ${error.message}`)
   }
   const old = (data as { old_path?: string | null } | null)?.old_path
   if (old) await removeFiles([old])
@@ -240,14 +248,14 @@ export async function replacePhoto(userId: string, stageId: string, angle: Angle
 /** Leva a foto para outro ângulo; se ele tiver foto, as duas trocam de lugar. */
 export async function movePhoto(photoId: string, angle: Angle): Promise<{ swappedWith: string | null }> {
   const { data, error } = await supabase.rpc('move_photo', { p_photo_id: photoId, p_angle: angle })
-  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível trocar o ângulo: ${error.message}`)
+  if (error) throw new Error(friendly(error.message) ?? `Não foi possível trocar o ângulo: ${error.message}`)
   return { swappedWith: (data as { swapped_with?: string | null } | null)?.swapped_with ?? null }
 }
 
 /** Remove uma foto do momento (a última não sai) e apaga o arquivo. */
 export async function deletePhoto(photoId: string): Promise<void> {
   const { data, error } = await supabase.rpc('delete_photo', { p_photo_id: photoId })
-  if (error) throw new Error(FRIENDLY[error.message] ?? `Não foi possível remover a foto: ${error.message}`)
+  if (error) throw new Error(friendly(error.message) ?? `Não foi possível remover a foto: ${error.message}`)
   const path = (data as { path?: string | null } | null)?.path
   if (path) await removeFiles([path])
 }

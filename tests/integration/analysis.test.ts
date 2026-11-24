@@ -1,7 +1,8 @@
-// Análise da finalização pela IA: limite diário (3 por pessoa, 20 no app) e a análise só é vista e mexida pela dona.
+// Análise da finalização pela IA: limite por plano (Grátis 1 por mês, Pro 1 por dia), teto de 20 por
+// dia no app, e a análise só é vista e mexida pela dona.
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { adminClient, anonClient, photoPath, testUser, tinyJpeg, type TestUser } from './helpers'
+import { adminClient, anonClient, brDay, photoPath, setPlan, testUser, tinyJpeg, type TestUser } from './helpers'
 
 const BUCKET = 'capilar-photos'
 
@@ -34,45 +35,63 @@ const RESULT = {
 }
 
 describe('limite de análises', () => {
-  let a: TestUser
-  let b: TestUser
+  let free: TestUser
+  let pro: TestUser
   let c: TestUser
+  let d: TestUser
+  let e: TestUser
   const admin = adminClient()
-  const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
   beforeAll(async () => {
-    a = await testUser('analise-limite')
-    b = await testUser('analise-limite-b')
+    free = await testUser('analise-gratis')
+    pro = await testUser('analise-pro')
     c = await testUser('analise-limite-c')
+    d = await testUser('analise-limite-d')
+    e = await testUser('analise-limite-e')
+    await setPlan(pro.id, 'pro')
+    await setPlan(d.id, 'pro')
+    await setPlan(e.id, 'pro')
     // O teto geral soma todo mundo: começa do zero para o teste não depender dos outros.
     const reset = await admin.from('analyze_usage').delete().gte('day', '2000-01-01')
     if (reset.error) throw reset.error
   })
 
-  it('mostra quantas restam, conta para baixo e recusa a 4ª do dia', async () => {
-    expect((await a.client.rpc('analyze_quota_left')).data).toBe(3)
-    for (let i = 1; i <= 3; i++) {
-      const r = await a.client.rpc('consume_analyze_quota')
-      expect(r.error).toBeNull()
-      expect(r.data).toBe(3 - i)
-    }
-    expect((await a.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_limit')
-    expect((await a.client.rpc('analyze_quota_left')).data).toBe(0)
+  it('Grátis: 1 por mês; a do mês passado não conta', async () => {
+    const old = await admin.from('analyze_usage').insert({ user_id: free.id, day: brDay(-40), count: 1 })
+    if (old.error) throw old.error
+    expect((await free.client.rpc('analyze_quota_left')).data).toBe(1)
+    const r = await free.client.rpc('consume_analyze_quota')
+    expect(r.error).toBeNull()
+    expect(r.data).toBe(0)
+    expect((await free.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_limit')
+    expect((await free.client.rpc('analyze_quota_left')).data).toBe(0)
+  })
+
+  it('Pro: 1 por dia; a de ontem não conta; Pro vencido volta ao Grátis', async () => {
+    const yesterday = await admin.from('analyze_usage').insert({ user_id: pro.id, day: brDay(-1), count: 1 })
+    if (yesterday.error) throw yesterday.error
+    expect((await pro.client.rpc('analyze_quota_left')).data).toBe(1)
+    expect((await pro.client.rpc('consume_analyze_quota')).error).toBeNull()
+    expect((await pro.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_limit')
+    // Vencido: vale o Grátis, que conta o mês inteiro; a de hoje já gastou a do mês.
+    await setPlan(pro.id, 'pro', '2020-01-01T00:00:00Z')
+    expect((await pro.client.rpc('analyze_quota_left')).data).toBe(0)
+    expect((await pro.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_limit')
   })
 
   it('teto do app: 20 por dia somando todas as contas', async () => {
-    // a já usou 3; c "usou" mais 16: total 19, sobra 1 para o app inteiro.
-    const seed = await admin.from('analyze_usage').insert({ user_id: c.id, day: today(), count: 16 })
+    // Hoje: Grátis 1 + Pro 1; c "usou" mais 17: total 19, sobra 1 para o app inteiro.
+    const seed = await admin.from('analyze_usage').insert({ user_id: c.id, day: brDay(), count: 17 })
     if (seed.error) throw seed.error
-    expect((await b.client.rpc('analyze_quota_left')).data).toBe(1)
-    const last = await b.client.rpc('consume_analyze_quota')
+    expect((await d.client.rpc('analyze_quota_left')).data).toBe(1)
+    const last = await d.client.rpc('consume_analyze_quota')
     expect(last.error).toBeNull()
     expect(last.data).toBe(0)
-    expect((await b.client.rpc('analyze_quota_left')).data).toBe(0)
-    expect((await b.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_app_limit')
+    expect((await e.client.rpc('analyze_quota_left')).data).toBe(0)
+    expect((await e.client.rpc('consume_analyze_quota')).error?.message).toBe('analyze_app_limit')
   })
 
   it('ninguém lê nem zera o contador, e sem login não consome', async () => {
-    expect((await a.client.from('analyze_usage').select('*')).error?.code).toBe('42501')
+    expect((await free.client.from('analyze_usage').select('*')).error?.code).toBe('42501')
     expect((await anonClient().rpc('consume_analyze_quota')).error).not.toBeNull()
   })
 

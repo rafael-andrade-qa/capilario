@@ -74,3 +74,15 @@ export function ids() {
 export function photoPath(userId: string, stageId: string, photoId: string, ext = 'jpg') {
   return `${userId}/${stageId}/${photoId}.${ext}`
 }
+
+/** Dá (ou tira) o Pro de uma conta, como o servidor faz. `until` no passado = Pro vencido. */
+export async function setPlan(userId: string, plan: 'free' | 'pro', until: string | null = null) {
+  const { error } = await adminClient().from('subscriptions').upsert({ user_id: userId, plan, pro_until: until, updated_at: new Date().toISOString() })
+  if (error) throw error
+}
+
+/** Dia de hoje em Brasília (AAAA-MM-DD), deslocado em `days`. */
+export function brDay(days = 0): string {
+  const d = new Date(Date.now() + days * 86_400_000)
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+}

@@ -1,7 +1,7 @@
 // Início, em duas abas. Diário: o dia mais recente grande (fotos, rotina, clima); os anteriores numa
 // linha cada, separados por mês; tocar abre a tela do dia. Produtos: a prateleira, uma linha por
 // produto, agrupados por etapa da rotina; tocar abre a tela do produto. A aba fica lembrada.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useToastOnce } from '../components/Toasts'
 import { AccountIcon, CompareIcon, PlusIcon } from '../components/ActionIcons'
 import { PhotoView } from '../components/PhotoView'
@@ -12,6 +12,8 @@ import { DayChips, DayWeather, FinalizationMenu, MomentStrip, dayCover, stagesOf
 import { STAGE_LABEL, STAGE_TYPES, brandLabel, finalizationWhen, finalizationsOf, formatTime, productLabel, publishedStages, sortHistory, type Experiment, type Finalization } from '../lib/domain'
 import { href, navigate } from '../lib/router'
 import { useHistory, useThumbUrls } from '../lib/state'
+import { PhotosNudge } from '../components/PlanCard'
+import { refreshPlan } from '../lib/plan'
 import { ROUTINE_STEPS, allFinalizations, diffRoutine, draftOf, finalizationsWith, schedule, stepOfCategory, type Routines, type RoutineStep } from '../lib/routine'
 
 /** A partir de quantos produtos a busca aparece (ao lado do "+", na mesma linha). */
@@ -38,6 +40,10 @@ export function History({
   created?: string | null
 }) {
   const { experiments, error, loading, reload, routines } = useHistory()
+  // O total de fotos muda ao salvar e ao excluir: o aviso do limite acompanha o histórico.
+  useEffect(() => {
+    if (experiments) void refreshPlan()
+  }, [experiments])
   const [tab, setTab] = useState<Tab>(readTab)
   const pickTab = (t: Tab) => {
     setTab(t)
@@ -102,6 +108,7 @@ export function History({
           + Nova finalização
         </a>
       </div>
+      <PhotosNudge />
 
       {error && (
         <p className="alert alert-error">

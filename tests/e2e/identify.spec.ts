@@ -106,13 +106,16 @@ test('identifica pela foto: preenche nome e marca e usa a foto oficial padroniza
   expect(jpegSize(bytes)).toEqual({ w: 900, h: 1200 }) // retrato 3:4, fundo branco
 })
 
-test('limite do dia: avisa e deixa preencher à mão', async ({ page }) => {
+test('limite: avisa, abre o Conheça o Pro e deixa preencher à mão', async ({ page }) => {
   mockIdentify(page, (route) => json(route, 429, { error: 'identify_limit' }))
   await login(page)
   await newProduct(page)
   await page.getByRole('button', { name: 'Cadastrar à mão' }).click()
   await page.getByTestId('identify-input').setInputFiles(FRONT)
-  await expect(page.getByText('Você já usou as 20 identificações de hoje.', { exact: false })).toBeVisible()
+  await expect(page.getByText('Você já usou as identificações do seu plano.', { exact: false })).toBeVisible()
+  const pro = page.getByRole('dialog', { name: 'Você já usou as identificações da semana' })
+  await expect(pro).toContainText('renova na segunda')
+  await pro.getByRole('button', { name: 'Agora não' }).click()
   await expect(page.getByRole('textbox', { name: 'Produto' })).toHaveValue('')
   await expect(page.getByRole('textbox', { name: 'Produto' })).toBeEnabled()
 })

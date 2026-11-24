@@ -8,7 +8,6 @@ import { useToast } from './Toasts'
 import {
   analysisPhotos,
   analyzeFinalization,
-  analyzeQuotaLeft,
   analyzedIds,
   applySuggestions,
   fetchAnalysis,
@@ -17,6 +16,7 @@ import {
   type FinalizationAnalysis,
 } from '../lib/analysis'
 import { STAGE_LABEL, formatShortDateTime, type Finalization, type StageType } from '../lib/domain'
+import { left, limitReached, periodLabel, renewsText, usePlan, type Plan } from '../lib/plan'
 
 /** Brilho (análise com IA). */
 export function SparkIcon({ size = 18 }: { size?: number }) {
@@ -52,7 +52,8 @@ export function useFinalizationAnalysis(
   const [analysis, setAnalysis] = useState<FinalizationAnalysis | null>(null)
   const [busy, setBusy] = useState(false)
   const [applying, setApplying] = useState(false)
-  const [quotaLeft, setQuotaLeft] = useState<number | null>(null)
+  const plan = usePlan()
+  const quotaLeft = quota && plan ? left(plan.analyses) : null
   const finId = fin?.id
 
   useEffect(() => {
@@ -67,17 +68,12 @@ export function useFinalizationAnalysis(
     }
   }, [finId])
 
-  useEffect(() => {
-    if (quota) void analyzeQuotaLeft().then(setQuotaLeft)
-  }, [quota])
-
   async function run() {
     if (!fin || busy) return
     setBusy(true)
     try {
       const r = await analyzeFinalization(fin)
       setAnalysis(r.analysis)
-      setQuotaLeft(r.quotaLeft)
       notify('Análise pronta.')
     } catch (e) {
       notify((e as Error).message, 'error')
@@ -133,6 +129,14 @@ export function useFinalizationAnalysis(
  * leitura que ela já tem e analisa (ou analisa de novo) a finalização inteira. Tocar em Analisar
  * aqui já é a confirmação; a linha de baixo diz quantas fotos vão e quantas análises restam.
  */
+/** Linha da cota na folha: quantas restam no período do plano, ou quando renova. */
+function AnalysisQuota({ plan }: { plan: Plan }) {
+  const q = plan.analyses
+  const rest = left(q)
+  if (rest === 0) return <> · análise {plan.plan === 'pro' ? 'de hoje' : 'do mês'} já usada, {renewsText(q)}</>
+  return <> · {rest === 1 ? 'resta 1 análise' : `restam ${rest} análises`} {periodLabel(q.period)}</>
+}
+
 export function AnalyzeSheet({
   product,
   choices,
@@ -149,6 +153,7 @@ export function AnalyzeSheet({
   const sheet = useSheet(onClose)
   const fin = choices[index]?.fin
   const ai = useFinalizationAnalysis(fin, onNotes, { quota: true })
+  const plan = usePlan()
   const ids = choices.map((c) => c.fin.id).join(',')
 
   useEffect(() => {
@@ -204,7 +209,7 @@ export function AnalyzeSheet({
 
         <p className="muted small ai-foot">
           {ai.photoCount} {ai.photoCount === 1 ? 'foto' : 'fotos'}
-          {ai.quotaLeft != null && ` · restam ${ai.quotaLeft} ${ai.quotaLeft === 1 ? 'análise' : 'análises'} hoje`}
+          {plan && <AnalysisQuota plan={plan} />}
         </p>
         <div className="pdf-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -213,8 +218,8 @@ export function AnalyzeSheet({
           <button
             type="button"
             className={`btn btn-primary ${ai.busy ? 'is-busy' : ''}`}
-            onClick={() => void ai.run()}
-            disabled={ai.busy || ai.photoCount === 0 || ai.quotaLeft === 0}
+            onClick={() => (ai.quotaLeft === 0 ? limitReached('analyses') : void ai.run())}
+            disabled={ai.busy || ai.photoCount === 0}
           >
             {ai.busy ? 'Analisando…' : shown ? 'Analisar de novo' : 'Analisar'}
           </button>

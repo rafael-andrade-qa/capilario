@@ -133,7 +133,7 @@ test('pelo menu da finalização: analisa e usa as observações sugeridas', asy
   await expect(choices).toHaveCount(1)
   await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
   await expect(choices.first()).toContainText('Molhado · Seco')
-  await expect(sheet).toContainText('4 fotos · restam 3 análises hoje')
+  await expect(sheet).toContainText('4 fotos · resta 1 análise neste mês') // conta nova: Grátis
   await expect(sheet).toContainText('A IA olha as fotos de todos os momentos')
 
   await sheet.getByRole('button', { name: 'Analisar', exact: true }).click()
@@ -153,7 +153,6 @@ test('pelo menu da finalização: analisa e usa as observações sugeridas', asy
   await expect(card).toContainText('Feita em')
   await expect(card).not.toContainText('Opus')
   await expect(card).not.toContainText('US$')
-  await expect(sheet).toContainText('restam 2 análises hoje')
   await expect(choices.first()).toContainText('já analisada')
   await expect(sheet.getByRole('button', { name: 'Analisar de novo' })).toBeVisible()
 
@@ -173,7 +172,7 @@ test('pelo menu da finalização: analisa e usa as observações sugeridas', asy
   // A outra finalização ainda não tem análise.
   const other = await openSheet(page, 1)
   await expect(other).toContainText('A IA olha as fotos de todos os momentos')
-  await expect(other).toContainText('1 foto · restam')
+  await expect(other).toContainText('1 foto · resta 1 análise')
   await other.getByRole('button', { name: 'Fechar' }).click()
   await expect(other).toHaveCount(0)
 
@@ -227,7 +226,7 @@ test('sugestão pendente também aparece na tela do momento', async ({ page }) =
   expect(await notesOf(ids.dry)).toBe('Mechas firmes.\n\nAnálise: Seco terceira.')
 })
 
-test('limite do dia: avisa e não analisa', async ({ page }) => {
+test('limite: avisa, abre o Conheça o Pro e não analisa', async ({ page }) => {
   void page.route('**/functions/v1/analyze-finalization', (route) =>
     route.request().method() === 'OPTIONS'
       ? route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' } })
@@ -236,5 +235,24 @@ test('limite do dia: avisa e não analisa', async ({ page }) => {
   await login(page)
   const sheet = await openSheet(page)
   await sheet.getByRole('button', { name: 'Analisar de novo' }).click()
-  await expect(page.getByText('Você já usou as 3 análises de hoje. Amanhã libera de novo.')).toBeVisible()
+  await expect(page.getByText('Você já usou a análise do seu plano neste período.')).toBeVisible()
+  const pro = page.getByRole('dialog', { name: 'Você já usou a análise do mês' })
+  await expect(pro).toBeVisible()
+  await expect(pro.getByRole('row', { name: /Análise com IA/ })).toContainText('1 por dia')
+  await pro.getByRole('button', { name: 'Agora não' }).click()
+  await expect(pro).toHaveCount(0)
+  await expect(sheet).toBeVisible() // a folha de análise continua aberta embaixo
+})
+
+test('sem cota no mês: o botão abre o Conheça o Pro sem chamar a IA', async ({ page }) => {
+  const calls = mockAnalyze(page)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+  await admin.from('analyze_usage').upsert({ user_id: me.id, day: today, count: 1 })
+  await login(page)
+  const sheet = await openSheet(page)
+  await expect(sheet).toContainText('análise do mês já usada, renova em')
+  await sheet.getByRole('button', { name: 'Analisar de novo' }).click()
+  await expect(page.getByRole('dialog', { name: 'Você já usou a análise do mês' })).toBeVisible()
+  expect(calls).toHaveLength(0)
+  await admin.from('analyze_usage').delete().eq('user_id', me.id)
 })

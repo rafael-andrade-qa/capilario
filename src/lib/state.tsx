@@ -7,6 +7,7 @@ import type { RoutineItem, Routines } from './routine'
 import { fillWeather, stagesNeedingWeather } from './weather'
 import { thumbPath } from './images'
 import type { Experiment, Stage } from './domain'
+import { clearPlan } from './plan'
 
 // ---------------------------------------------------------------------------
 // Sessão
@@ -26,6 +27,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!session) {
         clearSignedUrlCache()
         clearHistoryCache()
+        clearPlan()
       }
       setState({ session, ready: true })
     })
@@ -42,6 +44,7 @@ export const useSession = () => useContext(SessionContext)
 export async function signOut() {
   clearSignedUrlCache()
   clearHistoryCache()
+  clearPlan()
   await supabase.auth.signOut()
   window.location.hash = '/'
 }

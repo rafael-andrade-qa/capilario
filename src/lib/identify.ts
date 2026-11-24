@@ -4,6 +4,7 @@ import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
 import { catalogPhotoFile } from './catalog'
 import { downscaleToBase64, toPackshot } from './packshot'
 import { supabase } from './supabase'
+import { limitReached, refreshPlan } from './plan'
 
 export interface Candidate {
   file: File
@@ -37,7 +38,7 @@ type Wire =
     }
 
 const MESSAGES: Record<string, string> = {
-  identify_limit: 'Você já usou as 20 identificações de hoje. Amanhã libera de novo; até lá, preencha à mão.',
+  identify_limit: 'Você já usou as identificações do seu plano. Até renovar, preencha à mão.',
   not_configured: 'A identificação pela foto ainda não foi ligada no servidor. Preencha à mão por enquanto.',
   not_authenticated: 'Sua sessão expirou. Entre novamente.',
   invalid_image: 'Não consegui ler essa foto. Tente outra.',
@@ -67,11 +68,13 @@ export async function identifyFromPhoto(photo: Blob, onStep?: (step: IdentifySte
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const body = await (error.context as Response).json().catch(() => ({}))
+      if (body?.error === 'identify_limit') limitReached('identify')
       throw new Error(MESSAGES[body?.error] ?? GENERIC)
     }
     if (error instanceof FunctionsFetchError) throw new Error('Sem conexão com o servidor. Confira a internet e tente de novo.')
     throw new Error(GENERIC)
   }
+  void refreshPlan()
   if (!data || !data.found) return { found: false }
   onStep?.('photo')
   const settled = await Promise.allSettled(

@@ -1,6 +1,7 @@
 // Minha conta: e-mail, senha, sair e excluir a conta.
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { PageHeader } from '../components/PageHeader'
+import { PlanCard } from '../components/PlanCard'
 import { useToast } from '../components/Toasts'
 import { MIN_PASSWORD, changeEmail, changePassword, deleteAccount, passwordProblem } from '../lib/account'
 import { href } from '../lib/router'
@@ -18,6 +19,8 @@ export function Account() {
   return (
     <main className="page account-page">
       <PageHeader title="Minha conta" back={{ label: 'Voltar ao histórico', href: href('/') }} />
+
+      <PlanCard />
 
       <section className="card account-card">
         <div className="account-row">

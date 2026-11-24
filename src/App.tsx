@@ -7,6 +7,7 @@ import { AuthLink } from './screens/AuthLink'
 import { History } from './screens/History'
 import { PageSkeleton } from './components/Skeleton'
 import { LogoMark, Strands } from './components/Brand'
+import { ProSheetHost } from './components/ProSheet'
 
 // Cada tela além do histórico é baixada à parte: o app abre mais rápido e, logo depois, as outras
 // telas são buscadas em segundo plano (e ficam guardadas), para a navegação não esperar.
@@ -110,6 +111,7 @@ function Screens({ userId }: { userId: string }) {
       <Suspense fallback={<PageSkeleton />}>
         <Route userId={userId} />
       </Suspense>
+      <ProSheetHost />
     </>
   )
 }

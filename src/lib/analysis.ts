@@ -6,6 +6,7 @@ import { mergeNote } from './analysisText'
 import { ANGLES, STAGE_TYPES, type Angle, type Finalization, type StageType } from './domain'
 import { coverCrop, type Crop } from './framing'
 import { supabase } from './supabase'
+import { limitReached, refreshPlan } from './plan'
 
 /** Tamanho de cada foto enviada: ~600 tokens. No teste de 24/11 deu a mesma leitura que 768×1024, com um terço a menos de custo. */
 export const SEND_W = 576
@@ -64,11 +65,6 @@ export async function analyzedIds(finalizationIds: string[]): Promise<Set<string
   return new Set((data ?? []).map((r: { finalization_id: string }) => r.finalization_id))
 }
 
-export async function analyzeQuotaLeft(): Promise<number | null> {
-  const { data, error } = await supabase.rpc('analyze_quota_left')
-  return error || typeof data !== 'number' ? null : data
-}
-
 export async function setNotesState(finalizationId: string, state: FinalizationAnalysis['notes_state']): Promise<void> {
   const { error } = await supabase.from('finalization_analyses').update({ notes_state: state }).eq('finalization_id', finalizationId)
   if (error) throw new Error(error.message)
@@ -115,7 +111,7 @@ async function croppedBase64(url: string, crop: Crop | null | undefined): Promis
 }
 
 const MESSAGES: Record<string, string> = {
-  analyze_limit: 'Você já usou as 3 análises de hoje. Amanhã libera de novo.',
+  analyze_limit: 'Você já usou a análise do seu plano neste período.',
   analyze_app_limit: 'As análises de hoje acabaram para todo mundo. Amanhã libera de novo.',
   not_configured: 'A análise com IA ainda não foi ligada no servidor.',
   not_authenticated: 'Sua sessão expirou. Entre novamente.',
@@ -146,12 +142,14 @@ export async function analyzeFinalization(fin: Pick<Finalization, 'id' | 'moment
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const body = await (error.context as Response).json().catch(() => ({}))
+      if (body?.error === 'analyze_limit') limitReached('analyses')
       throw new Error(MESSAGES[body?.error] ?? GENERIC)
     }
     if (error instanceof FunctionsFetchError) throw new Error('Sem conexão com o servidor. Confira a internet e tente de novo.')
     throw new Error(GENERIC)
   }
   if (!data?.analysis) throw new Error(GENERIC)
+  void refreshPlan()
   return { analysis: data.analysis, quotaLeft: typeof data.quota_left === 'number' ? data.quota_left : null }
 }
 

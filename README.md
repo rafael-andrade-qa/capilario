@@ -240,6 +240,24 @@ conta**: trocar o e-mail (vale depois de confirmar nos dois endereços), trocar 
 **excluir a conta**. Excluir pede a senha e chama a função `delete-account`, que apaga os arquivos da pessoa no
 Storage e o usuário; o banco apaga o resto em cascata. Depois de trocar a senha, chega um aviso por e-mail.
 
+## Planos (Grátis e Pro)
+
+Toda conta é **Grátis** até ter uma assinatura Pro válida (tabela `subscriptions`, que só o servidor mexe;
+`pro_until` vazio = sem prazo). Os limites seguem o plano, no horário de Brasília (`plan_limits` no banco):
+
+| | Grátis | Pro |
+|---|---|---|
+| Análise com IA | 1 por mês | 1 por dia |
+| Identificar pela foto | 3 por semana (segunda a domingo) | 10 por dia |
+| Fotos guardadas | até 300 | até 1.000 |
+
+O teto de 20 análises por dia somando todas as contas continua como trava de custo. Não há teste grátis: o
+app mostra o valor no Grátis e, quando um limite trava, abre o **Conheça o Pro** (comparação dos planos).
+Antes de travar, o diário avisa quando as fotos passam de 80% do limite. **Minha conta** mostra o plano, o
+uso e quando cada cota renova (`my_plan()`). Quem perde o Pro não perde nada: só não guarda fotos acima do
+limite do Grátis. Para dar Pro à mão: `insert into subscriptions (user_id, plan) values (<id>, 'pro')`.
+A assinatura paga entra na fase de pagamento (por enquanto, **Quero o Pro** avisa que abre em breve).
+
 ## Avisos
 
 Confirmações ("Seco salvo.", "Momento excluído.", "Produto atualizado.", "Foto trocada.") e erros de ações
