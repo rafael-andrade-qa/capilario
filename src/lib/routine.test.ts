@@ -107,15 +107,20 @@ describe('rotina de partida e diferenças', () => {
     expect(routineText(routines.f2, all)).toBe('Lavar: Shampoo B · Máscara: Máscara (nutrição) · Fixar: Geleia')
     expect(routineText([], all)).toBeNull()
   })
-  it('rotina em tabela para o PDF: etapa, produto e marca; a etapa só na primeira linha dela', () => {
+  it('rotina em tabela para o PDF: as 7 etapas, traço onde não tem produto; a etapa só na primeira linha', () => {
     const withBrand = [{ ...shampooA, brand: 'Marca S' }, ...all.slice(1)]
     expect(routineTable([...routines.f2, item('f2', 'sa', 'wash', 1)], withBrand)).toEqual([
-      ['Lavar', 'Shampoo B', ''],
+      ['Lavar', 'Shampoo B', '—'],
       ['', 'Shampoo A', 'Marca S'],
-      ['Máscara', 'Máscara (nutrição)', ''],
-      ['Fixar', 'Geleia', ''],
+      ['Condicionar', '—', '—'],
+      ['Máscara', 'Máscara (nutrição)', '—'],
+      ['Preparar', '—', '—'],
+      ['Definir', '—', '—'],
+      ['Fixar', 'Geleia', '—'],
+      ['Finalizar', '—', '—'],
     ])
-    expect(routineTable([item('f2', 'gl', 'hold', 0)], all)).toBeNull() // só o produto principal
+    expect(routineTable([item('f2', 'gl', 'hold', 0)], all)).toHaveLength(7) // só o produto principal: a tabela vem mesmo assim
+    expect(routineTable([], all)).toBeNull()
   })
 })
 

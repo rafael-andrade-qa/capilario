@@ -195,16 +195,25 @@ export function productScores(
   }
 }
 
+/** Célula vazia da tabela da rotina (etapa sem produto, produto sem marca). */
+export const NO_ITEM = '—'
+
 /**
- * Rotina como tabela do PDF: [etapa, produto, marca] por produto, na ordem da rotina (a etapa só
- * na primeira linha dela). Só quando tem mais que o produto principal (senão repete o título).
+ * Rotina como tabela do PDF: as 7 etapas, sempre (quem recebe vê a rotina completa), com
+ * [etapa, produto, marca] por produto; etapa sem produto leva um traço. A etapa só na primeira
+ * linha dela. Sem rotina registrada: null.
  */
 export function routineTable(items: RoutineItem[] | undefined, experiments: Experiment[]): string[][] | null {
-  if (!items || items.length < 2) return null
+  if (!items?.length) return null
   const byId = new Map(experiments.map((e) => [e.id, e]))
-  return sortRoutine(items).map((i, k, all) => {
-    const e = byId.get(i.experiment_id)
-    return [k > 0 && all[k - 1].step === i.step ? '' : stepLabel(i.step), itemName(e, i.mask_kind), (e && brandLabel(e)) || '']
+  const sorted = sortRoutine(items)
+  return ROUTINE_STEPS.flatMap(({ id, label }) => {
+    const here = sorted.filter((i) => i.step === id)
+    if (!here.length) return [[label, NO_ITEM, NO_ITEM]]
+    return here.map((i, k) => {
+      const e = byId.get(i.experiment_id)
+      return [k === 0 ? label : '', itemName(e, i.mask_kind), (e && brandLabel(e)) || NO_ITEM]
+    })
   })
 }
 

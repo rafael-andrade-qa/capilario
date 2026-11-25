@@ -337,7 +337,8 @@ function notesBlock(doc: Doc, blocks: WrappedNote[], y: number): number {
     }
     for (const r of b.rows) {
       r.forEach((cell, i) => {
-        doc.setTextColor(...(i === 0 ? MUTED : TEXT))
+        // Rótulo (1ª coluna) e célula vazia (traço) em cinza.
+        doc.setTextColor(...(i === 0 || cell.join('') === '—' ? MUTED : TEXT))
         lines(cell, xs[i])
       })
       y += rowHeight(r)
