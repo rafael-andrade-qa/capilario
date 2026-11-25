@@ -269,18 +269,8 @@ export function typesByStep(): { step: (typeof STEPS)[number]; types: { id: stri
   })).filter((g) => g.types.length > 0)
 }
 
-/** Explicação do tipo para o PDF: "O que é geleia" + o que é e a etapa. */
-export function pdfAbout(e: { product_mode: string; category?: string | null }): { title: string; text: string } | null {
-  if (e.product_mode === 'none') return { title: 'O que é sem finalizador', text: `${NO_FINISHER_GUIDE.what} ${NO_FINISHER_GUIDE.why}` }
-  const t = productType(e.category)
-  if (!t) return null
-  return { title: `O que é ${lower(t.label)}`, text: `${t.what} Etapa da rotina: ${lower(stepOf(t.step).label)}.` }
-}
-
 /** "Geleia · Widi Care" (marca na capa do PDF, com o tipo na frente). */
 export function typeAndBrand(e: { product_mode: string; category?: string | null }, brand: string | null): string | null {
   const t = e.product_mode === 'named' ? productType(e.category) : null
   return [t?.label, brand].filter(Boolean).join(' · ') || null
 }
-
-const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)

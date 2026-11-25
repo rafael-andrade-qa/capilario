@@ -8,7 +8,7 @@ import type { PdfOption } from '../components/PdfShareSheet'
 import { humidityTag, weatherShort } from './weather'
 import type { FinalizationAnalysis } from './analysis'
 import { splitNote } from './analysisText'
-import { pdfAbout, typeAndBrand } from './productGuide'
+import { typeAndBrand } from './productGuide'
 import { signedUrls } from './api'
 import {
   ANGLES,
@@ -52,11 +52,6 @@ export function pdfNotes(stages: Pick<Stage, 'stage_type' | 'notes'>[], withAi: 
       ...(withAi && analysis ? [{ title: titled ? `${name} · análise da IA` : 'Análise da IA', text: analysis }] : []),
     ]
   })
-}
-
-const withAbout = (e: Experiment) => {
-  const a = pdfAbout(e)
-  return a ? [a] : []
 }
 
 /** Rotina do dia como tabela no PDF: Etapa | Produto | Marca. */
@@ -116,7 +111,6 @@ export function finalizationOption(
         })),
         notes: [
           ...(routine ? [routineNote(routine)] : []),
-          ...withAbout(experiment),
           ...pdfNotes(stages, withAi, true),
         ],
         reading: withAi && analysis ? pdfReading(analysis) : undefined,
@@ -147,7 +141,7 @@ export function momentOption(experiment: Experiment, stage: Stage, present: Angl
           pill: weatherShort(stage) ? `${formatDateTime(stage.captured_at)} · ${weatherShort(stage)}` : formatDateTime(stage.captured_at),
           heroes: [await productHero(experiment)],
         },
-        notes: [...withAbout(experiment), ...pdfNotes([stage], withAi, false)],
+        notes: pdfNotes([stage], withAi, false),
         photos: present.map((ang) => {
           const p = photoByAngle(stage, ang)!
           return { label: ANGLE_LABEL[ang], url: urls[p.storage_path], crop: p.crop }

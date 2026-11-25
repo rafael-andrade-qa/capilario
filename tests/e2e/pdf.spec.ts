@@ -194,7 +194,7 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   expect(text).toMatch(/\(Seco · an.lise da IA\)[\s\S]*\(Ondas 2B uniformes\.\)/)
   // Quem recebe entende o produto: o tipo na capa e o que ele é.
   expect(text).toContain('Geleia · Marca G')
-  expect(text).toMatch(/\(O que . geleia\)[\s\S]*\(Gel leve/)
+  expect(text).not.toMatch(/O que . geleia/) // quem recebe já conhece o produto
   // Propaganda: o endereço fixo do app (nunca o de teste) e sem nome do modelo.
   expect(text).toContain('Feito com o Capilário · capilario.com.br')
   expect(withAi.toString('latin1')).toContain('/URI (https://capilario.com.br)') // clicável

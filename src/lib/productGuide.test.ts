@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { CATEGORIES } from '../../scripts/catalog/normalize.mjs'
 import { CATEGORY_LABEL } from './catalog'
 import { ROUTINE_STEPS } from './routine'
-import { PRODUCT_TYPES, STEPS, pdfAbout, typeAndBrand, typesByStep } from './productGuide'
+import { PRODUCT_TYPES, STEPS, typeAndBrand, typesByStep } from './productGuide'
 
 describe('guia dos tipos', () => {
   it('cobre todos os tipos do catálogo, com o mesmo nome', () => {
@@ -32,10 +32,8 @@ describe('guia dos tipos', () => {
     expect(groups.find((g) => g.step.id === 'hold')!.types.map((t) => t.id)).toEqual(['gelatina', 'geleia', 'gel', 'mousse'])
   })
 
-  it('explicação do PDF e marca com o tipo', () => {
+  it('marca com o tipo', () => {
     const geleia = { product_mode: 'named', category: 'geleia' }
-    expect(pdfAbout(geleia)).toEqual({ title: 'O que é geleia', text: expect.stringMatching(/^Gel leve.*Etapa da rotina: fixar\.$/) })
-    expect(pdfAbout({ product_mode: 'named' })).toBeNull()
     expect(typeAndBrand(geleia, 'Widi Care')).toBe('Geleia · Widi Care')
     expect(typeAndBrand({ product_mode: 'named', category: null }, 'Widi Care')).toBe('Widi Care')
     expect(typeAndBrand(geleia, null)).toBe('Geleia')
