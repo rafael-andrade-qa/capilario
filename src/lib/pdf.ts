@@ -3,7 +3,7 @@
 //
 // Capa: o topo da primeira página é um banner com a identidade do app (é o que aparece na
 // prévia do WhatsApp): marca, produto em destaque, uma etiqueta com data e momentos, a foto da
-// embalagem à direita (para saber qual é o produto) e o endereço do app. As fotos do rosto ficam
+// embalagem à direita (para saber qual é o produto) e o endereço do app (também no rodapé). As fotos do rosto ficam
 // na análise, logo abaixo. O conteúdo vem logo abaixo, dimensionado para caber.
 import { coverCrop, type Crop } from './framing'
 
@@ -221,8 +221,17 @@ function drawBanner(doc: Doc, lib: JsPdf, b: Banner, a: { icon: string | null; h
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.setTextColor(...LIGHT)
-  // Sem o endereço do app: o PDF circula, o app não é para divulgar.
-  doc.text('Feito com o Capilário', PAGE_W - MARGIN, BANNER_H - 7.5, { align: 'right' })
+  siteLink(doc, `Feito com o Capilário · ${SITE}`, PAGE_W - MARGIN, BANNER_H - 7.5)
+}
+
+/** Endereço do app (fixo: o PDF nunca leva o endereço de teste). Clicável no PDF. */
+export const SITE = 'capilario.com.br'
+
+/** Texto alinhado à direita em (x, y), com o link do app por cima. */
+function siteLink(doc: Doc, text: string, x: number, y: number) {
+  doc.text(text, x, y, { align: 'right' })
+  const w = doc.getTextWidth(text)
+  doc.link(x - w, y - 3, w, 4, { url: `https://${SITE}` })
 }
 
 function photoBox(doc: Doc, img: string | null, x: number, y: number, w: number, label: string) {
@@ -256,8 +265,8 @@ function footers(doc: Doc) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(...MUTED)
-    doc.text(`Gerado pelo Capilário em ${today}`, MARGIN, PAGE_H - 9)
-    if (total > 1) doc.text(`${i}/${total}`, PAGE_W - MARGIN, PAGE_H - 9, { align: 'right' })
+    doc.text(`Gerado pelo Capilário em ${today}${total > 1 ? ` · ${i}/${total}` : ''}`, MARGIN, PAGE_H - 9)
+    siteLink(doc, SITE, PAGE_W - MARGIN, PAGE_H - 9)
   }
 }
 
