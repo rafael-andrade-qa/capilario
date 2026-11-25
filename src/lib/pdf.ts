@@ -271,28 +271,37 @@ function footers(doc: Doc) {
 }
 
 /**
- * Bloco de texto no fim do PDF: título em negrito numa linha e, embaixo, o texto ou uma lista
- * de linhas "rótulo  texto" (a rotina: "Lavar  Shampoo X").
+ * Bloco de texto no fim do PDF: título em negrito numa linha e, embaixo, o texto ou uma tabela
+ * (a rotina: Etapa | Produto | Marca). Na tabela, a primeira coluna sai em cinza, como rótulo.
  */
 export interface PdfNote {
   title?: string
   text?: string
-  rows?: [label: string, text: string][]
+  /** Cabeçalho da tabela (opcional). */
+  head?: string[]
+  /** Linhas da tabela, todas com o mesmo número de colunas (2 ou 3). */
+  rows?: string[][]
 }
 
 interface WrappedNote {
   title?: string
   lines: string[]
-  rows: { label: string; lines: string[] }[]
+  head?: string[]
+  widths: number[]
+  rows: string[][][]
 }
 
 const NOTE_W = PAGE_W - 2 * MARGIN
-const ROW_LABEL_W = 28
+const LABEL_W = 28
+const LAST_W = 52
 const LINE_H = 5
 const TITLE_H = 6
+const HEAD_H = 6
 const NOTE_GAP = 5
+const columnWidths = (cols: number) => (cols >= 3 ? [LABEL_W, NOTE_W - LABEL_W - LAST_W, LAST_W] : [LABEL_W, NOTE_W - LABEL_W])
+const rowHeight = (r: string[][]) => Math.max(1, ...r.map((c) => c.length)) * LINE_H + 1
 const noteHeight = (b: WrappedNote) =>
-  (b.title ? TITLE_H : 0) + b.lines.length * LINE_H + b.rows.reduce((s, r) => s + r.lines.length * LINE_H + 1, 0) + NOTE_GAP
+  (b.title ? TITLE_H : 0) + b.lines.length * LINE_H + (b.head ? HEAD_H : 0) + b.rows.reduce((s, r) => s + rowHeight(r), 0) + NOTE_GAP
 
 /** Desenha os blocos a partir de y (topo); devolve o y final. */
 function notesBlock(doc: Doc, blocks: WrappedNote[], y: number): number {
@@ -313,12 +322,25 @@ function notesBlock(doc: Doc, blocks: WrappedNote[], y: number): number {
       lines(b.lines, MARGIN)
       y += b.lines.length * LINE_H
     }
-    for (const r of b.rows) {
+    const xs = b.widths.map((_, i) => MARGIN + b.widths.slice(0, i).reduce((s, w) => s + w, 0))
+    if (b.head) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
       doc.setTextColor(...MUTED)
-      doc.text(r.label, MARGIN, y)
-      doc.setTextColor(...TEXT)
-      lines(r.lines, MARGIN + ROW_LABEL_W)
-      y += r.lines.length * LINE_H + 1
+      b.head.forEach((h, i) => doc.text(h.toUpperCase(), xs[i], y, { charSpace: 0.3 }))
+      doc.setDrawColor(...LINE)
+      doc.setLineWidth(0.3)
+      doc.line(MARGIN, y + 2, MARGIN + NOTE_W, y + 2)
+      y += HEAD_H
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+    }
+    for (const r of b.rows) {
+      r.forEach((cell, i) => {
+        doc.setTextColor(...(i === 0 ? MUTED : TEXT))
+        lines(cell, xs[i])
+      })
+      y += rowHeight(r)
     }
     y += NOTE_GAP
   }
@@ -328,11 +350,16 @@ function notesBlock(doc: Doc, blocks: WrappedNote[], y: number): number {
 function wrapNotes(doc: Doc, notes: PdfNote[]): { blocks: WrappedNote[]; height: number } {
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
-  const blocks = notes.map((n) => ({
-    title: n.title,
-    lines: n.text ? (doc.splitTextToSize(n.text, NOTE_W) as string[]) : [],
-    rows: (n.rows ?? []).map(([label, text]) => ({ label, lines: doc.splitTextToSize(text, NOTE_W - ROW_LABEL_W) as string[] })),
-  }))
+  const blocks = notes.map((n) => {
+    const widths = columnWidths(n.head?.length ?? n.rows?.[0]?.length ?? 2)
+    return {
+      title: n.title,
+      lines: n.text ? (doc.splitTextToSize(n.text, NOTE_W) as string[]) : [],
+      head: n.head,
+      widths,
+      rows: (n.rows ?? []).map((r) => r.map((cell, i) => (cell ? (doc.splitTextToSize(cell, widths[i] - 3) as string[]) : []))),
+    }
+  })
   return { blocks, height: blocks.reduce((s, b) => s + noteHeight(b), 0) }
 }
 

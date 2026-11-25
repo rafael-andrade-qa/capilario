@@ -2,7 +2,7 @@
 // e horário, trocar a foto de um ângulo, remover (menos a última), pôr foto num ângulo vazio e
 // ajustar o enquadramento (à mão ou automático, em todas as fotos de uma vez).
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { routineExtra } from '../lib/routine'
+import { routineTable } from '../lib/routine'
 import { weatherLong } from '../lib/weather'
 import { CheckIcon, CloseIcon, CompareIcon, CropIcon, DropIcon, EditIcon } from '../components/ActionIcons'
 import { DeleteStageDialog } from '../components/DeleteStageDialog'
@@ -455,7 +455,7 @@ export function StageDetail({ stageId }: { stageId: string }) {
           onClose={() => setPdfOpen(false)}
           options={[
             momentOption(experiment, stage, present, urls),
-            ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin, undefined, ai.analysis, routineExtra(routines[fin.id], experiments ?? []))] : []),
+            ...(fin && STAGE_TYPES.filter((t) => fin.moments[t]).length > 1 ? [finalizationOption(experiment, fin, undefined, ai.analysis, routineTable(routines[fin.id], experiments ?? []))] : []),
           ]}
         />
       )}

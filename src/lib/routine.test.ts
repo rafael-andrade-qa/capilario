@@ -9,6 +9,7 @@ import {
   lastRoutine,
   principalOf,
   productScores,
+  routineTable,
   routineText,
   schedule,
   sortRoutine,
@@ -105,6 +106,16 @@ describe('rotina de partida e diferenças', () => {
   it('rotina em texto para o PDF, a mensagem e a IA', () => {
     expect(routineText(routines.f2, all)).toBe('Lavar: Shampoo B · Máscara: Máscara (nutrição) · Fixar: Geleia')
     expect(routineText([], all)).toBeNull()
+  })
+  it('rotina em tabela para o PDF: etapa, produto e marca; a etapa só na primeira linha dela', () => {
+    const withBrand = [{ ...shampooA, brand: 'Marca S' }, ...all.slice(1)]
+    expect(routineTable([...routines.f2, item('f2', 'sa', 'wash', 1)], withBrand)).toEqual([
+      ['Lavar', 'Shampoo B', ''],
+      ['', 'Shampoo A', 'Marca S'],
+      ['Máscara', 'Máscara (nutrição)', ''],
+      ['Fixar', 'Geleia', ''],
+    ])
+    expect(routineTable([item('f2', 'gl', 'hold', 0)], all)).toBeNull() // só o produto principal
   })
 })
 

@@ -2,7 +2,7 @@
 // A finalização fica no produto principal (o finalizador; sem ele, "Sem finalizador"), e esse
 // produto também está na rotina. As etapas e o mapa por tipo são os mesmos do banco
 // (supabase/migrations/20261124000100_routine.sql).
-import { finalizationsOf, productLabel, type Experiment, type Finalization } from './domain'
+import { brandLabel, finalizationsOf, productLabel, type Experiment, type Finalization } from './domain'
 import { productType } from './productGuide'
 
 export type RoutineStep = 'wash' | 'condition' | 'mask' | 'prep' | 'shape' | 'hold' | 'finish'
@@ -195,9 +195,17 @@ export function productScores(
   }
 }
 
-/** Rotina em texto só quando tem mais que o produto principal (senão repete o título do PDF). */
-export function routineExtra(items: RoutineItem[] | undefined, experiments: Experiment[]): string | null {
-  return items && items.length > 1 ? routineText(items, experiments) : null
+/**
+ * Rotina como tabela do PDF: [etapa, produto, marca] por produto, na ordem da rotina (a etapa só
+ * na primeira linha dela). Só quando tem mais que o produto principal (senão repete o título).
+ */
+export function routineTable(items: RoutineItem[] | undefined, experiments: Experiment[]): string[][] | null {
+  if (!items || items.length < 2) return null
+  const byId = new Map(experiments.map((e) => [e.id, e]))
+  return sortRoutine(items).map((i, k, all) => {
+    const e = byId.get(i.experiment_id)
+    return [k > 0 && all[k - 1].step === i.step ? '' : stepLabel(i.step), itemName(e, i.mask_kind), (e && brandLabel(e)) || '']
+  })
 }
 
 /** Rotina em selos curtos: "Shampoo · Máscara N · Mousse" (tipo de cada produto). Vazia: null. */

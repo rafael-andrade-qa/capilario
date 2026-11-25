@@ -59,15 +59,9 @@ const withAbout = (e: Experiment) => {
   return a ? [a] : []
 }
 
-/** Rotina do dia como lista no PDF: "Lavar: X · Fixar: Y" vira as linhas [Lavar, X], [Fixar, Y]. */
-export function routineNote(routine: string): PdfNote {
-  return {
-    title: 'Rotina do dia',
-    rows: routine.split(' · ').map((g) => {
-      const i = g.indexOf(': ')
-      return i < 0 ? ['', g] : [g.slice(0, i), g.slice(i + 2)]
-    }),
-  }
+/** Rotina do dia como tabela no PDF: Etapa | Produto | Marca. */
+export function routineNote(rows: string[][]): PdfNote {
+  return { title: 'Rotina do dia', head: ['Etapa', 'Produto', 'Marca'], rows }
 }
 
 /** Leitura da IA no formato do PDF. */
@@ -92,8 +86,8 @@ export function finalizationOption(
   f: Finalization,
   label = 'Finalização inteira',
   analysis: FinalizationAnalysis | null = null,
-  /** Rotina do dia em texto ("Lavar: Shampoo X · Fixar: Geleia Y"). */
-  routine: string | null = null,
+  /** Rotina do dia em tabela ([etapa, produto, marca] por linha; ver routineTable). */
+  routine: string[][] | null = null,
 ): PdfOption {
   const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
   const angles = ANGLES.filter((a) => stages.some((s) => photoByAngle(s, a)))

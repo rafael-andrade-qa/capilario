@@ -254,8 +254,8 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   // Horário e umidade em linhas separadas (numa linha só, invadiam a coluna do lado).
   expect(text).toContain('(21/11 às 09:00)')
   expect(text).toContain('(umidade 78%)')
-  // Rotina em lista: a etapa e, ao lado, o produto.
-  expect(text).toMatch(/\(Rotina do dia\)[\s\S]*\(Lavar\)[\s\S]*\(Shampoo E\)[\s\S]*\(Creme Evolu/)
+  // Rotina em tabela: etapa, produto e marca.
+  expect(text).toMatch(/\(Rotina do dia\)[\s\S]*\(ETAPA\)[\s\S]*\(PRODUTO\)[\s\S]*\(MARCA\)[\s\S]*\(Lavar\)[\s\S]*\(Shampoo E\)[\s\S]*\(Creme Evolu..o\)[\s\S]*\(Marca E\)/)
 
   // Detalhe do momento: escolher entre este momento e a finalização inteira.
   await page.goto(`./#/etapa/${dry}`)

@@ -12,7 +12,7 @@ import { fetchAnalyses, type FinalizationAnalysis } from '../lib/analysis'
 import { MOMENT_SLUG, STAGE_LABEL, STAGE_TYPES, canAddMoment, formatDateTime, formatTime, nextMoment, productLabel, type Experiment, type Finalization, type Stage } from '../lib/domain'
 import { finalizationOption } from '../lib/finalizationShare'
 import { productType } from '../lib/productGuide'
-import { itemName, routineExtra, sortRoutine, stepLabel, type RoutineItem, type RoutineStep } from '../lib/routine'
+import { itemName, routineTable, sortRoutine, stepLabel, type RoutineItem, type RoutineStep } from '../lib/routine'
 import { href } from '../lib/router'
 import { useHistory, useThumbUrls } from '../lib/state'
 import { weatherLong } from '../lib/weather'
@@ -241,7 +241,7 @@ export function FinalizationMenu({ experiment, fin, when, onDeleted }: { experim
         <PdfShareSheet
           heading="Enviar PDF da finalização"
           pick="list"
-          options={[{ ...finalizationOption(experiment, fin, when, action.analysis, routineExtra(routines[fin.id], experiments ?? [])), ...card }]}
+          options={[{ ...finalizationOption(experiment, fin, when, action.analysis, routineTable(routines[fin.id], experiments ?? [])), ...card }]}
           onClose={() => setAction(null)}
         />
       )}
