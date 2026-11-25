@@ -109,13 +109,16 @@ test('PDF do comparativo: A e B lado a lado', async ({ page }) => {
   await page.goto('./#/comparar')
   await page.getByRole('button', { name: 'Enviar PDF do comparativo' }).click()
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF do comparativo' })
-  // Duas finalizações: o dia e o que foi usado em cada uma (aqui, a gelatina e nada).
-  await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/em duas finalizações:\n• à esquerda \(A\), em 19\/11 às 10:23, com Gelatina PDF;\n• à direita \(B\), em 17\/11 às 10:23, sem finalizador\.\n\nO que mudou: Só em A: fixar\./)
+  // Mensagem curta: os dois dias; o que foi usado e o que mudou estão no PDF.
+  await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(
+    'Meu cabelo seco em duas finalizações, 19/11 × 17/11, lado a lado no PDF.\n\nFeito com o Capilário, meu diário do cabelo.',
+  )
   await expect(dialog.getByRole('textbox', { name: 'Nome do arquivo' })).toHaveValue('Comparativo Seco 19-11 x 17-11')
   const { name, bytes } = await downloadPdf(page, 'Enviar PDF do comparativo')
   expect(name).toBe('Comparativo Seco 19-11 x 17-11.pdf')
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.length).toBeGreaterThan(12_000)
+  expect(pdfText(bytes)).toMatch(/\(O que mudou\)[\s\S]*\(S. em A: fixar\.\)/)
 })
 
 /** "Enviar PDF" pelo menu ⋯ do cartão do dia que tem esse texto (o selo da rotina). */
@@ -244,7 +247,7 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
   await expect(choices.first()).toContainText('Molhado · Seco')
   await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(
-    'Olha a evolução do meu cabelo com Creme Evolução (Marca E), na finalização de 21/11.\nMolhado e seco lado a lado no PDF, com as minhas observações.\n\nFeito com o Capilário, meu diário do cabelo.',
+    'Olha meu cabelo com Creme Evolução (Marca E), na finalização de 21/11.\nMolhado e seco lado a lado no PDF, com as minhas observações.\n\nFeito com o Capilário, meu diário do cabelo.',
   )
   const { name, bytes } = await downloadPdf(page, 'Enviar PDF da finalização')
   expect(name).toBe('Finalização 21-11 - Creme Evolução.pdf')
@@ -264,7 +267,7 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   await expect(sheet.getByRole('button', { name: 'Este momento' })).toHaveAttribute('aria-pressed', 'true')
   await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha como ficou meu cabelo seco/)
   await sheet.getByRole('button', { name: 'Finalização inteira' }).click()
-  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha a evolução do meu cabelo/)
+  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha meu cabelo/)
   const fin = await downloadPdf(page, 'Enviar PDF')
   expect(fin.name).toBe('Finalização 21-11 - Creme Evolução.pdf')
 })

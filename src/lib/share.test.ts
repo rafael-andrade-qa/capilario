@@ -36,14 +36,12 @@ describe('mensagens prontas', () => {
   it('momento com análise da IA: avisa que ela está no PDF', () => {
     expect(momentMessage({ ...gel, ai: true })).toContain('\nAs fotos estão no PDF, com a análise da IA.\n')
   })
-  it('comparativo: esquerda e direita', () => {
-    expect(compareMessage(none, gel)).toBe(
-      `Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 18/11 às 09:05, sem finalizador;\n• à direita (B), em 19/11 às 10:23, com Gelatina Modeladora Supervolume (Widi Care).\n\nAs fotos estão lado a lado no PDF.${SIGN}`,
-    )
-    // Com rotina: os selos curtos e o que mudou.
-    expect(compareMessage({ ...gel, routine: 'Shampoo · Gelatina' }, { ...none, routine: 'Shampoo' }, ['Só em A: fixar'])).toBe(
-      'Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 19/11 às 10:23, com Shampoo · Gelatina;\n• à direita (B), em 18/11 às 09:05, com Shampoo.\n\nO que mudou: Só em A: fixar.\n\nAs fotos estão lado a lado no PDF.' + SIGN,
-    )
+  it('comparativo: curto (o que foi usado e o que mudou estão no PDF) e assinado pelo app', () => {
+    expect(compareMessage(none, gel)).toBe(`Meu cabelo seco em duas finalizações, 18/11 × 19/11, lado a lado no PDF.${SIGN}`)
+  })
+  it('nenhuma mensagem fala em "evolução" (nem sempre é)', () => {
+    const fin: FinalizationInfo = { ...gel, moments: [{ stageType: 'wet', capturedAt: gel.capturedAt }] }
+    for (const m of [momentMessage(gel), compareMessage(none, gel), finalizationMessage(fin)]) expect(m).not.toMatch(/evolu/i)
   })
 })
 
@@ -60,10 +58,10 @@ describe('finalização inteira', () => {
   }
   it('mensagem: curta, com os momentos (os horários estão no PDF) e assinada pelo app', () => {
     expect(finalizationMessage(fin)).toBe(
-      `Olha a evolução do meu cabelo com Gelatina Modeladora Supervolume (Widi Care), na finalização de 19/11.\nMolhado, seco e dia seguinte lado a lado no PDF, com as minhas observações.${SIGN}`,
+      `Olha meu cabelo com Gelatina Modeladora Supervolume (Widi Care), na finalização de 19/11.\nMolhado, seco e dia seguinte lado a lado no PDF, com as minhas observações.${SIGN}`,
     )
     expect(finalizationMessage({ ...fin, noFinisher: true, moments: fin.moments.slice(0, 1) })).toBe(
-      `Olha a evolução do meu cabelo sem finalizador, na finalização de 19/11.\nAs fotos do molhado estão no PDF.${SIGN}`,
+      `Olha meu cabelo sem finalizador, na finalização de 19/11.\nAs fotos do molhado estão no PDF.${SIGN}`,
     )
   })
   it('mensagem com a análise da IA', () => {

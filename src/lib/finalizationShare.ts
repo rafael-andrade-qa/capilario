@@ -95,7 +95,7 @@ export function finalizationOption(
       const urls = await signedUrls(stages.flatMap((s) => s.photos.map((p) => p.storage_path)))
       return finalizationPdf({
         banner: {
-          kicker: 'Evolução da finalização',
+          kicker: 'Finalização',
           title: productLabel(experiment),
           brand: typeAndBrand(experiment, brandLabel(experiment) || null),
           pill: `${dayMonth(f.start)} · ${stages.map((s) => STAGE_LABEL[s.stage_type]).join(' → ')}`,

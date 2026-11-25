@@ -287,11 +287,7 @@ export function Compare({ params }: { params: URLSearchParams }) {
               options={[{
               label: 'Comparativo',
               summary: `${common.length} ${common.length === 1 ? 'ângulo' : 'ângulos'} lado a lado`,
-              message: compareMessage(
-                { ...momentInfo(a.experiment, a.stage), routine: routineShort(routines[a.stage.finalization_id], groups) ? routineOf(a) : null },
-                { ...momentInfo(b.experiment, b.stage), routine: routineShort(routines[b.stage.finalization_id], groups) ? routineOf(b) : null },
-                changeLines,
-              ),
+              message: compareMessage(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
               fileName: compareFileName(momentInfo(a.experiment, a.stage), momentInfo(b.experiment, b.stage)),
               build: async () =>
                 comparePdf({

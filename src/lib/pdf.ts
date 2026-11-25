@@ -15,7 +15,7 @@ export interface PdfPhoto {
 
 /** Capa (banner) do PDF. */
 export interface Banner {
-  /** Linha pequena acima do título: "EVOLUÇÃO DA FINALIZAÇÃO". */
+  /** Linha pequena acima do título: "FINALIZAÇÃO". */
   kicker: string
   /** Título grande (o produto). */
   title: string
@@ -466,7 +466,7 @@ export async function momentPdf(opts: { banner: Banner; photos: PdfPhoto[]; note
 
 /**
  * PDF da finalização inteira: capa, uma coluna por momento (molhado → seco → dia seguinte) e uma
- * linha por ângulo, para ler a evolução da esquerda para a direita; as observações no fim.
+ * linha por ângulo, para ler da esquerda para a direita; as observações no fim.
  * O tamanho das fotos se ajusta para tudo caber numa página.
  */
 export async function finalizationPdf(opts: {

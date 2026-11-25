@@ -12,8 +12,6 @@ export interface MomentInfo {
   notes?: string | null
   /** O PDF leva a análise da IA (a mensagem avisa). */
   ai?: boolean
-  /** Rotina em selos curtos ("Shampoo · Máscara N · Mousse"), quando registrada. */
-  routine?: string | null
 }
 
 export function momentInfo(experiment: Experiment, stage: Stage): MomentInfo {
@@ -65,23 +63,12 @@ export function momentMessage(m: MomentInfo): string {
   ].join('\n')
 }
 
-/** Mensagem pronta para mandar junto com o PDF do comparativo. */
 /**
- * Mensagem do comparativo: duas finalizações (o dia e o que foi usado), e o que mudou entre elas.
- * Sem rotina registrada, diz o produto (ou "sem finalizador").
+ * Mensagem do comparativo: curta. O que foi usado em cada lado e o que mudou estão no PDF.
  */
-export function compareMessage(a: MomentInfo, b: MomentInfo, changes: string[] = []): string {
-  const used = (m: MomentInfo) => (m.routine ? `com ${m.routine}` : productPhrase(m))
-  return [
-    `Comparando meu cabelo ${MOMENT_WORD[a.stageType]} em duas finalizações:`,
-    `• à esquerda (A), em ${whenText(a.capturedAt)}, ${used(a)};`,
-    `• à direita (B), em ${whenText(b.capturedAt)}, ${used(b)}.`,
-    '',
-    ...(changes.length ? [`O que mudou: ${changes.join('; ')}.`, ''] : []),
-    'As fotos estão lado a lado no PDF.',
-    '',
-    SIGNATURE,
-  ].join('\n')
+export function compareMessage(a: MomentInfo, b: MomentInfo): string {
+  const day = (m: MomentInfo) => whenText(m.capturedAt).split(' às ')[0]
+  return [`Meu cabelo ${MOMENT_WORD[a.stageType]} em duas finalizações, ${day(a)} × ${day(b)}, lado a lado no PDF.`, '', SIGNATURE].join('\n')
 }
 
 export interface FinalizationInfo {
@@ -108,7 +95,7 @@ export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, '
 }
 
 /**
- * Mensagem pronta para o PDF da finalização inteira (a evolução do cabelo). Curta: horários,
+ * Mensagem pronta para o PDF da finalização inteira. Curta: horários,
  * rotina e o que é o produto já estão no PDF.
  */
 export function finalizationMessage(f: FinalizationInfo): string {
@@ -120,7 +107,7 @@ export function finalizationMessage(f: FinalizationInfo): string {
   const notes = f.moments.some((m) => splitNote(m.notes).own)
   const extra = notes && f.ai ? ', com as minhas observações e a análise da IA' : notes ? ', com as minhas observações' : f.ai ? ', com a análise da IA' : ''
   const photos = names.length > 1 ? `${list[0].toUpperCase()}${list.slice(1)} lado a lado no PDF` : `As fotos do ${list} estão no PDF`
-  return [`Olha a evolução do meu cabelo ${product}, na finalização de ${whenText(start).split(' às ')[0]}.`, `${photos}${extra}.`, '', SIGNATURE].join('\n')
+  return [`Olha meu cabelo ${product}, na finalização de ${whenText(start).split(' às ')[0]}.`, `${photos}${extra}.`, '', SIGNATURE].join('\n')
 }
 
 const day = (iso: string) => {
