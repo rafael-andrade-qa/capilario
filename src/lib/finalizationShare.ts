@@ -5,7 +5,7 @@
 // da IA de cada momento, com rótulo, separada do que a pessoa escreveu). A folha deixa tirar:
 // cada opção traz também a versão sem a análise (noAi).
 import type { PdfOption } from '../components/PdfShareSheet'
-import { weatherShort, withHumidity } from './weather'
+import { humidityTag, weatherShort } from './weather'
 import type { FinalizationAnalysis } from './analysis'
 import { splitNote } from './analysisText'
 import { pdfAbout, typeAndBrand } from './productGuide'
@@ -24,7 +24,7 @@ import {
   type Finalization,
   type Stage,
 } from './domain'
-import { finalizationPdf, momentPdf, type Banner, type PdfReading } from './pdf'
+import { finalizationPdf, momentPdf, type Banner, type PdfNote, type PdfReading } from './pdf'
 import { finalizationFileName, finalizationInfo, finalizationMessage, momentFileName, momentInfo, momentMessage, whenText } from './share'
 
 /** Embalagem do produto para a capa do PDF (é ela que diz qual produto é). */
@@ -43,12 +43,12 @@ export const dayMonth = (iso: string) => whenText(iso).split(' às ')[0]
  * Observações do PDF: o texto da pessoa e, se for incluir, a análise da IA com rótulo.
  * Na finalização, cada uma leva o nome do momento ("Seco", "Seco · análise da IA").
  */
-export function pdfNotes(stages: Pick<Stage, 'stage_type' | 'notes'>[], withAi: boolean, titled: boolean): { title?: string; text: string }[] {
+export function pdfNotes(stages: Pick<Stage, 'stage_type' | 'notes'>[], withAi: boolean, titled: boolean): { title: string; text: string }[] {
   return stages.flatMap((s) => {
     const { own, analysis } = splitNote(s.notes)
     const name = STAGE_LABEL[s.stage_type]
     return [
-      ...(own ? [titled ? { title: name, text: own } : { text: own }] : []),
+      ...(own ? [{ title: titled ? name : 'Minha observação', text: own }] : []),
       ...(withAi && analysis ? [{ title: titled ? `${name} · análise da IA` : 'Análise da IA', text: analysis }] : []),
     ]
   })
@@ -57,6 +57,17 @@ export function pdfNotes(stages: Pick<Stage, 'stage_type' | 'notes'>[], withAi: 
 const withAbout = (e: Experiment) => {
   const a = pdfAbout(e)
   return a ? [a] : []
+}
+
+/** Rotina do dia como lista no PDF: "Lavar: X · Fixar: Y" vira as linhas [Lavar, X], [Fixar, Y]. */
+export function routineNote(routine: string): PdfNote {
+  return {
+    title: 'Rotina do dia',
+    rows: routine.split(' · ').map((g) => {
+      const i = g.indexOf(': ')
+      return i < 0 ? ['', g] : [g.slice(0, i), g.slice(i + 2)]
+    }),
+  }
 }
 
 /** Leitura da IA no formato do PDF. */
@@ -86,7 +97,7 @@ export function finalizationOption(
 ): PdfOption {
   const stages = STAGE_TYPES.flatMap((t) => (f.moments[t] ? [f.moments[t]!] : []))
   const angles = ANGLES.filter((a) => stages.some((s) => photoByAngle(s, a)))
-  const info = { ...finalizationInfo(experiment, f), routine }
+  const info = finalizationInfo(experiment, f)
   const names = stages.map((s) => STAGE_LABEL[s.stage_type]).join(', ')
   const hasAi = !!analysis || stages.some((s) => splitNote(s.notes).analysis)
   const version = (withAi: boolean): Pick<PdfOption, 'message' | 'build'> => ({
@@ -101,7 +112,7 @@ export function finalizationOption(
           pill: `${dayMonth(f.start)} · ${stages.map((s) => STAGE_LABEL[s.stage_type]).join(' → ')}`,
           heroes: [await productHero(experiment)],
         },
-        columns: stages.map((s) => ({ title: STAGE_LABEL[s.stage_type], subtitle: withHumidity(whenText(s.captured_at), s) })),
+        columns: stages.map((s) => ({ title: STAGE_LABEL[s.stage_type], subtitle: [whenText(s.captured_at), humidityTag(s)].filter((l): l is string => !!l) })),
         rows: angles.map((a) => ({
           label: ANGLE_LABEL[a],
           cells: stages.map((s) => {
@@ -110,9 +121,9 @@ export function finalizationOption(
           }),
         })),
         notes: [
-          ...(routine ? [{ title: 'Rotina do dia', text: routine }] : []),
+          ...(routine ? [routineNote(routine)] : []),
           ...withAbout(experiment),
-          ...(pdfNotes(stages, withAi, true) as { title: string; text: string }[]),
+          ...pdfNotes(stages, withAi, true),
         ],
         reading: withAi && analysis ? pdfReading(analysis) : undefined,
       })

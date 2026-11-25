@@ -28,8 +28,8 @@ describe('observações do PDF', () => {
   it('sem a análise: só o que a pessoa escreveu', () => {
     expect(pdfNotes(stages, false, true)).toEqual([{ title: 'Seco', text: 'Macio.' }])
   })
-  it('momento: o texto da pessoa sem título e a análise como "Análise da IA"', () => {
-    expect(pdfNotes([stages[1]], true, false)).toEqual([{ text: 'Macio.' }, { title: 'Análise da IA', text: 'Ondas 2B.' }])
+  it('momento: o texto da pessoa como "Minha observação" e a análise como "Análise da IA"', () => {
+    expect(pdfNotes([stages[1]], true, false)).toEqual([{ title: 'Minha observação', text: 'Macio.' }, { title: 'Análise da IA', text: 'Ondas 2B.' }])
   })
 })
 

@@ -1,7 +1,6 @@
 // Enviar em PDF: textos prontos (mensagem que acompanha o arquivo e nome do arquivo) e o
 // compartilhamento do aparelho. Os textos são funções puras (testadas em share.test.ts).
 import { splitNote } from './analysisText'
-import { aboutLine } from './productGuide'
 import { STAGE_LABEL, STAGE_TYPES, brandLabel, productLabel, type Experiment, type Finalization, type Stage, type StageType } from './domain'
 
 export interface MomentInfo {
@@ -13,8 +12,6 @@ export interface MomentInfo {
   notes?: string | null
   /** O PDF leva a análise da IA (a mensagem avisa). */
   ai?: boolean
-  /** "Geleia: define e controla o frizz..." (pra quem recebe saber o que é o produto). */
-  about?: string | null
   /** Rotina em selos curtos ("Shampoo · Máscara N · Mousse"), quando registrada. */
   routine?: string | null
 }
@@ -27,7 +24,6 @@ export function momentInfo(experiment: Experiment, stage: Stage): MomentInfo {
     stageType: stage.stage_type,
     capturedAt: stage.captured_at,
     notes: stage.notes,
-    about: aboutLine(experiment),
   }
 }
 
@@ -53,18 +49,20 @@ export function productPhrase(m: MomentInfo): string {
   return `com ${m.productName}${m.brand ? ` (${m.brand})` : ''}`
 }
 
-/** Mensagem pronta para mandar junto com o PDF de um momento. */
+/** Assinatura das mensagens (o endereço entra quando o cadastro abrir). */
+export const SIGNATURE = 'Feito com o Capilário, meu diário do cabelo.'
+
+/**
+ * Mensagem pronta para mandar junto com o PDF de um momento. Curta: a observação e o que é o
+ * produto já estão no PDF.
+ */
 export function momentMessage(m: MomentInfo): string {
-  // "Minha observação" é só o que a pessoa escreveu; a análise da IA vai no PDF, com rótulo.
-  const notes = splitNote(m.notes).own
   return [
     `Olha como ficou meu cabelo ${MOMENT_WORD[m.stageType]}, ${productPhrase(m)}, em ${whenText(m.capturedAt)}.`,
-    notes ? `Minha observação: ${notes}` : null,
-    m.about ? `${m.about}` : null,
     m.ai ? 'As fotos estão no PDF, com a análise da IA.' : 'As fotos estão no PDF.',
-  ]
-    .filter(Boolean)
-    .join('\n\n')
+    '',
+    SIGNATURE,
+  ].join('\n')
 }
 
 /** Mensagem pronta para mandar junto com o PDF do comparativo. */
@@ -81,6 +79,8 @@ export function compareMessage(a: MomentInfo, b: MomentInfo, changes: string[] =
     '',
     ...(changes.length ? [`O que mudou: ${changes.join('; ')}.`, ''] : []),
     'As fotos estão lado a lado no PDF.',
+    '',
+    SIGNATURE,
   ].join('\n')
 }
 
@@ -92,9 +92,6 @@ export interface FinalizationInfo {
   moments: { stageType: StageType; capturedAt: string; notes?: string | null }[]
   /** O PDF leva a análise da IA (a mensagem avisa). */
   ai?: boolean
-  about?: string | null
-  /** Rotina do dia em texto. */
-  routine?: string | null
 }
 
 export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, 'moments'>): FinalizationInfo {
@@ -103,7 +100,6 @@ export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, '
     productName: base.productName,
     brand: base.brand,
     noFinisher: base.noFinisher,
-    about: base.about,
     moments: STAGE_TYPES.flatMap((t) => {
       const s = f.moments[t]
       return s ? [{ stageType: t, capturedAt: s.captured_at, notes: s.notes }] : []
@@ -111,32 +107,20 @@ export function finalizationInfo(experiment: Experiment, f: Pick<Finalization, '
   }
 }
 
-const sameDay = (a: string, b: string) => new Date(a).toDateString() === new Date(b).toDateString()
-const timeOnly = (iso: string) => {
-  const d = new Date(iso)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-/** Mensagem pronta para o PDF da finalização inteira (a evolução do cabelo). */
+/**
+ * Mensagem pronta para o PDF da finalização inteira (a evolução do cabelo). Curta: horários,
+ * rotina e o que é o produto já estão no PDF.
+ */
 export function finalizationMessage(f: FinalizationInfo): string {
   const start = f.moments[0]?.capturedAt
   if (!start) return ''
   const product = productPhrase({ ...f, stageType: 'wet', capturedAt: start })
-  const lines = f.moments.map((m, i) => {
-    const when = sameDay(m.capturedAt, start) ? `às ${timeOnly(m.capturedAt)}` : `em ${whenText(m.capturedAt)}`
-    const word = m.stageType === 'next_day' ? 'no dia seguinte,' : MOMENT_WORD[m.stageType]
-    return `• ${word} ${when}${i === f.moments.length - 1 ? '.' : ';'}`
-  })
+  const names = f.moments.map((m) => STAGE_LABEL[m.stageType].toLowerCase())
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}` : names[0]
   const notes = f.moments.some((m) => splitNote(m.notes).own)
   const extra = notes && f.ai ? ', com as minhas observações e a análise da IA' : notes ? ', com as minhas observações' : f.ai ? ', com a análise da IA' : ''
-  return [
-    `Olha como meu cabelo evoluiu ${product}, na finalização de ${whenText(start).split(' às ')[0]}:`,
-    ...lines,
-    '',
-    ...(f.routine ? [`Rotina do dia: ${f.routine}.`, ''] : []),
-    ...(f.about ? [f.about, ''] : []),
-    `As fotos estão lado a lado no PDF${extra}.`,
-  ].join('\n')
+  const photos = names.length > 1 ? `${list[0].toUpperCase()}${list.slice(1)} lado a lado no PDF` : `As fotos do ${list} estão no PDF`
+  return [`Olha a evolução do meu cabelo ${product}, na finalização de ${whenText(start).split(' às ')[0]}.`, `${photos}${extra}.`, '', SIGNATURE].join('\n')
 }
 
 const day = (iso: string) => {

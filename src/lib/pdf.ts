@@ -261,26 +261,70 @@ function footers(doc: Doc) {
   }
 }
 
-/** Observações: título e parágrafos; devolve o y final. */
-function notesBlock(doc: Doc, blocks: string[][], y: number): number {
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...TEXT)
-  doc.text('Observações', MARGIN, y + 4)
-  y += 10
-  doc.setFont('helvetica', 'normal')
+/**
+ * Bloco de texto no fim do PDF: título em negrito numa linha e, embaixo, o texto ou uma lista
+ * de linhas "rótulo  texto" (a rotina: "Lavar  Shampoo X").
+ */
+export interface PdfNote {
+  title?: string
+  text?: string
+  rows?: [label: string, text: string][]
+}
+
+interface WrappedNote {
+  title?: string
+  lines: string[]
+  rows: { label: string; lines: string[] }[]
+}
+
+const NOTE_W = PAGE_W - 2 * MARGIN
+const ROW_LABEL_W = 28
+const LINE_H = 5
+const TITLE_H = 6
+const NOTE_GAP = 5
+const noteHeight = (b: WrappedNote) =>
+  (b.title ? TITLE_H : 0) + b.lines.length * LINE_H + b.rows.reduce((s, r) => s + r.lines.length * LINE_H + 1, 0) + NOTE_GAP
+
+/** Desenha os blocos a partir de y (topo); devolve o y final. */
+function notesBlock(doc: Doc, blocks: WrappedNote[], y: number): number {
+  y += 4
+  const lines = (t: string[], x: number) => doc.text(t, x, y, { lineHeightFactor: 1.4 })
   for (const b of blocks) {
-    doc.text(b, MARGIN, y)
-    y += b.length * 5 + 2
+    if (b.title) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(...TEXT)
+      doc.text(b.title, MARGIN, y)
+      y += TITLE_H
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...TEXT)
+    if (b.lines.length) {
+      lines(b.lines, MARGIN)
+      y += b.lines.length * LINE_H
+    }
+    for (const r of b.rows) {
+      doc.setTextColor(...MUTED)
+      doc.text(r.label, MARGIN, y)
+      doc.setTextColor(...TEXT)
+      lines(r.lines, MARGIN + ROW_LABEL_W)
+      y += r.lines.length * LINE_H + 1
+    }
+    y += NOTE_GAP
   }
   return y
 }
 
-function wrapNotes(doc: Doc, notes: { title?: string; text: string }[]): { blocks: string[][]; height: number } {
+function wrapNotes(doc: Doc, notes: PdfNote[]): { blocks: WrappedNote[]; height: number } {
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
-  const blocks = notes.map((n) => doc.splitTextToSize(n.title ? `${n.title}: ${n.text}` : n.text, PAGE_W - 2 * MARGIN) as string[])
-  return { blocks, height: blocks.length ? 11 + blocks.reduce((s, b) => s + b.length * 5 + 2, 0) : 0 }
+  const blocks = notes.map((n) => ({
+    title: n.title,
+    lines: n.text ? (doc.splitTextToSize(n.text, NOTE_W) as string[]) : [],
+    rows: (n.rows ?? []).map(([label, text]) => ({ label, lines: doc.splitTextToSize(text, NOTE_W - ROW_LABEL_W) as string[] })),
+  }))
+  return { blocks, height: blocks.reduce((s, b) => s + noteHeight(b), 0) }
 }
 
 /** Leitura da IA no PDF da finalização: tipo, características, as 4 notas, resumo e quem fez. */
@@ -355,7 +399,7 @@ function readingBlock(doc: Doc, r: PdfReading, summary: string[], y: number): nu
 }
 
 /** PDF de um momento: capa, até 4 fotos em grade 2x2 e a observação (e a da IA, com rótulo). */
-export async function momentPdf(opts: { banner: Banner; photos: PdfPhoto[]; notes?: { title?: string; text: string }[] }): Promise<Blob> {
+export async function momentPdf(opts: { banner: Banner; photos: PdfPhoto[]; notes?: PdfNote[] }): Promise<Blob> {
   const [{ doc, lib }, assets, images] = await Promise.all([newDoc(), bannerAssets(opts.banner), Promise.all(opts.photos.map((p) => prepared(p)))])
   drawBanner(doc, lib, opts.banner, assets)
   const notes = wrapNotes(doc, opts.notes ?? [])
@@ -390,9 +434,10 @@ export async function momentPdf(opts: { banner: Banner; photos: PdfPhoto[]; note
  */
 export async function finalizationPdf(opts: {
   banner: Banner
-  columns: { title: string; subtitle: string }[]
+  /** Subtítulo em linhas curtas (horário; umidade), para não invadir a coluna do lado. */
+  columns: { title: string; subtitle: string[] }[]
   rows: { label: string; cells: (PdfPhoto | null)[] }[]
-  notes: { title: string; text: string }[]
+  notes: PdfNote[]
   reading?: PdfReading
 }): Promise<Blob> {
   const flat = opts.rows.flatMap((r) => r.cells)
@@ -406,7 +451,7 @@ export async function finalizationPdf(opts: {
   const labelW = 17
   const gap = 4
   const rowGap = 3
-  const headH = 12
+  const headH = 9 + 4 * Math.max(1, ...opts.columns.map((c) => c.subtitle.length))
   let y = CONTENT_Y - 2
   // Leitura da IA e observações no fim: reserva o espaço delas para caber tudo numa página (até um limite).
   const notes = wrapNotes(doc, opts.notes)
@@ -425,9 +470,9 @@ export async function finalizationPdf(opts: {
     doc.setTextColor(...TEXT)
     doc.text(c.title, colX(i) + w / 2, y + 4, { align: 'center' })
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
+    doc.setFontSize(8.5)
     doc.setTextColor(...MUTED)
-    doc.text(c.subtitle, colX(i) + w / 2, y + 9, { align: 'center' })
+    c.subtitle.forEach((line, li) => doc.text(line, colX(i) + w / 2, y + 9 + li * 4, { align: 'center' }))
   })
   y += headH
 
@@ -492,7 +537,7 @@ export async function comparePdf(opts: {
   b: CompareSide
   rows: { label: string; a: PdfPhoto; b: PdfPhoto }[]
   /** O que mudou entre as duas finalizações, no fim. */
-  notes?: { title?: string; text: string }[]
+  notes?: PdfNote[]
 }): Promise<Blob> {
   const flat = opts.rows.flatMap((r) => [r.a, r.b])
   const [{ doc, lib }, assets, images] = await Promise.all([newDoc(), bannerAssets(opts.banner), Promise.all(flat.map((p) => prepared(p)))])

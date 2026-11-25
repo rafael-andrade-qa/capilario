@@ -24,30 +24,25 @@ const gel: MomentInfo = {
 }
 const none: MomentInfo = { productName: 'Sem finalizador', brand: null, noFinisher: true, stageType: 'dry', capturedAt: local(18, 9, 5) }
 
+const SIGN = '\n\nFeito com o Capilário, meu diário do cabelo.'
+
 describe('mensagens prontas', () => {
-  it('momento: produto, momento, quando e a observação', () => {
+  it('momento: curta (a observação está no PDF) e assinada pelo app', () => {
     expect(momentMessage(gel)).toBe(
-      'Olha como ficou meu cabelo seco, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nMinha observação: Muita definição, pouco frizz.\n\nAs fotos estão no PDF.',
+      `Olha como ficou meu cabelo seco, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\nAs fotos estão no PDF.${SIGN}`,
     )
-    expect(momentMessage({ ...none, stageType: 'next_day' })).toBe('Olha como ficou meu cabelo no dia seguinte, sem finalizador, em 18/11 às 09:05.\n\nAs fotos estão no PDF.')
+    expect(momentMessage({ ...none, stageType: 'next_day' })).toBe(`Olha como ficou meu cabelo no dia seguinte, sem finalizador, em 18/11 às 09:05.\nAs fotos estão no PDF.${SIGN}`)
   })
-  it('momento com análise da IA: "Minha observação" é só o texto da pessoa; o fim avisa da análise', () => {
-    const notes = 'Muita definição.\n\nAnálise: Ondas 2B uniformes.'
-    expect(momentMessage({ ...gel, notes, ai: true })).toBe(
-      'Olha como ficou meu cabelo seco, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nMinha observação: Muita definição.\n\nAs fotos estão no PDF, com a análise da IA.',
-    )
-    // Sem a análise no PDF, ela também não aparece na mensagem.
-    expect(momentMessage({ ...gel, notes: 'Análise: Ondas 2B uniformes.', ai: false })).toBe(
-      'Olha como ficou meu cabelo seco, com Gelatina Modeladora Supervolume (Widi Care), em 19/11 às 10:23.\n\nAs fotos estão no PDF.',
-    )
+  it('momento com análise da IA: avisa que ela está no PDF', () => {
+    expect(momentMessage({ ...gel, ai: true })).toContain('\nAs fotos estão no PDF, com a análise da IA.\n')
   })
   it('comparativo: esquerda e direita', () => {
     expect(compareMessage(none, gel)).toBe(
-      'Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 18/11 às 09:05, sem finalizador;\n• à direita (B), em 19/11 às 10:23, com Gelatina Modeladora Supervolume (Widi Care).\n\nAs fotos estão lado a lado no PDF.',
+      `Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 18/11 às 09:05, sem finalizador;\n• à direita (B), em 19/11 às 10:23, com Gelatina Modeladora Supervolume (Widi Care).\n\nAs fotos estão lado a lado no PDF.${SIGN}`,
     )
     // Com rotina: os selos curtos e o que mudou.
     expect(compareMessage({ ...gel, routine: 'Shampoo · Gelatina' }, { ...none, routine: 'Shampoo' }, ['Só em A: fixar'])).toBe(
-      'Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 19/11 às 10:23, com Shampoo · Gelatina;\n• à direita (B), em 18/11 às 09:05, com Shampoo.\n\nO que mudou: Só em A: fixar.\n\nAs fotos estão lado a lado no PDF.',
+      'Comparando meu cabelo seco em duas finalizações:\n• à esquerda (A), em 19/11 às 10:23, com Shampoo · Gelatina;\n• à direita (B), em 18/11 às 09:05, com Shampoo.\n\nO que mudou: Só em A: fixar.\n\nAs fotos estão lado a lado no PDF.' + SIGN,
     )
   })
 })
@@ -63,20 +58,20 @@ describe('finalização inteira', () => {
       { stageType: 'next_day', capturedAt: local(20, 8, 40) },
     ],
   }
-  it('mensagem: a evolução, com horário de cada momento', () => {
+  it('mensagem: curta, com os momentos (os horários estão no PDF) e assinada pelo app', () => {
     expect(finalizationMessage(fin)).toBe(
-      'Olha como meu cabelo evoluiu com Gelatina Modeladora Supervolume (Widi Care), na finalização de 19/11:\n• molhado às 10:23;\n• seco às 13:05;\n• no dia seguinte, em 20/11 às 08:40.\n\nAs fotos estão lado a lado no PDF, com as minhas observações.',
+      `Olha a evolução do meu cabelo com Gelatina Modeladora Supervolume (Widi Care), na finalização de 19/11.\nMolhado, seco e dia seguinte lado a lado no PDF, com as minhas observações.${SIGN}`,
     )
     expect(finalizationMessage({ ...fin, noFinisher: true, moments: fin.moments.slice(0, 1) })).toBe(
-      'Olha como meu cabelo evoluiu sem finalizador, na finalização de 19/11:\n• molhado às 10:23.\n\nAs fotos estão lado a lado no PDF.',
+      `Olha a evolução do meu cabelo sem finalizador, na finalização de 19/11.\nAs fotos do molhado estão no PDF.${SIGN}`,
     )
   })
   it('mensagem com a análise da IA', () => {
-    const tail = (f: FinalizationInfo) => finalizationMessage(f).split('\n').pop()
-    expect(tail({ ...fin, ai: true })).toBe('As fotos estão lado a lado no PDF, com as minhas observações e a análise da IA.')
+    const second = (f: FinalizationInfo) => finalizationMessage(f).split('\n')[1]
+    expect(second({ ...fin, ai: true })).toBe('Molhado, seco e dia seguinte lado a lado no PDF, com as minhas observações e a análise da IA.')
     const onlyAi = { ...fin, moments: fin.moments.map((m) => ({ ...m, notes: m.notes ? 'Análise: Ondas.' : null })) }
-    expect(tail({ ...onlyAi, ai: true })).toBe('As fotos estão lado a lado no PDF, com a análise da IA.')
-    expect(tail({ ...onlyAi, ai: false })).toBe('As fotos estão lado a lado no PDF.')
+    expect(second({ ...onlyAi, ai: true })).toBe('Molhado, seco e dia seguinte lado a lado no PDF, com a análise da IA.')
+    expect(second({ ...onlyAi, ai: false })).toBe('Molhado, seco e dia seguinte lado a lado no PDF.')
   })
   it('nome do arquivo', () => {
     expect(finalizationFileName(fin)).toBe('Finalização 19-11 - Gelatina Modeladora Supervolume')

@@ -269,13 +269,6 @@ export function typesByStep(): { step: (typeof STEPS)[number]; types: { id: stri
   })).filter((g) => g.types.length > 0)
 }
 
-/** "Geleia: define e controla o frizz, com fixação média." (mensagem e PDF). */
-export function aboutLine(e: { product_mode: string; category?: string | null }): string | null {
-  if (e.product_mode === 'none') return `${NO_FINISHER_GUIDE.label}: ${lower(NO_FINISHER_GUIDE.short)}`
-  const t = productType(e.category)
-  return t ? `${t.label}: ${lower(t.short)}` : null
-}
-
 /** Explicação do tipo para o PDF: "O que é geleia" + o que é e a etapa. */
 export function pdfAbout(e: { product_mode: string; category?: string | null }): { title: string; text: string } | null {
   if (e.product_mode === 'none') return { title: 'O que é sem finalizador', text: `${NO_FINISHER_GUIDE.what} ${NO_FINISHER_GUIDE.why}` }

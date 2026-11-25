@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { CATEGORIES } from '../../scripts/catalog/normalize.mjs'
 import { CATEGORY_LABEL } from './catalog'
 import { ROUTINE_STEPS } from './routine'
-import { PRODUCT_TYPES, STEPS, aboutLine, pdfAbout, typeAndBrand, typesByStep } from './productGuide'
-import { compareMessage, finalizationMessage, momentMessage, type MomentInfo } from './share'
+import { PRODUCT_TYPES, STEPS, pdfAbout, typeAndBrand, typesByStep } from './productGuide'
 
 describe('guia dos tipos', () => {
   it('cobre todos os tipos do catálogo, com o mesmo nome', () => {
@@ -33,11 +32,8 @@ describe('guia dos tipos', () => {
     expect(groups.find((g) => g.step.id === 'hold')!.types.map((t) => t.id)).toEqual(['gelatina', 'geleia', 'gel', 'mousse'])
   })
 
-  it('linha curta, explicação do PDF e marca com o tipo', () => {
+  it('explicação do PDF e marca com o tipo', () => {
     const geleia = { product_mode: 'named', category: 'geleia' }
-    expect(aboutLine(geleia)).toBe('Geleia: define e controla o frizz, com fixação média.')
-    expect(aboutLine({ product_mode: 'none' })).toBe('Sem finalizador: o cabelo só lavado, para comparar.')
-    expect(aboutLine({ product_mode: 'named', category: null })).toBeNull()
     expect(pdfAbout(geleia)).toEqual({ title: 'O que é geleia', text: expect.stringMatching(/^Gel leve.*Etapa da rotina: fixar\.$/) })
     expect(pdfAbout({ product_mode: 'named' })).toBeNull()
     expect(typeAndBrand(geleia, 'Widi Care')).toBe('Geleia · Widi Care')
@@ -46,26 +42,3 @@ describe('guia dos tipos', () => {
   })
 })
 
-describe('mensagens com o tipo', () => {
-  const base: MomentInfo = {
-    productName: 'Geleia Seladora',
-    brand: 'Widi Care',
-    noFinisher: false,
-    stageType: 'dry',
-    capturedAt: '2026-11-19T10:23:00',
-    about: 'Geleia: define e controla o frizz, com fixação média.',
-  }
-  it('momento e finalização explicam o produto antes do aviso do PDF', () => {
-    expect(momentMessage(base)).toBe(
-      'Olha como ficou meu cabelo seco, com Geleia Seladora (Widi Care), em 19/11 às 10:23.\n\nGeleia: define e controla o frizz, com fixação média.\n\nAs fotos estão no PDF.',
-    )
-    const fin = finalizationMessage({ ...base, moments: [{ stageType: 'wet', capturedAt: '2026-11-19T10:00:00' }] })
-    expect(fin).toContain('às 10:00.\n\nGeleia: define e controla o frizz, com fixação média.\n\nAs fotos estão lado a lado no PDF.')
-  })
-  it('comparativo compara finalizações: não explica produto por produto', () => {
-    const none: MomentInfo = { ...base, noFinisher: true, about: 'Sem finalizador: o cabelo só lavado, para comparar.' }
-    const msg = compareMessage(none, base)
-    expect(msg).not.toContain('Geleia: define')
-    expect(msg).toContain('sem finalizador')
-  })
-})

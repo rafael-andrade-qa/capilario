@@ -90,7 +90,8 @@ test('PDF do momento: mensagem pronta e arquivo com as fotos', async ({ page }) 
   await page.getByRole('button', { name: 'Enviar PDF' }).click()
   const dialog = page.getByRole('dialog', { name: 'Enviar PDF' })
   await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha como ficou meu cabelo seco, com Gelatina PDF \(Marca PDF\), em 19\/11 às 10:23\./)
-  await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/Minha observação: Definição boa, pouco frizz\./)
+  // Curta: a observação está no PDF.
+  await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/\nAs fotos estão no PDF\.\n\nFeito com o Capilário, meu diário do cabelo\.$/)
   const fileName = dialog.getByRole('textbox', { name: 'Nome do arquivo' })
   await expect(fileName).toHaveValue('Seco 19-11 - Gelatina PDF')
   // O nome é editável: o arquivo sai com o nome escolhido.
@@ -182,18 +183,18 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   const toggle = dialog.getByRole('checkbox', { name: 'Incluir a análise da IA' })
   await expect(toggle).toBeChecked()
   const message = dialog.getByRole('textbox', { name: 'Mensagem' })
-  await expect(message).toHaveValue(/com as minhas observações e a análise da IA\.$/)
-  await expect(message).toHaveValue(/\n\nGeleia: define e controla o frizz, com fixação média\.\n\n/)
+  await expect(message).toHaveValue(/com as minhas observações e a análise da IA\.\n/)
+  await expect(message).not.toHaveValue(/Geleia: define/) // o que é o produto está no PDF
   const withAi = (await downloadPdf(page, 'Enviar PDF da finalização')).bytes
   let text = pdfText(withAi)
   expect(text).toContain('(Leitura da IA)')
   expect(text).toContain('Ondulado 2B')
   expect(text).toContain('8/10')
-  expect(text).toContain('Seco: Macio e solto.')
-  expect(text).toMatch(/an.lise da IA: Ondas 2B uniformes\./)
+  expect(text).toMatch(/\(Seco\)[\s\S]*\(Macio e solto\.\)/)
+  expect(text).toMatch(/\(Seco · an.lise da IA\)[\s\S]*\(Ondas 2B uniformes\.\)/)
   // Quem recebe entende o produto: o tipo na capa e o que ele é.
   expect(text).toContain('Geleia · Marca G')
-  expect(text).toMatch(/O que . geleia: Gel leve/)
+  expect(text).toMatch(/\(O que . geleia\)[\s\S]*\(Gel leve/)
   // O PDF circula: sem endereço do app e sem nome do modelo.
   expect(text).toContain('Feito com o Capilário')
   expect(text).not.toMatch(/localhost|github|127\.0\.0\.1/i)
@@ -202,20 +203,21 @@ test('análise da IA no PDF: vai por padrão, com rótulo, e dá para tirar', as
   // Sem a análise: some a leitura e a observação da IA; o texto da pessoa fica.
   await dayPdf(page, 'Geleia')
   await toggle.uncheck()
-  await expect(message).toHaveValue(/com as minhas observações\.$/)
+  await expect(message).toHaveValue(/com as minhas observações\.\n/)
   text = pdfText((await downloadPdf(page, 'Enviar PDF da finalização')).bytes)
   expect(text).not.toContain('Leitura da IA')
   expect(text).not.toContain('Ondas 2B uniformes')
-  expect(text).toContain('Seco: Macio e solto.')
+  expect(text).toMatch(/\(Seco\)[\s\S]*\(Macio e solto\.\)/)
 
   // Momento: "Minha observação" é só o texto da pessoa; a análise vai no PDF com rótulo.
   await page.goto(`./#/etapa/${dry}`)
   await page.getByRole('button', { name: 'Enviar PDF' }).click()
   const sheet = page.getByRole('dialog', { name: 'Enviar PDF' })
   await expect(sheet.getByRole('checkbox', { name: 'Incluir a análise da IA' })).toBeChecked()
-  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/Minha observação: Macio e solto\.\n\nGeleia: define e controla o frizz, com fixação média\.\n\nAs fotos estão no PDF, com a análise da IA\.$/)
+  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/\nAs fotos estão no PDF, com a análise da IA\.\n/)
   text = pdfText((await downloadPdf(page, 'Enviar PDF')).bytes)
-  expect(text).toMatch(/An.lise da IA: Ondas 2B uniformes\./)
+  expect(text).toMatch(/\(Minha observa..o\)[\s\S]*\(Macio e solto\.\)/)
+  expect(text).toMatch(/\(An.lise da IA\)[\s\S]*\(Ondas 2B uniformes\.\)/)
   expect(text).not.toContain('Leitura da IA')
 })
 
@@ -224,6 +226,13 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   const finalizationId = randomUUID()
   await seed({ product_mode: 'named', product_name: 'Creme Evolução', brand: 'Marca E' }, null, 21, { experimentId, finalizationId, stageType: 'wet', hour: '09:00' })
   const dry = await seed(null, 'Secou com volume.', 21, { experimentId, finalizationId, stageType: 'dry', hour: '12:30' })
+  // Umidade e rotina do dia (o produto principal já está nela; com o shampoo, ela entra no PDF).
+  const shampooId = randomUUID()
+  await seed({ product_mode: 'named', product_name: 'Shampoo E', brand: null }, null, 20, { experimentId: shampooId })
+  const admin = adminClient()
+  await admin.from('stages').update({ humidity: 78 }).eq('finalization_id', finalizationId)
+  const items = await admin.from('routine_items').insert({ finalization_id: finalizationId, user_id: me.id, step: 'wash', position: 0, experiment_id: shampooId })
+  if (items.error) throw items.error
 
   await login(page)
   // Diário: menu ⋯ do cartão da finalização.
@@ -234,12 +243,18 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   await expect(choices.first()).toHaveAttribute('aria-checked', 'true')
   await expect(choices.first()).toContainText('Molhado · Seco')
   await expect(dialog.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(
-    'Olha como meu cabelo evoluiu com Creme Evolução (Marca E), na finalização de 21/11:\n• molhado às 09:00;\n• seco às 12:30.\n\nAs fotos estão lado a lado no PDF, com as minhas observações.',
+    'Olha a evolução do meu cabelo com Creme Evolução (Marca E), na finalização de 21/11.\nMolhado e seco lado a lado no PDF, com as minhas observações.\n\nFeito com o Capilário, meu diário do cabelo.',
   )
   const { name, bytes } = await downloadPdf(page, 'Enviar PDF da finalização')
   expect(name).toBe('Finalização 21-11 - Creme Evolução.pdf')
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(bytes.length).toBeGreaterThan(12_000)
+  const text = pdfText(bytes)
+  // Horário e umidade em linhas separadas (numa linha só, invadiam a coluna do lado).
+  expect(text).toContain('(21/11 às 09:00)')
+  expect(text).toContain('(umidade 78%)')
+  // Rotina em lista: a etapa e, ao lado, o produto.
+  expect(text).toMatch(/\(Rotina do dia\)[\s\S]*\(Lavar\)[\s\S]*\(Shampoo E\)[\s\S]*\(Creme Evolu/)
 
   // Detalhe do momento: escolher entre este momento e a finalização inteira.
   await page.goto(`./#/etapa/${dry}`)
@@ -248,7 +263,7 @@ test('PDF da finalização inteira: pelo histórico e pelo detalhe do momento', 
   await expect(sheet.getByRole('button', { name: 'Este momento' })).toHaveAttribute('aria-pressed', 'true')
   await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha como ficou meu cabelo seco/)
   await sheet.getByRole('button', { name: 'Finalização inteira' }).click()
-  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha como meu cabelo evoluiu/)
+  await expect(sheet.getByRole('textbox', { name: 'Mensagem' })).toHaveValue(/^Olha a evolução do meu cabelo/)
   const fin = await downloadPdf(page, 'Enviar PDF')
   expect(fin.name).toBe('Finalização 21-11 - Creme Evolução.pdf')
 })
