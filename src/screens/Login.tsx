@@ -1,7 +1,9 @@
 // Entrada: entrar, recuperar a senha e (quando o cadastro estiver aberto) criar conta.
 import { useState, type FormEvent } from 'react'
 import { LogoMark, Strands } from '../components/Brand'
+import { LegalLinks } from '../components/LegalLinks'
 import { PasswordField } from '../components/PasswordField'
+import { href } from '../lib/router'
 import { MIN_PASSWORD, SIGNUP_OPEN, passwordProblem, requestPasswordReset, signIn, signUp } from '../lib/account'
 
 type Mode = 'login' | 'signup' | 'forgot'
@@ -90,6 +92,11 @@ export function Login() {
               {error}
             </p>
           )}
+          {mode === 'signup' && (
+            <p className="muted small login-consent">
+              Ao criar a conta, você concorda com os <a href={href('/termos')}>Termos de uso</a> e a <a href={href('/privacidade')}>Política de privacidade</a>.
+            </p>
+          )}
           <button className="btn btn-primary btn-block login-submit" disabled={busy}>
             {button}
           </button>
@@ -113,6 +120,7 @@ export function Login() {
           </div>
         </form>
       )}
+      <LegalLinks />
     </main>
   )
 }

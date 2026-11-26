@@ -20,6 +20,7 @@ const loadRoutine = () => import('./screens/RoutineEdit')
 const loadInsight = () => import('./screens/ProductInsight')
 const loadDay = () => import('./screens/FinalizationDetail')
 const loadAccount = () => import('./screens/Account')
+const Legal = lazy(() => import('./screens/Legal').then((m) => ({ default: m.Legal })))
 const StageDetail = lazy(() => loadStageDetail().then((m) => ({ default: m.StageDetail })))
 const ProductEditRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductEditRoute })))
 const ProductNewRoute = lazy(() => loadProductEdit().then((m) => ({ default: m.ProductNewRoute })))
@@ -87,6 +88,13 @@ function Gate() {
   if (path === '/acesso') return <AuthLink key={params.toString()} params={params} />
   // Formato padrão do Supabase (#access_token=…, #error=…): o hash inteiro são os parâmetros.
   if (/^(access_token|error|message)=/.test(path)) return <AuthLink key={path} params={new URLSearchParams(path)} />
+  // Termos e privacidade: com ou sem conta (o login e o cadastro levam para cá).
+  if (path === '/termos' || path === '/privacidade')
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <Legal doc={path === '/termos' ? 'termos' : 'privacidade'} params={params} />
+      </Suspense>
+    )
   if (!ready)
     return (
       <main className="splash" role="status" aria-busy="true" aria-label="Carregando o Capilário">

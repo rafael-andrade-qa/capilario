@@ -2,6 +2,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { PasswordField } from '../components/PasswordField'
+import { LegalLinks } from '../components/LegalLinks'
 import { PlanCard } from '../components/PlanCard'
 import { useToast } from '../components/Toasts'
 import { MIN_PASSWORD, changeEmail, changePassword, deleteAccount, passwordProblem } from '../lib/account'
@@ -61,6 +62,8 @@ export function Account() {
           </button>
         )}
       </section>
+
+      <LegalLinks from="conta" />
     </main>
   )
 }

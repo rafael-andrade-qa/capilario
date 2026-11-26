@@ -4954,3 +4954,53 @@ body::before {
 .plan-nudge .link-btn {
   min-height: 36px;
 }
+
+/* Termos e privacidade ------------------------------------------------------ */
+.legal-links {
+  margin-top: auto;
+  padding-top: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+}
+.account-page .legal-links {
+  margin-top: 28px;
+}
+.legal-links a,
+.login-consent a,
+.legal-page a {
+  color: var(--brand);
+  font-weight: 600;
+}
+.login-consent {
+  margin: -4px 0 0;
+}
+.legal-page {
+  line-height: 1.55;
+}
+.legal-intro {
+  margin: 4px 0 8px;
+}
+.legal-section {
+  margin-top: 22px;
+}
+.legal-section h2 {
+  margin-bottom: 6px;
+}
+.legal-section p,
+.legal-section ul {
+  margin: 0 0 8px;
+}
+.legal-section ul {
+  padding-left: 20px;
+}
+.legal-section li + li {
+  margin-top: 4px;
+}
+.legal-foot {
+  margin-top: 28px;
+}
+.legal-other {
+  margin: 8px 0 0;
+}
