@@ -2,6 +2,7 @@
 // Só a mesma etapa; cada lista esconde o que já está do outro lado; só os ângulos que
 // os dois registros têm ficam clicáveis (ver lib/compare.ts).
 import { PageSkeleton } from '../components/Skeleton'
+import { ComparePreview } from '../components/ComparePreview'
 import { compareLines, compareRoutines, diffRoutine, draftOf, routineShort, stepLabel } from '../lib/routine'
 import { DropIcon } from '../components/ActionIcons'
 import { weatherLong, withHumidity } from '../lib/weather'
@@ -125,14 +126,9 @@ export function Compare({ params }: { params: URLSearchParams }) {
 
   if (entries.size < 2) {
     return (
-      <main className="page">
+      <main className="page compare-page">
         <PageHeader title="Comparar" back={{ label: 'Voltar ao histórico', href: href('/') }} />
-        <p className="alert alert-info">
-          {entries.size === 0 ? 'Você ainda não tem fotos salvas.' : 'Você tem só 1 momento salvo.'} Registre pelo menos dois momentos iguais para comparar.
-        </p>
-        <a className="btn btn-primary" href={href('/novo')}>
-          Novo registro
-        </a>
+        <ComparePreview moments={entries.size} />
       </main>
     )
   }

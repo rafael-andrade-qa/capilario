@@ -102,8 +102,16 @@ async function noHorizontalScroll(page: Page) {
 test('A1: quatro fotos em um envio, troca de posição antes de salvar', async ({ page }) => {
   await login(page, me)
   await expect(page.getByText('Registre sua primeira finalização')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Comparar' })).toBeDisabled()
   await noHorizontalScroll(page)
+  // Sem nada para comparar, o Comparar abre do mesmo jeito, com um exemplo de como fica.
+  await page.getByRole('button', { name: 'Comparar' }).click()
+  await expect(page.getByRole('heading', { name: 'Comparar' })).toBeVisible()
+  await expect(page.getByText('Você ainda não tem finalizações.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('figure', { name: 'Exemplo de comparação' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Nova finalização' })).toHaveAttribute('href', '#/rotina/nova')
+  await noHorizontalScroll(page)
+  await page.getByRole('link', { name: 'Voltar ao histórico' }).click()
+  await expect(page.getByText('Registre sua primeira finalização')).toBeVisible()
 
   // Cadastrar produto: só nome, marca e (opcional) a foto da embalagem; nome e marca obrigatórios.
   await openNewProduct(page)
@@ -417,7 +425,7 @@ test('A7: outra conta não vê os registros da conta pessoal', async ({ page }) 
   await page.goto(`./#/etapa/${ids.wet}`)
   await expect(page.getByText('Momento não encontrado.')).toBeVisible()
   await page.goto(`./#/comparar?a=${ids.wet}&b=${ids.dry}`)
-  await expect(page.getByText('Você ainda não tem fotos salvas.')).toBeVisible()
+  await expect(page.getByText('Você ainda não tem finalizações.', { exact: false })).toBeVisible()
   await page.goto('./')
   await page.getByRole('link', { name: 'Minha conta' }).click()
   await page.getByRole('button', { name: 'Sair da conta' }).click()

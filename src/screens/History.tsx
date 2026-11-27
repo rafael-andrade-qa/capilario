@@ -9,7 +9,7 @@ import { HistorySkeleton } from '../components/Skeleton'
 import { SearchField } from '../components/SearchField'
 import { ProductThumb, coverPhoto, productThumbPath } from '../components/ProductThumb'
 import { DayChips, DayWeather, FinalizationMenu, MomentStrip, dayCover, stagesOf } from '../components/DayParts'
-import { STAGE_LABEL, STAGE_TYPES, brandLabel, finalizationWhen, finalizationsOf, formatTime, productLabel, publishedStages, sortHistory, type Experiment, type Finalization } from '../lib/domain'
+import { STAGE_LABEL, STAGE_TYPES, brandLabel, finalizationWhen, finalizationsOf, formatTime, productLabel, sortHistory, type Experiment, type Finalization } from '../lib/domain'
 import { href, navigate } from '../lib/router'
 import { useHistory, useThumbUrls } from '../lib/state'
 import { PhotosNudge } from '../components/PlanCard'
@@ -59,7 +59,6 @@ export function History({
   useToastOnce(deleted, 'Momento excluído.')
   useToastOnce(productSaved, 'Produto atualizado.')
   useToastOnce(created, 'Produto cadastrado.')
-  const totalStages = list.reduce((n, e) => n + publishedStages(e).length, 0)
 
   const all = useMemo(() => allFinalizations(list), [list])
   const shelf = useMemo(() => list.filter((e) => e.product_mode !== 'none'), [list])
@@ -96,7 +95,7 @@ export function History({
       <header className="topbar">
         <h1 className="wordmark">capilário</h1>
         <div className="topbar-actions">
-          <CompareButton total={totalStages} loading={experiments === null} />
+          <CompareButton />
           <a className="icon-btn" href={href('/conta')} aria-label="Minha conta" title="Minha conta">
             <AccountIcon />
           </a>
@@ -162,11 +161,10 @@ export function History({
   )
 }
 
-/** Comparar: habilitado com ao menos dois momentos. */
-function CompareButton({ total, loading }: { total: number; loading: boolean }) {
-  const ready = !loading && total >= 2
+/** Comparar: sempre abre; sem dois momentos, a tela mostra um exemplo de como fica. */
+function CompareButton() {
   return (
-    <button className="icon-btn" onClick={() => navigate('/comparar')} disabled={!ready} aria-label="Comparar" title="Comparar">
+    <button className="icon-btn" onClick={() => navigate('/comparar')} aria-label="Comparar" title="Comparar">
       <CompareIcon />
     </button>
   )
